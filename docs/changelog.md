@@ -27,3 +27,4 @@
 - Persisted the selected speed as a separate UI preference so reloads keep the player's idle pacing without storing it in the deterministic farm save.
 - Repositioned side-panel tutorial callouts beside the panel so guidance cards do not cover seed-buy, sell, or tier controls.
 - Added readable labels to Crop Mix sliders so playtest reports and replay prompts name crop-specific mix actions.
+- Extended the scripted LLM/player surface tour to pan the camera with the keyboard and zoom with the mouse wheel.

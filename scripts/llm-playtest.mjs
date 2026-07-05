@@ -161,6 +161,8 @@ async function runPlayerSurfaceTour(page) {
   await playerClick(page, '[data-command="undo"]', 'Undo the bulldoze through the visible toolbar');
   await playerClick(page, '[data-tool="inspect"]', 'Select Inspect tool');
   await playerCanvasClick(page, 390, 300, 'Inspect a visible farm tile through the canvas');
+  await playerHoldKey(page, 'ArrowRight', 260, 'Pan the farm camera right with the keyboard');
+  await playerWheelCanvas(page, -360, 'Zoom the farm camera with the mouse wheel');
   await playerClick(page, '[data-panel="goals"]', 'Return to Goals panel after the surface tour');
   await playerClick(page, '[data-speed="4"]', 'Keep the farm at visible 4x speed after the tour');
 }
@@ -213,10 +215,25 @@ async function playerPress(page, key, label) {
   playerActions.push({ kind: 'press', label, key });
 }
 
+async function playerHoldKey(page, key, durationMs, label) {
+  await page.keyboard.down(key);
+  await page.waitForTimeout(durationMs);
+  await page.keyboard.up(key);
+  playerActions.push({ kind: 'press', label, key, durationMs });
+}
+
 async function playerPressSelector(page, selector, key, label) {
   await page.locator(selector).first().focus();
   await page.keyboard.press(key);
   playerActions.push({ kind: 'press', label, selector, key });
+}
+
+async function playerWheelCanvas(page, deltaY, label) {
+  const box = await page.locator('canvas').first().boundingBox();
+  if (!box) throw new Error('Cannot wheel canvas; no visible bounds');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, deltaY);
+  playerActions.push({ kind: 'wheel', label, selector: 'canvas', deltaY });
 }
 
 async function playerWait(page, ms, label) {

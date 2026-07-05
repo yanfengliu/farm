@@ -19,6 +19,8 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('playerDragResize');
     expect(source).toContain('playerPress(');
     expect(source).toContain('playerPressSelector');
+    expect(source).toContain('playerHoldKey');
+    expect(source).toContain('playerWheelCanvas');
     expect(source).toContain('playerReload');
 
     for (const selector of [
@@ -43,9 +45,11 @@ describe('LLM playtest harness player contract', () => {
       '[data-speed="4"]',
       '[data-mix="wheat"]',
       '[data-command="sell-all"]',
+      'ArrowRight',
     ]) {
       expect(source).toContain(selector);
     }
+    expect(source).toContain('Zoom the farm camera');
   });
 
   test('reload verification keeps autosave after the initial clean boot', async () => {

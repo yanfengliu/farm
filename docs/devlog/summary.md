@@ -31,3 +31,4 @@
 - 2026-07-05: Persisted the selected speed as a separate UI preference so reloading an idle farm keeps the player's 2x or 4x pacing without changing the deterministic farm save.
 - 2026-07-05: Moved side-panel tutorial cards beside the panel so seed, sell, and tier guidance no longer covers the controls it asks players to use.
 - 2026-07-05: Added readable action labels to Crop Mix sliders so the LLM/player reports identify them as crop-specific controls instead of anonymous inputs.
+- 2026-07-05: Extended the scripted LLM player surface tour to exercise camera panning and wheel zoom, matching the documented player controls.

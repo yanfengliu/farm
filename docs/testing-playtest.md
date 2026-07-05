@@ -95,6 +95,7 @@ The replay bundle is a deterministic debugging aid. It can use the simulation di
 - Place wells and storage bins.
 - Buy adjacent land.
 - Adjust crop mix.
+- Pan and zoom the camera without losing access to farm controls.
 - Sell a crop amount and sell all crops.
 - Trigger crop overflow auto-sell.
 - Pause and use 1x, 2x, 4x speeds.
