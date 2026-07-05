@@ -193,10 +193,7 @@ class FarmScene extends Phaser.Scene {
     const px = x * TILE_SIZE;
     const py = y * TILE_SIZE;
     if (!tile) {
-      g.fillStyle(tileVariant(x, y, [0x101711, 0x111b12, 0x0e150f]), 1);
-      g.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
-      g.fillStyle(0x172018, 1);
-      if ((x + y) % 3 === 0) g.fillRect(px + 13, py + 13, 5, 5);
+      this.drawLockedLand(g, px, py, x, y);
       return;
     }
 
@@ -217,17 +214,48 @@ class FarmScene extends Phaser.Scene {
     }
   }
 
+  private drawLockedLand(g: Phaser.GameObjects.Graphics, px: number, py: number, x: number, y: number): void {
+    g.fillStyle(tileVariant(x, y, [0x101711, 0x111b12, 0x0e150f]), 1);
+    g.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
+    g.lineStyle(1, 0x17261a, 0.75);
+    g.strokeRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
+    g.fillStyle(tileVariant(x, y, [0x1a281d, 0x203224, 0x162318]), 1);
+    if ((x + y) % 3 === 0) g.fillRect(px + 13, py + 13, 5, 5);
+    if ((x * 5 + y) % 4 === 0) {
+      g.fillRect(px + 6, py + 21, 2, 5);
+      g.fillRect(px + 9, py + 23, 4, 2);
+    }
+    if ((x * 7 + y) % 5 === 0) {
+      g.fillStyle(0x253126, 1);
+      g.fillRect(px + 22, py + 8, 5, 3);
+      g.fillStyle(0x394439, 1);
+      g.fillRect(px + 23, py + 8, 2, 1);
+    }
+  }
+
   private drawPlot(g: Phaser.GameObjects.Graphics, px: number, py: number, tile: FarmTile): void {
     g.fillStyle(0x72482d, 1);
     g.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+    g.fillStyle(0x53321f, 1);
+    g.fillRect(px + 4, py + 4, TILE_SIZE - 8, 2);
+    g.fillRect(px + 4, py + 26, TILE_SIZE - 8, 2);
+    g.fillRect(px + 4, py + 4, 2, TILE_SIZE - 8);
+    g.fillRect(px + 26, py + 4, 2, TILE_SIZE - 8);
     g.fillStyle(0x8a5c35, 1);
     g.fillRect(px + 6, py + 7, TILE_SIZE - 12, 3);
     g.fillRect(px + 6, py + 14, TILE_SIZE - 12, 3);
     g.fillRect(px + 6, py + 21, TILE_SIZE - 12, 3);
+    g.fillStyle(0x9d7044, 1);
+    g.fillRect(px + 8, py + 8, 7, 1);
+    g.fillRect(px + 17, py + 15, 8, 1);
+    g.fillRect(px + 9, py + 22, 6, 1);
     if (!tile.plot) {
       g.fillStyle(0x4d2f1e, 1);
       g.fillRect(px + 10, py + 10, 12, 3);
       g.fillRect(px + 9, py + 18, 14, 3);
+      g.fillStyle(0xc09255, 1);
+      g.fillRect(px + 12, py + 11, 2, 1);
+      g.fillRect(px + 19, py + 19, 2, 1);
       return;
     }
 
@@ -255,44 +283,92 @@ class FarmScene extends Phaser.Scene {
     if (tile.kind !== 'empty') return;
     const tuftColor = tileVariant(x, y, [0x79a765, 0x83ad6c, 0x557f48]);
     g.fillStyle(tuftColor, 0.85);
-    if ((x * 3 + y) % 2 === 0) g.fillRect(px + 7, py + 9, 3, 7);
-    if ((x + y * 5) % 3 === 0) g.fillRect(px + 21, py + 20, 5, 2);
-    if ((x * 7 + y) % 4 === 0) g.fillRect(px + 15, py + 6, 2, 4);
+    if ((x * 3 + y) % 2 === 0) {
+      g.fillRect(px + 7, py + 9, 2, 7);
+      g.fillRect(px + 9, py + 12, 3, 2);
+      g.fillRect(px + 5, py + 14, 3, 2);
+    }
+    if ((x + y * 5) % 3 === 0) {
+      g.fillRect(px + 21, py + 20, 5, 2);
+      g.fillRect(px + 23, py + 17, 2, 4);
+    }
+    if ((x * 7 + y) % 4 === 0) {
+      g.fillStyle(0xdac16c, 1);
+      g.fillRect(px + 15, py + 6, 2, 2);
+      g.fillStyle(0x6b9955, 1);
+      g.fillRect(px + 14, py + 8, 4, 1);
+    }
+    if ((x * 11 + y) % 5 === 0) {
+      g.fillStyle(0x4f6f4c, 1);
+      g.fillRect(px + 24, py + 7, 4, 3);
+      g.fillStyle(0x89a374, 1);
+      g.fillRect(px + 25, py + 7, 2, 1);
+    }
   }
 
   private drawPath(g: Phaser.GameObjects.Graphics, px: number, py: number, x: number, y: number): void {
+    g.fillStyle(0x8d744d, 1);
+    g.fillRect(px + 2, py + 9, TILE_SIZE - 4, 14);
     g.fillStyle(0xd2bd7d, 1);
-    g.fillRect(px + 2, py + 12, TILE_SIZE - 4, 8);
-    g.fillStyle(tileVariant(x, y, [0x947749, 0x7e613d, 0xb39458]), 1);
-    g.fillRect(px + 6, py + 8, 5, 4);
-    g.fillRect(px + 18, py + 20, 6, 3);
+    g.fillRect(px + 3, py + 11, TILE_SIZE - 6, 10);
+    g.fillStyle(0xbda56c, 1);
+    g.fillRect(px + 4, py + 14, 11, 4);
+    g.fillRect(px + 17, py + 12, 10, 4);
+    g.fillRect(px + 16, py + 18, 8, 2);
+    g.fillStyle(tileVariant(x, y, [0x7e613d, 0x9c7b4c, 0x6d5335]), 1);
+    g.fillRect(px + 7, py + 7, 5, 3);
+    g.fillRect(px + 22, py + 22, 5, 3);
+    g.fillStyle(0xf0d98d, 0.85);
+    if ((x + y) % 2 === 0) g.fillRect(px + 9, py + 12, 3, 1);
+    if ((x * 3 + y) % 2 === 0) g.fillRect(px + 20, py + 18, 4, 1);
   }
 
   private drawWell(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
-    g.fillStyle(0x415262, 1);
-    g.fillRect(px + 6, py + 12, 20, 14);
-    g.fillStyle(0x6f8594, 1);
-    g.fillRect(px + 8, py + 9, 16, 16);
-    g.fillStyle(0x9bb3bd, 1);
-    g.fillRect(px + 11, py + 12, 10, 10);
-    g.fillStyle(0x3e8cb5, 1);
-    g.fillRect(px + 12, py + 13, 8, 8);
-    g.fillStyle(0x29404b, 1);
-    g.fillRect(px + 5, py + 7, 22, 4);
-    g.fillStyle(0x7c4d35, 1);
-    g.fillRect(px + 8, py + 5, 16, 3);
+    g.fillStyle(0x2f3f49, 1);
+    g.fillRect(px + 6, py + 13, 20, 13);
+    g.fillStyle(0x758895, 1);
+    g.fillRect(px + 8, py + 10, 16, 16);
+    g.fillStyle(0xa5b8bd, 1);
+    g.fillRect(px + 10, py + 12, 12, 2);
+    g.fillRect(px + 8, py + 15, 3, 5);
+    g.fillRect(px + 21, py + 15, 3, 5);
+    g.fillStyle(0x4c6471, 1);
+    g.fillRect(px + 11, py + 21, 10, 4);
+    g.fillStyle(0x1f638d, 1);
+    g.fillRect(px + 12, py + 15, 8, 7);
+    g.fillStyle(0x79c7df, 1);
+    g.fillRect(px + 14, py + 16, 4, 2);
+    g.fillStyle(0x6f442c, 1);
+    g.fillRect(px + 6, py + 6, 3, 8);
+    g.fillRect(px + 23, py + 6, 3, 8);
+    g.fillRect(px + 7, py + 5, 18, 3);
+    g.fillStyle(0xa96e3f, 1);
+    g.fillRect(px + 9, py + 3, 14, 3);
+    g.fillStyle(0x3c2a1e, 1);
+    g.fillRect(px + 15, py + 7, 2, 7);
+    g.fillStyle(0x9a7552, 1);
+    g.fillRect(px + 14, py + 13, 4, 3);
   }
 
   private drawStorage(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
-    g.fillStyle(0x7b4928, 1);
-    g.fillRect(px + 5, py + 10, 22, 17);
+    g.fillStyle(0x5d3420, 1);
+    g.fillRect(px + 5, py + 9, 22, 18);
     g.fillStyle(0xbb7c44, 1);
-    g.fillRect(px + 7, py + 12, 18, 13);
-    g.fillStyle(0x63351e, 1);
-    g.fillRect(px + 5, py + 8, 22, 4);
-    g.fillRect(px + 9, py + 17, 14, 3);
-    g.fillStyle(0xd49a59, 1);
-    g.fillRect(px + 9, py + 13, 4, 3);
+    g.fillRect(px + 7, py + 11, 18, 14);
+    g.fillStyle(0x7a4428, 1);
+    g.fillRect(px + 7, py + 15, 18, 3);
+    g.fillRect(px + 7, py + 22, 18, 2);
+    g.fillRect(px + 14, py + 11, 3, 14);
+    g.fillStyle(0xd8a45f, 1);
+    g.fillRect(px + 9, py + 12, 4, 2);
+    g.fillRect(px + 19, py + 19, 4, 2);
+    g.fillStyle(0x3d261a, 1);
+    g.fillRect(px + 5, py + 8, 22, 3);
+    g.fillRect(px + 9, py + 17, 14, 2);
+    g.fillStyle(0xc4aa77, 1);
+    g.fillRect(px + 4, py + 19, 5, 7);
+    g.fillStyle(0x8f7650, 1);
+    g.fillRect(px + 5, py + 23, 3, 1);
   }
 
   private drawCrop(
@@ -307,24 +383,50 @@ class FarmScene extends Phaser.Scene {
     const leaf = needsWater ? 0x8b9b57 : ready ? 0x4f9d4f : 0x65b85e;
     const crop = cropColor(cropId, ready, needsWater);
     const stemHeight = Math.max(4, Math.floor(5 + growthRatio * 9));
-    g.fillStyle(leaf, 1);
-    g.fillRect(px + 14, py + 19 - stemHeight, 4, stemHeight);
-    g.fillRect(px + 10, py + 17 - Math.floor(stemHeight / 2), 7, 3);
-    g.fillRect(px + 16, py + 14 - Math.floor(stemHeight / 2), 7, 3);
     if (cropId === 'carrot') {
-      g.fillStyle(crop, 1);
-      g.fillRect(px + 13, py + 19, 6, ready ? 8 : 4);
-      if (ready) g.fillRect(px + 14, py + 27, 4, 2);
+      for (const xOffset of [10, 16, 22]) {
+        const top = py + 22 - Math.floor(growthRatio * 8);
+        g.fillStyle(leaf, 1);
+        g.fillRect(px + xOffset - 1, top, 2, 6);
+        g.fillRect(px + xOffset - 4, top + 2, 4, 2);
+        g.fillRect(px + xOffset + 1, top + 1, 4, 2);
+        g.fillStyle(0x3f7f3e, 1);
+        g.fillRect(px + xOffset, top + 3, 1, 3);
+        if (ready || growthRatio > 0.62) {
+          g.fillStyle(crop, 1);
+          g.fillRect(px + xOffset - 2, py + 21, 4, ready ? 7 : 4);
+          g.fillStyle(0xf4ad62, 1);
+          g.fillRect(px + xOffset - 1, py + 22, 2, 2);
+        }
+      }
     } else if (cropId === 'wheat') {
-      g.fillStyle(crop, 1);
-      for (let i = 0; i < 3; i++) {
-        g.fillRect(px + 10 + i * 5, py + 12, 3, ready ? 11 : 6);
+      g.fillStyle(0x896a2f, 1);
+      for (const xOffset of [9, 13, 17, 21]) {
+        const height = Math.floor(6 + growthRatio * 10);
+        const top = py + 25 - height;
+        g.fillRect(px + xOffset, top, 2, height);
+        g.fillStyle(crop, 1);
+        g.fillRect(px + xOffset - 2, top, 6, ready ? 4 : 2);
+        g.fillStyle(0xf2d87a, 1);
+        if (ready) g.fillRect(px + xOffset - 1, top + 1, 2, 1);
+        g.fillStyle(0x896a2f, 1);
       }
     } else {
+      g.fillStyle(0x5d4b2d, 1);
+      g.fillRect(px + 10, py + 9, 2, 16);
+      g.fillRect(px + 21, py + 9, 2, 16);
+      g.fillRect(px + 10, py + 10, 13, 2);
+      g.fillStyle(leaf, 1);
+      g.fillRect(px + 12, py + 16 - Math.floor(stemHeight / 3), 9, 3);
+      g.fillRect(px + 15, py + 13 - Math.floor(stemHeight / 4), 5, 6);
       g.fillStyle(crop, 1);
-      const fruit = ready ? 5 : 3;
-      g.fillRect(px + 10, py + 16, fruit, fruit);
-      g.fillRect(px + 18, py + 14, fruit, fruit);
+      if (growthRatio > 0.35) g.fillRect(px + 12, py + 17, ready ? 5 : 3, ready ? 5 : 3);
+      if (growthRatio > 0.55) g.fillRect(px + 19, py + 15, ready ? 5 : 3, ready ? 5 : 3);
+      if (ready) {
+        g.fillStyle(0xff7767, 1);
+        g.fillRect(px + 13, py + 18, 2, 1);
+        g.fillRect(px + 20, py + 16, 2, 1);
+      }
     }
   }
 
@@ -343,19 +445,49 @@ class FarmScene extends Phaser.Scene {
     const py = y * TILE_SIZE + TILE_SIZE / 2 + offset.y + bob;
     g.fillStyle(0x2a1d16, 0.25);
     g.fillRect(px - 8, py + 8, 16, 3);
-    g.fillStyle(task === 'idle' ? 0xf5d58f : 0xf0b85d, 1);
+    g.fillStyle(0x5f8fb0, 1);
     g.fillRect(px - 5, py - 2, 10, 12);
+    g.fillStyle(task === 'idle' ? 0xf5d58f : 0xf0b85d, 1);
+    g.fillRect(px - 4, py - 3, 8, 5);
+    g.fillStyle(0x3d5f7b, 1);
+    g.fillRect(px - 4, py + 4, 3, 6);
+    g.fillRect(px + 1, py + 4, 3, 6);
     g.fillStyle(0xffdfb0, 1);
     g.fillRect(px - 4, py - 10, 8, 8);
+    g.fillStyle(0x2f2119, 1);
+    g.fillRect(px - 2, py - 7, 1, 1);
+    g.fillRect(px + 2, py - 7, 1, 1);
+    g.fillRect(px - 1, py - 4, 3, 1);
     g.fillStyle(0x5c351e, 1);
     g.fillRect(px - 6, py - 12, 12, 4);
     g.fillRect(px - 3, py - 14, 6, 3);
     g.fillStyle(0x3a2820, 1);
     g.fillRect(px - 5, py + 10, 4, 4);
     g.fillRect(px + 1, py + 10, 4, 4);
+    g.fillStyle(0xffdfb0, 1);
+    g.fillRect(px - 8, py, 3, 6);
+    g.fillRect(px + 5, py, 3, 6);
     if (cargo) {
       g.fillStyle(cargo === 'water' ? 0x62a9c8 : cargo === 'seed' ? 0xb98648 : 0xe08a3a, 1);
-      g.fillRect(px + 6, py - 1, 5, 6);
+      if (cargo === 'water') {
+        g.fillRect(px + 6, py + 2, 5, 6);
+        g.fillStyle(0xa7d8e5, 1);
+        g.fillRect(px + 7, py + 3, 3, 1);
+      } else if (cargo === 'seed') {
+        g.fillRect(px + 6, py + 2, 5, 6);
+        g.fillStyle(0xf0ca74, 1);
+        g.fillRect(px + 7, py + 3, 1, 1);
+        g.fillRect(px + 9, py + 5, 1, 1);
+      } else {
+        g.fillRect(px + 6, py + 1, 6, 7);
+        g.fillStyle(0x7a4a28, 1);
+        g.fillRect(px + 6, py, 6, 2);
+      }
+    } else if (task === 'harvesting') {
+      g.fillStyle(0x8c6a3d, 1);
+      g.fillRect(px + 7, py - 2, 2, 10);
+      g.fillStyle(0xd8c07c, 1);
+      g.fillRect(px + 8, py - 3, 5, 2);
     }
   }
 }
