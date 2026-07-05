@@ -54,6 +54,8 @@ type TutorialTip = {
   targetSelector: string;
 };
 
+type TutorialTipPlacement = 'above' | 'below' | 'side-left';
+
 const TILE_SIZE = 32;
 const PAN_SPEED = 420;
 const PANEL_RENDER_INTERVAL_MS = 250;
@@ -66,6 +68,7 @@ const PANEL_WIDTH_MAX = 560;
 const PANEL_PLAYFIELD_MIN = 360;
 const TUTORIAL_TIP_WIDTH = 286;
 const TUTORIAL_VIEWPORT_PADDING = 8;
+const TUTORIAL_TARGET_GAP = 12;
 
 let farmGame: FarmGame = createFarmGame({ state: loadSavedFarmState() ?? undefined });
 let selectedTool: Tool = 'inspect';
@@ -818,16 +821,9 @@ function renderTutorialTip(): void {
     return;
   }
 
-  const rect = target.getBoundingClientRect();
-  const left = clamp(
-    rect.left + rect.width / 2 - TUTORIAL_TIP_WIDTH / 2,
-    TUTORIAL_VIEWPORT_PADDING,
-    window.innerWidth - TUTORIAL_TIP_WIDTH - TUTORIAL_VIEWPORT_PADDING,
-  );
-  const above = rect.top > window.innerHeight * 0.55;
-  const top = above ? rect.top - 10 : rect.bottom + 10;
+  const { left, top, placement } = tutorialTipPosition(target);
   const markup = `
-    <aside class="tutorial-tip ${above ? 'above' : 'below'}" style="left: ${left}px; top: ${top}px;" data-tutorial-tip="${tip.id}">
+    <aside class="tutorial-tip ${placement}" style="left: ${left}px; top: ${top}px;" data-tutorial-tip="${tip.id}">
       <div class="tutorial-callout-icon">${iconSvg(tip.icon)}</div>
       <div>
         <span class="banner-kicker">Next Click</span>
@@ -844,11 +840,40 @@ function renderTutorialTip(): void {
   keepTutorialTipInView();
 }
 
+function tutorialTipPosition(target: HTMLElement): { left: number; top: number; placement: TutorialTipPlacement } {
+  const rect = target.getBoundingClientRect();
+  const panelRect = sidePanel.getBoundingClientRect();
+  const sidePanelTarget = sidePanel.contains(target);
+
+  if (sidePanelTarget && panelRect.left - TUTORIAL_TIP_WIDTH - TUTORIAL_TARGET_GAP >= TUTORIAL_VIEWPORT_PADDING) {
+    return {
+      placement: 'side-left',
+      left: Math.round(panelRect.left - TUTORIAL_TIP_WIDTH - TUTORIAL_TARGET_GAP),
+      top: Math.round(rect.top + rect.height / 2),
+    };
+  }
+
+  const left = clamp(
+    rect.left + rect.width / 2 - TUTORIAL_TIP_WIDTH / 2,
+    TUTORIAL_VIEWPORT_PADDING,
+    window.innerWidth - TUTORIAL_TIP_WIDTH - TUTORIAL_VIEWPORT_PADDING,
+  );
+  const above = rect.top > window.innerHeight * 0.55;
+  const top = above ? rect.top - TUTORIAL_TARGET_GAP : rect.bottom + TUTORIAL_TARGET_GAP;
+  return {
+    placement: above ? 'above' : 'below',
+    left: Math.round(left),
+    top: Math.round(top),
+  };
+}
+
 function keepTutorialTipInView(): void {
   const tip = tutorialLayer.querySelector<HTMLElement>('.tutorial-tip');
   if (!tip) return;
 
+  const playAreaTop = playArea.getBoundingClientRect().top;
   const toolbarTop = toolbar.getBoundingClientRect().top;
+  const minTop = playAreaTop + TUTORIAL_VIEWPORT_PADDING;
   const maxBottom = toolbarTop - TUTORIAL_VIEWPORT_PADDING;
   let left = Number.parseFloat(tip.style.left || '0');
   let top = Number.parseFloat(tip.style.top || '0');
@@ -860,8 +885,8 @@ function keepTutorialTipInView(): void {
   if (rect.right > window.innerWidth - TUTORIAL_VIEWPORT_PADDING) {
     left -= rect.right - (window.innerWidth - TUTORIAL_VIEWPORT_PADDING);
   }
-  if (rect.top < TUTORIAL_VIEWPORT_PADDING) {
-    top += TUTORIAL_VIEWPORT_PADDING - rect.top;
+  if (rect.top < minTop) {
+    top += minTop - rect.top;
   }
   if (rect.bottom > maxBottom) {
     top -= rect.bottom - maxBottom;

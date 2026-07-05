@@ -703,6 +703,10 @@ body.panel-resizing .panel-resizer::before {
   transform: translateY(-100%);
 }
 
+.tutorial-tip.side-left {
+  transform: translateY(-50%);
+}
+
 .tutorial-tip::after {
   content: "";
   position: absolute;
@@ -722,6 +726,13 @@ body.panel-resizing .panel-resizer::before {
 .tutorial-tip.above::after {
   bottom: -6px;
   transform: translateX(-50%) rotate(45deg);
+}
+
+.tutorial-tip.side-left::after {
+  right: -6px;
+  left: auto;
+  top: 50%;
+  transform: translateY(-50%) rotate(315deg);
 }
 
 .tutorial-callout-icon {
