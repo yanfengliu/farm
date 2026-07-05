@@ -41,6 +41,20 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain("findAction(observation, '[data-buy-seeds')");
   });
 
+  test('visual loop follows the crop mix tutorial prompt', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('NEXT CLICK Tune Crop Mix');
+    expect(source).toContain("findAction(observation, '[data-panel=\"mix\"]')");
+  });
+
+  test('visual loop tries a visible worker upgrade during the goals flow', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('function findUpgradeAction');
+    expect(source).toContain("findAction(observation, '[data-buy-upgrade=\"boots\"]')");
+  });
+
   test('visual loop does not persist external provider command strings', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

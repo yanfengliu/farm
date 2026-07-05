@@ -63,6 +63,8 @@ const PANEL_WIDTH_DEFAULT = 320;
 const PANEL_WIDTH_MIN = 300;
 const PANEL_WIDTH_MAX = 560;
 const PANEL_PLAYFIELD_MIN = 360;
+const TUTORIAL_TIP_WIDTH = 286;
+const TUTORIAL_VIEWPORT_PADDING = 8;
 
 let farmGame: FarmGame = createFarmGame({ state: loadSavedFarmState() ?? undefined });
 let selectedTool: Tool = 'inspect';
@@ -741,12 +743,13 @@ function renderPanel(): void {
   const state = getFarmSnapshot(farmGame);
   let markup = '';
   if (activePanel === 'inventory') {
+    const hasSellableCrops = storedCropCount(state) > 0;
     markup = `
       <h2>Inventory</h2>
       ${CROP_IDS.map((id) => inventoryRow(state, id)).join('')}
       <h3>Seeds</h3>
       ${CROP_IDS.map((id) => seedRow(state, id)).join('')}
-      <button data-command="sell-all" title="Sell all crops" aria-label="Sell all crops">${buttonContent('coins', 'Sell All')}</button>
+      <button data-command="sell-all" ${hasSellableCrops ? '' : 'disabled'} title="Sell all crops" aria-label="Sell all crops">${buttonContent('coins', 'Sell All')}</button>
       <p class="small">Crop overflow auto-sells at normal price. Seeds never auto-sell.</p>
     `;
   } else if (activePanel === 'goals') {
@@ -810,8 +813,11 @@ function renderTutorialTip(): void {
   }
 
   const rect = target.getBoundingClientRect();
-  const width = 260;
-  const left = clamp(rect.left + rect.width / 2 - width / 2, 8, window.innerWidth - width - 8);
+  const left = clamp(
+    rect.left + rect.width / 2 - TUTORIAL_TIP_WIDTH / 2,
+    TUTORIAL_VIEWPORT_PADDING,
+    window.innerWidth - TUTORIAL_TIP_WIDTH - TUTORIAL_VIEWPORT_PADDING,
+  );
   const above = rect.top > window.innerHeight * 0.55;
   const top = above ? rect.top - 10 : rect.bottom + 10;
   const markup = `
@@ -829,6 +835,34 @@ function renderTutorialTip(): void {
     tutorialLayer.innerHTML = markup;
     lastTutorialMarkup = markup;
   }
+  keepTutorialTipInView();
+}
+
+function keepTutorialTipInView(): void {
+  const tip = tutorialLayer.querySelector<HTMLElement>('.tutorial-tip');
+  if (!tip) return;
+
+  const toolbarTop = toolbar.getBoundingClientRect().top;
+  const maxBottom = toolbarTop - TUTORIAL_VIEWPORT_PADDING;
+  let left = Number.parseFloat(tip.style.left || '0');
+  let top = Number.parseFloat(tip.style.top || '0');
+  const rect = tip.getBoundingClientRect();
+
+  if (rect.left < TUTORIAL_VIEWPORT_PADDING) {
+    left += TUTORIAL_VIEWPORT_PADDING - rect.left;
+  }
+  if (rect.right > window.innerWidth - TUTORIAL_VIEWPORT_PADDING) {
+    left -= rect.right - (window.innerWidth - TUTORIAL_VIEWPORT_PADDING);
+  }
+  if (rect.top < TUTORIAL_VIEWPORT_PADDING) {
+    top += TUTORIAL_VIEWPORT_PADDING - rect.top;
+  }
+  if (rect.bottom > maxBottom) {
+    top -= rect.bottom - maxBottom;
+  }
+
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${top}px`;
 }
 
 function currentTutorialTip(state: FarmState): TutorialTip | null {
@@ -948,12 +982,14 @@ function clearTutorialTip(): void {
 }
 
 function inventoryRow(state: FarmState, cropId: CropId): string {
+  const count = state.inventory.crops[cropId];
+  const disabled = count > 0 ? '' : 'disabled';
   return `
     <div class="row">
-      <span class="row-label">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label}: ${state.inventory.crops[cropId]}</span>
+      <span class="row-label">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label}: ${count}</span>
       <span>
-        <button data-sell="${cropId}" data-amount="1" title="Sell 1 ${CROPS[cropId].label}" aria-label="Sell 1 ${CROPS[cropId].label}">${buttonContent('coins', '1')}</button>
-        <button data-sell="${cropId}" data-amount="5" title="Sell 5 ${CROPS[cropId].label}" aria-label="Sell 5 ${CROPS[cropId].label}">${buttonContent('coins', '5')}</button>
+        <button data-sell="${cropId}" data-amount="1" ${disabled} title="Sell 1 ${CROPS[cropId].label}" aria-label="Sell 1 ${CROPS[cropId].label}">${buttonContent('coins', '1')}</button>
+        <button data-sell="${cropId}" data-amount="5" ${disabled} title="Sell 5 ${CROPS[cropId].label}" aria-label="Sell 5 ${CROPS[cropId].label}">${buttonContent('coins', '5')}</button>
       </span>
     </div>
   `;
@@ -961,10 +997,12 @@ function inventoryRow(state: FarmState, cropId: CropId): string {
 
 function seedRow(state: FarmState, cropId: CropId): string {
   const locked = !state.tier.unlockedCrops.includes(cropId);
+  const unaffordable = state.coins < CROPS[cropId].seedPrice;
+  const disabled = locked || unaffordable;
   return `
     <div class="row">
       <span class="row-label">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label} seeds: ${state.inventory.seeds[cropId]}</span>
-      <button data-buy-seeds="${cropId}" ${locked ? 'disabled' : ''} title="Buy ${CROPS[cropId].label} seeds" aria-label="Buy ${CROPS[cropId].label} seeds">${buttonContent('seed', `${CROPS[cropId].seedPrice}c`)}</button>
+      <button data-buy-seeds="${cropId}" ${disabled ? 'disabled' : ''} title="Buy ${CROPS[cropId].label} seeds" aria-label="Buy ${CROPS[cropId].label} seeds">${buttonContent('seed', `${CROPS[cropId].seedPrice}c`)}</button>
     </div>
   `;
 }
@@ -1034,13 +1072,14 @@ function upgradeRow(state: FarmState, upgradeId: UpgradeId): string {
   const level = state.upgrades[upgradeId];
   const maxed = level >= upgrade.maxLevel;
   const cost = upgrade.costs[level];
+  const disabled = maxed || state.coins < cost;
   return `
     <div class="upgrade-row">
       <div>
         <strong>${upgrade.label} ${level}/${upgrade.maxLevel}</strong>
         <p class="small">${upgrade.description}</p>
       </div>
-      <button data-buy-upgrade="${upgradeId}" ${maxed ? 'disabled' : ''} title="${maxed ? `${upgrade.label} maxed` : `Buy ${upgrade.label}`}" aria-label="${maxed ? `${upgrade.label} maxed` : `Buy ${upgrade.label}`}">${buttonContent('upgrade', maxed ? 'Max' : `${cost}c`)}</button>
+      <button data-buy-upgrade="${upgradeId}" ${disabled ? 'disabled' : ''} title="${maxed ? `${upgrade.label} maxed` : `Buy ${upgrade.label}`}" aria-label="${maxed ? `${upgrade.label} maxed` : `Buy ${upgrade.label}`}">${buttonContent('upgrade', maxed ? 'Max' : `${cost}c`)}</button>
     </div>
   `;
 }

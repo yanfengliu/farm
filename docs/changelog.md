@@ -21,3 +21,4 @@
 - Fixed worker task assignment so multiple farmhands reserve different active plot targets instead of wasting trips on the same planting, watering, or harvesting job.
 - Changed the LLM browser playtest harness to drive scenarios through visible player controls, while reporting screenshots, visible text, available actions, and player action logs for LLM review.
 - Added `npm run playtest:llm:visual-loop`, a step-by-step screenshot/action/replay harness for LLM-style playtesting through visible player controls.
+- Tightened the visual-loop playtest path by exercising Worker Boots, disabling empty or unaffordable economy actions, and keeping tutorial callouts inside the visible play area.

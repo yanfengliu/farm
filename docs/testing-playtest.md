@@ -63,6 +63,8 @@ The visual loop writes:
 
 Use `latest.html` to watch the screenshot replay with each observation, decision, execution result, available action list, and finding. The visual loop should remain a player-surface harness: it may clear localStorage before load for a fresh run, but decisions should be based on screenshots, visible text, and available controls, not private simulation state.
 
+The default local visual-loop heuristic should keep exercising the early upgrade path: after opening Goals, it buys the first visible Worker Boots upgrade when affordable, then continues watching, selling, claiming tiers, opening Crop Mix, painting plots, and restocking seeds through visible controls. Keep dead-end controls disabled, such as empty sell actions and unaffordable seed or upgrade buys, so the extracted action list matches what a player can meaningfully do.
+
 The worker-care scenario checks that seed-shortage stalls are explained and actionable: when workers are idle with empty plots, no desired unlocked seeds, and enough coins to buy seeds, the UI should show guidance and at least one visible seed-buy action.
 
 The same scenario records duplicate active worker plot targets. Multiple workers can share a storage bin or well, but they should not reserve the same planting, watering, or harvesting plot target when other eligible plot work exists.

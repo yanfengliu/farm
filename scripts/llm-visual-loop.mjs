@@ -240,6 +240,11 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(tutorialAction, `Follow the visible tutorial prompt: ${tutorialAction.label}.`);
   }
 
+  const upgradeAction = findUpgradeAction(observation);
+  if (upgradeAction && !clickedSelectors.has(upgradeAction.selector) && /Tool Upgrades|Worker Boots/i.test(observation.visibleText)) {
+    return clickDecision(upgradeAction, 'Buy the visible worker upgrade so the playtest exercises progression beyond selling and tier claims.');
+  }
+
   const sellAllAction = findAction(observation, '[data-command="sell-all"]');
   if (sellAllAction && hasVisibleSellableCrops(observation.visibleText)) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
@@ -287,6 +292,7 @@ function tutorialActionFromText(observation) {
   if (/NEXT CLICK Select Plot/i.test(text)) return findAction(observation, '[data-tool="plot"]');
   if (/NEXT CLICK Open Inventory/i.test(text)) return findAction(observation, '[data-panel="inventory"]');
   if (/NEXT CLICK Open Goals/i.test(text)) return findAction(observation, '[data-panel="goals"]');
+  if (/NEXT CLICK Tune Crop Mix/i.test(text)) return findAction(observation, '[data-panel="mix"]');
   if (/NEXT CLICK Buy seeds/i.test(text)) return findSeedAction(observation);
   if (/NEXT CLICK Claim/i.test(text)) return findAction(observation, '[data-command="claim-tier"]');
   return null;
@@ -318,6 +324,13 @@ function findSeedAction(observation) {
     findAction(observation, '[data-seed-guidance-action]') ||
     findAction(observation, '[data-buy-seeds') ||
     observation.availableActions.find((action) => /buy .*seeds/i.test(action.label))
+  );
+}
+
+function findUpgradeAction(observation) {
+  return (
+    findAction(observation, '[data-buy-upgrade="boots"]') ||
+    observation.availableActions.find((action) => /buy worker boots/i.test(action.label))
   );
 }
 

@@ -25,3 +25,4 @@
 - 2026-07-05: Fixed duplicate worker plot targeting so extra farmhands reserve separate planting, watering, and harvesting jobs when enough work is available.
 - 2026-07-05: Reworked the LLM browser playtest harness so browser scenarios are controlled through visible player actions and reports include observations/actions an LLM can review.
 - 2026-07-05: Added a step-by-step LLM visual playtest loop with screenshot observations, visible action extraction, player-only execution, optional external decision provider, and an HTML replay viewer.
+- 2026-07-05: Extended the visual loop to exercise the first Worker Boots upgrade, disabled empty or unaffordable economy actions, and clamped tutorial tips so canvas and panel prompts remain visible in screenshots.
