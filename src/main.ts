@@ -59,6 +59,7 @@ const PAN_SPEED = 420;
 const PANEL_RENDER_INTERVAL_MS = 250;
 const TUTORIAL_STORAGE_KEY = 'farm-tutorial-seen-v1';
 const PANEL_WIDTH_STORAGE_KEY = 'farm-side-panel-width-v1';
+const SPEED_STORAGE_KEY = 'farm-speed-v1';
 const PANEL_WIDTH_DEFAULT = 320;
 const PANEL_WIDTH_MIN = 300;
 const PANEL_WIDTH_MAX = 560;
@@ -71,7 +72,7 @@ let selectedTool: Tool = 'inspect';
 let activePanel: Panel = 'inventory';
 let selectedCell: { x: number; y: number } | null = null;
 let paused = false;
-let speed = 1;
+let speed = loadSpeed();
 let lastSavedAt = 0;
 let lastPaintKey = '';
 let simulationRemainderMs = 0;
@@ -1240,13 +1241,27 @@ function markTutorialSeen(id: string): void {
   clearTutorialTip();
 }
 
+function loadSpeed(): 1 | 2 | 4 {
+  try {
+    const stored = Number(localStorage.getItem(SPEED_STORAGE_KEY));
+    return stored === 2 || stored === 4 ? stored : 1;
+  } catch {
+    return 1;
+  }
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
 function setSpeed(next: number): void {
-  speed = next;
+  speed = next === 2 || next === 4 ? next : 1;
   paused = false;
+  try {
+    localStorage.setItem(SPEED_STORAGE_KEY, String(speed));
+  } catch {
+    // Local storage can fail in private or restricted browser contexts.
+  }
 }
 
 function advanceRealtime(ms: number): void {
