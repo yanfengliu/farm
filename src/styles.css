@@ -1,15 +1,18 @@
 :root {
   color-scheme: dark;
-  --bg: #17211c;
-  --hud: #202d28;
-  --panel: #1b2520;
-  --panel-soft: #243229;
-  --line: #4c624f;
-  --line-bright: #91b472;
-  --text: #f6ecd6;
-  --muted: #b8c0ad;
-  --accent: #e6b55d;
-  --accent-blue: #78b7cf;
+  --bg: #050505;
+  --hud: rgba(0, 0, 0, 0.5);
+  --panel: rgba(0, 0, 0, 0.42);
+  --panel-soft: rgba(255, 255, 255, 0.08);
+  --button: rgba(255, 255, 255, 0.055);
+  --button-hover: rgba(255, 255, 255, 0.14);
+  --button-active: rgba(255, 255, 255, 0.2);
+  --line: rgba(255, 255, 255, 0.16);
+  --line-bright: rgba(255, 255, 255, 0.58);
+  --text: rgba(255, 255, 255, 0.94);
+  --muted: rgba(255, 255, 255, 0.62);
+  --subtle: rgba(255, 255, 255, 0.36);
+  --accent: #ffffff;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -24,7 +27,9 @@
 body {
   margin: 0;
   overflow: hidden;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.08), transparent 32%),
+    linear-gradient(145deg, #070707 0%, #141414 46%, #030303 100%);
 }
 
 button,
@@ -33,20 +38,33 @@ input {
 }
 
 button {
-  border: 1px solid #607258;
-  background: #252f28;
+  border: 1px solid var(--line);
+  background: var(--button);
   color: var(--text);
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 8px 18px rgba(0, 0, 0, 0.22);
   transition:
     background 90ms ease,
     border-color 90ms ease,
+    box-shadow 90ms ease,
     transform 90ms ease;
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
 }
 
 button:hover,
 button.active {
-  background: #3f5f43;
+  background: var(--button-hover);
   border-color: var(--line-bright);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 24px rgba(0, 0, 0, 0.32);
+}
+
+button.active {
+  background: var(--button-active);
 }
 
 button:hover {
@@ -54,9 +72,9 @@ button:hover {
 }
 
 button:disabled {
-  color: #7b8575;
+  color: rgba(255, 255, 255, 0.28);
   cursor: default;
-  opacity: 0.65;
+  opacity: 1;
   transform: none;
 }
 
@@ -76,6 +94,9 @@ button:disabled {
   padding: 6px 12px;
   background: var(--hud);
   border-bottom: 1px solid var(--line);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.34);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
   white-space: nowrap;
 }
 
@@ -83,7 +104,7 @@ button:disabled {
   display: block;
   font-size: 10px;
   line-height: 1.1;
-  color: #abc98a;
+  color: var(--muted);
   text-transform: uppercase;
 }
 
@@ -92,9 +113,10 @@ button:disabled {
 }
 
 .hud-alert {
-  color: var(--accent);
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.16);
 }
 
 .play-area {
@@ -110,7 +132,7 @@ button:disabled {
 #game-canvas {
   min-width: 0;
   min-height: 0;
-  background: #243621;
+  background: transparent;
 }
 
 .side-panel {
@@ -119,6 +141,9 @@ button:disabled {
   border-left: 1px solid var(--line);
   background: var(--panel);
   min-height: 0;
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.26);
+  -webkit-backdrop-filter: blur(20px) saturate(1.05);
+  backdrop-filter: blur(20px) saturate(1.05);
 }
 
 .panel-tabs {
@@ -127,6 +152,7 @@ button:disabled {
   gap: 3px;
   padding: 6px;
   border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .panel-tabs button {
@@ -152,6 +178,7 @@ button:disabled {
 .panel-content {
   overflow: auto;
   padding: 10px;
+  scrollbar-color: rgba(255, 255, 255, 0.34) rgba(255, 255, 255, 0.08);
 }
 
 .panel-content h2 {
@@ -162,7 +189,7 @@ button:disabled {
 .panel-content h3 {
   margin: 12px 0 6px;
   font-size: 12px;
-  color: #cadc9f;
+  color: var(--muted);
 }
 
 .row {
@@ -171,7 +198,7 @@ button:disabled {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 13px;
 }
 
@@ -188,7 +215,7 @@ button:disabled {
   align-items: center;
   gap: 8px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .upgrade-row strong {
@@ -214,13 +241,15 @@ button:disabled {
   display: grid;
   gap: 2px;
   padding: 5px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--line);
   border-radius: 4px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .tier-path div.current {
   border-color: var(--line-bright);
-  background: rgba(92, 126, 76, 0.35);
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .tier-path strong {
@@ -228,7 +257,7 @@ button:disabled {
 }
 
 .tier-path span {
-  color: #b9c0ad;
+  color: var(--muted);
   font-size: 10px;
   line-height: 1.25;
 }
@@ -241,6 +270,9 @@ button:disabled {
   padding: 7px 10px;
   background: var(--hud);
   border-top: 1px solid var(--line);
+  box-shadow: 0 -16px 42px rgba(0, 0, 0, 0.34);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
 }
 
 .tool-button {
@@ -254,7 +286,7 @@ button:disabled {
 
 .tool-button .key {
   font-size: 10px;
-  color: #b8d891;
+  color: var(--muted);
 }
 
 .tool-button .label {
@@ -288,33 +320,35 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-runnable-track {
   height: 5px;
-  border: 1px solid #6a745f;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: #27362e;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 input[type="range"]::-webkit-slider-thumb {
   width: 13px;
   height: 13px;
   margin-top: -5px;
-  border: 1px solid #f0d285;
+  border: 1px solid rgba(255, 255, 255, 0.86);
   border-radius: 2px;
   background: var(--accent);
-  box-shadow: 0 1px 0 #4a3324;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(255, 255, 255, 0.24);
   appearance: none;
 }
 
 input[type="range"]::-moz-range-track {
   height: 5px;
-  border: 1px solid #6a745f;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: #27362e;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 11px;
   height: 11px;
-  border: 1px solid #f0d285;
+  border: 1px solid rgba(255, 255, 255, 0.86);
   border-radius: 2px;
   background: var(--accent);
 }

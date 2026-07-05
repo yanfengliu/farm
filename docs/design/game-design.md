@@ -128,6 +128,8 @@ Side panels provide:
 
 Worker task state is visible only on hover or inspect, not as permanent icons over every worker.
 
+The UI chrome should feel elegant and desktop-first: black and white, semi-transparent, glassy, and compact. The farm itself can stay colorful and cozy, but the surrounding HUD, panels, toolbar, and non-playfield backdrop should avoid a green theme.
+
 ## Art And Audio
 
 The MVP uses top-down pixel art. The grid should be readable, farm objects should be visually distinct, and tiny workers should be charming but simple.

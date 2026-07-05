@@ -101,7 +101,7 @@ class FarmScene extends Phaser.Scene {
 
   create(): void {
     this.graphics = this.add.graphics();
-    this.cameras.main.setBackgroundColor('#293525');
+    this.cameras.main.setBackgroundColor('#101010');
     this.cameras.main.setZoom(1.45);
     this.cameras.main.centerOn(160, 120);
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -171,7 +171,7 @@ class FarmScene extends Phaser.Scene {
     const g = this.graphics;
     g.clear();
 
-    g.fillStyle(0x142019, 1);
+    g.fillStyle(0x101010, 1);
     g.fillRect(0, 0, state.width * TILE_SIZE, state.height * TILE_SIZE);
 
     for (let y = 0; y < state.height; y++) {
@@ -210,7 +210,7 @@ class FarmScene extends Phaser.Scene {
     g.fillStyle(colorForTile(tile, x, y), 1);
     g.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
     this.drawGroundTexture(g, px, py, x, y, tile);
-    g.lineStyle(1, 0x203123, 0.9);
+    g.lineStyle(1, 0x202820, 0.9);
     g.strokeRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
 
     if (tile.kind === 'plot') {
@@ -225,20 +225,20 @@ class FarmScene extends Phaser.Scene {
   }
 
   private drawLockedLand(g: Phaser.GameObjects.Graphics, px: number, py: number, x: number, y: number): void {
-    g.fillStyle(tileVariant(x, y, [0x101711, 0x111b12, 0x0e150f]), 1);
+    g.fillStyle(tileVariant(x, y, [0x111111, 0x151515, 0x0d0d0d]), 1);
     g.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
-    g.lineStyle(1, 0x17261a, 0.75);
+    g.lineStyle(1, 0x242424, 0.75);
     g.strokeRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
-    g.fillStyle(tileVariant(x, y, [0x1a281d, 0x203224, 0x162318]), 1);
+    g.fillStyle(tileVariant(x, y, [0x1c1c1c, 0x242424, 0x171717]), 1);
     if ((x + y) % 3 === 0) g.fillRect(px + 13, py + 13, 5, 5);
     if ((x * 5 + y) % 4 === 0) {
       g.fillRect(px + 6, py + 21, 2, 5);
       g.fillRect(px + 9, py + 23, 4, 2);
     }
     if ((x * 7 + y) % 5 === 0) {
-      g.fillStyle(0x253126, 1);
+      g.fillStyle(0x2e2e2e, 1);
       g.fillRect(px + 22, py + 8, 5, 3);
-      g.fillStyle(0x394439, 1);
+      g.fillStyle(0x4a4a4a, 1);
       g.fillRect(px + 23, py + 8, 2, 1);
     }
   }
@@ -519,7 +519,7 @@ new Phaser.Game({
   parent: canvasHost,
   width: canvasHost.clientWidth,
   height: canvasHost.clientHeight,
-  backgroundColor: '#293525',
+  backgroundColor: '#101010',
   pixelArt: true,
   scene: FarmScene,
   scale: {
