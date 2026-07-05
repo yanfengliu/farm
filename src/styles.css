@@ -1,14 +1,15 @@
 :root {
   color-scheme: dark;
-  --bg: #050505;
-  --hud: rgba(0, 0, 0, 0.5);
-  --panel: rgba(0, 0, 0, 0.42);
-  --panel-soft: rgba(255, 255, 255, 0.08);
-  --button: rgba(255, 255, 255, 0.055);
-  --button-hover: rgba(255, 255, 255, 0.14);
-  --button-active: rgba(255, 255, 255, 0.2);
-  --line: rgba(255, 255, 255, 0.16);
-  --line-bright: rgba(255, 255, 255, 0.58);
+  --bg: #070605;
+  --hud: rgba(8, 7, 6, 0.72);
+  --panel: rgba(9, 8, 7, 0.7);
+  --panel-soft: rgba(255, 255, 255, 0.075);
+  --button: rgba(255, 255, 255, 0.065);
+  --button-hover: rgba(255, 255, 255, 0.16);
+  --button-active: rgba(255, 255, 255, 0.24);
+  --line: rgba(255, 255, 255, 0.15);
+  --line-bright: rgba(255, 255, 255, 0.62);
+  --line-warm: rgba(255, 226, 174, 0.22);
   --text: rgba(255, 255, 255, 0.94);
   --muted: rgba(255, 255, 255, 0.62);
   --subtle: rgba(255, 255, 255, 0.36);
@@ -28,8 +29,9 @@ body {
   margin: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.08), transparent 32%),
-    linear-gradient(145deg, #070707 0%, #141414 46%, #030303 100%);
+    radial-gradient(circle at 34% 24%, rgba(255, 231, 174, 0.08), transparent 31%),
+    radial-gradient(circle at 72% 72%, rgba(132, 173, 118, 0.055), transparent 34%),
+    linear-gradient(145deg, #080706 0%, #16120f 48%, #030303 100%);
 }
 
 body.panel-resizing {
@@ -49,7 +51,9 @@ input {
 
 button {
   border: 1px solid var(--line);
-  background: var(--button);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015)),
+    var(--button);
   color: var(--text);
   cursor: pointer;
   display: inline-flex;
@@ -82,7 +86,9 @@ button.active {
 }
 
 button.active {
-  background: var(--button-active);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04)),
+    var(--button-active);
 }
 
 button:hover {
@@ -91,6 +97,9 @@ button:hover {
 
 button:disabled {
   color: rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.22);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   cursor: default;
   opacity: 1;
   transform: none;
@@ -106,31 +115,54 @@ button:disabled {
 
 .hud {
   display: grid;
-  grid-template-columns: repeat(6, auto) 1fr;
+  grid-template-columns: repeat(6, minmax(66px, auto)) minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  padding: 6px 12px;
-  background: var(--hud);
+  gap: 8px;
+  padding: 5px 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 65%),
+    var(--hud);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.34);
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    0 16px 42px rgba(0, 0, 0, 0.34);
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
   backdrop-filter: blur(18px) saturate(1.1);
   white-space: nowrap;
 }
 
+.hud > div:not(.hud-alert) {
+  display: grid;
+  align-content: center;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.105);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
+    rgba(0, 0, 0, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
 .hud strong {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.1;
   color: var(--muted);
   text-transform: uppercase;
 }
 
 .hud span {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .hud-alert {
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-left: 1px solid var(--line-warm);
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -159,7 +191,10 @@ button:disabled {
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   border-left: 1px solid var(--line);
-  background: var(--panel);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 42%),
+    linear-gradient(135deg, rgba(255, 226, 174, 0.035), transparent 34%),
+    var(--panel);
   min-height: 0;
   box-shadow: -24px 0 60px rgba(0, 0, 0, 0.26);
   -webkit-backdrop-filter: blur(20px) saturate(1.05);
@@ -212,11 +247,13 @@ body.panel-resizing .panel-resizer::before {
 .panel-tabs {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(4, 1fr) 28px;
+  grid-template-columns: repeat(4, minmax(38px, 1fr)) 30px;
   gap: 4px;
   padding: 6px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.035);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015)),
+    rgba(0, 0, 0, 0.12);
 }
 
 .panel-tabs button {
@@ -225,6 +262,15 @@ body.panel-resizing .panel-resizer::before {
   border-radius: 4px;
   font-size: 12px;
   padding: 3px 5px;
+}
+
+.panel-tabs button[data-panel] .button-text {
+  display: none;
+}
+
+.panel-tabs button[data-panel] .button-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .panel-toggle {
@@ -244,17 +290,19 @@ body.panel-resizing .panel-resizer::before {
 
 .panel-content {
   overflow: auto;
-  padding: 12px;
+  padding: 12px 10px 14px;
   scrollbar-color: rgba(255, 255, 255, 0.34) rgba(255, 255, 255, 0.08);
 }
 
 .panel-content h2 {
-  margin: 0 0 8px;
-  font-size: 17px;
+  margin: 0 0 10px;
+  font-size: 18px;
+  line-height: 1.1;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.14);
 }
 
 .panel-content h3 {
-  margin: 12px 0 6px;
+  margin: 13px 0 7px;
   font-size: 13px;
   color: var(--muted);
 }
@@ -264,8 +312,14 @@ body.panel-resizing .panel-resizer::before {
   align-items: center;
   justify-content: space-between;
   gap: 9px;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0 0 5px;
+  padding: 7px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.018)),
+    rgba(0, 0, 0, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
   font-size: 14px;
 }
 
@@ -297,8 +351,13 @@ body.panel-resizing .panel-resizer::before {
   grid-template-columns: 1fr 68px;
   align-items: center;
   gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0 0 5px;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.014)),
+    rgba(0, 0, 0, 0.12);
 }
 
 .upgrade-row strong {
@@ -519,9 +578,13 @@ body.panel-resizing .panel-resizer::before {
   gap: 5px;
   align-items: center;
   padding: 6px 8px;
-  background: var(--hud);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 54%),
+    var(--hud);
   border-top: 1px solid var(--line);
-  box-shadow: 0 -16px 42px rgba(0, 0, 0, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 -16px 42px rgba(0, 0, 0, 0.34);
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
   backdrop-filter: blur(18px) saturate(1.1);
 }
@@ -541,6 +604,14 @@ body.panel-resizing .panel-resizer::before {
   min-height: 40px;
   border-radius: 5px;
   padding: 3px 4px;
+}
+
+.tool-button.active {
+  border-color: rgba(255, 255, 255, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 0 0 1px rgba(255, 226, 174, 0.12),
+    0 12px 30px rgba(0, 0, 0, 0.36);
 }
 
 .tool-button .key {
@@ -564,6 +635,7 @@ body.panel-resizing .panel-resizer::before {
   stroke: none;
   shape-rendering: crispEdges;
   flex: 0 0 auto;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.45));
 }
 
 .pixel-icon rect {
@@ -726,4 +798,30 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid rgba(255, 255, 255, 0.86);
   border-radius: 2px;
   background: var(--accent);
+}
+
+@media (max-width: 1100px) {
+  .toolbar {
+    grid-template-columns: repeat(12, minmax(50px, 64px));
+  }
+
+  .tool-button {
+    grid-template-columns: 1fr;
+    grid-template-rows: 22px 12px;
+    grid-template-areas:
+      "icon"
+      "key";
+    justify-items: center;
+    column-gap: 0;
+    min-height: 40px;
+    padding-inline: 4px;
+  }
+
+  .tool-button .label {
+    display: none;
+  }
+
+  .tool-button .button-icon {
+    justify-self: center;
+  }
 }

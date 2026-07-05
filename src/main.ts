@@ -255,7 +255,7 @@ class FarmScene extends Phaser.Scene {
 
   create(): void {
     this.graphics = this.add.graphics();
-    this.cameras.main.setBackgroundColor('#101010');
+    this.cameras.main.setBackgroundColor('#17130f');
     this.cameras.main.setZoom(1.45);
     this.cameras.main.centerOn(160, 120);
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -325,7 +325,7 @@ class FarmScene extends Phaser.Scene {
     const g = this.graphics;
     g.clear();
 
-    g.fillStyle(0x101010, 1);
+    g.fillStyle(0x17130f, 1);
     g.fillRect(0, 0, state.width * TILE_SIZE, state.height * TILE_SIZE);
 
     for (let y = 0; y < state.height; y++) {
@@ -364,7 +364,12 @@ class FarmScene extends Phaser.Scene {
     g.fillStyle(colorForTile(tile, x, y), 1);
     g.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
     this.drawGroundTexture(g, px, py, x, y, tile);
-    g.lineStyle(1, 0x202820, 0.9);
+    g.fillStyle(0xffffff, tile.kind === 'empty' ? 0.045 : 0.035);
+    g.fillRect(px + 1, py + 1, TILE_SIZE - 3, 1);
+    g.fillStyle(0x000000, tile.kind === 'empty' ? 0.16 : 0.22);
+    g.fillRect(px + 1, py + TILE_SIZE - 3, TILE_SIZE - 3, 2);
+    g.fillRect(px + TILE_SIZE - 3, py + 1, 2, TILE_SIZE - 4);
+    g.lineStyle(1, 0x26301f, 0.86);
     g.strokeRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
 
     if (tile.kind === 'plot') {
@@ -377,20 +382,20 @@ class FarmScene extends Phaser.Scene {
   }
 
   private drawLockedLand(g: Phaser.GameObjects.Graphics, px: number, py: number, x: number, y: number): void {
-    g.fillStyle(tileVariant(x, y, [0x111111, 0x151515, 0x0d0d0d]), 1);
+    g.fillStyle(tileVariant(x, y, [0x171512, 0x1c1915, 0x120f0d]), 1);
     g.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
-    g.lineStyle(1, 0x242424, 0.75);
+    g.lineStyle(1, 0x28231d, 0.72);
     g.strokeRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
-    g.fillStyle(tileVariant(x, y, [0x1c1c1c, 0x242424, 0x171717]), 1);
+    g.fillStyle(tileVariant(x, y, [0x26221c, 0x2d2922, 0x201c17]), 1);
     if ((x + y) % 3 === 0) g.fillRect(px + 13, py + 13, 5, 5);
     if ((x * 5 + y) % 4 === 0) {
       g.fillRect(px + 6, py + 21, 2, 5);
       g.fillRect(px + 9, py + 23, 4, 2);
     }
     if ((x * 7 + y) % 5 === 0) {
-      g.fillStyle(0x2e2e2e, 1);
+      g.fillStyle(0x3b352c, 1);
       g.fillRect(px + 22, py + 8, 5, 3);
-      g.fillStyle(0x4a4a4a, 1);
+      g.fillStyle(0x5b5144, 1);
       g.fillRect(px + 23, py + 8, 2, 1);
     }
   }
@@ -443,7 +448,7 @@ class FarmScene extends Phaser.Scene {
     tile: FarmTile,
   ): void {
     if (tile.kind !== 'empty') return;
-    const tuftColor = tileVariant(x, y, [0x79a765, 0x83ad6c, 0x557f48]);
+    const tuftColor = tileVariant(x, y, [0x7fb06a, 0x93bd74, 0x5d8a4e]);
     g.fillStyle(tuftColor, 0.85);
     if ((x * 3 + y) % 2 === 0) {
       g.fillRect(px + 7, py + 9, 2, 7);
@@ -654,7 +659,7 @@ new Phaser.Game({
   parent: canvasHost,
   width: canvasHost.clientWidth,
   height: canvasHost.clientHeight,
-  backgroundColor: '#101010',
+  backgroundColor: '#17130f',
   pixelArt: true,
   audio: {
     noAudio: true,
@@ -1312,7 +1317,7 @@ window.addEventListener('resize', () => {
 
 document.addEventListener('click', (event) => {
   const target = event.target;
-  if (!(target instanceof HTMLElement)) return;
+  if (!(target instanceof Element)) return;
   const clickedTutorialTarget = activeTutorialTip
     ? Boolean(target.closest(activeTutorialTip.targetSelector))
     : false;
