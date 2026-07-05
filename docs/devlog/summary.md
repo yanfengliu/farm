@@ -30,3 +30,4 @@
 - 2026-07-05: Expanded the LLM/player browser playtest so it touches every visible control surface, added drag/range actions to the visual loop, fixed seed guidance when Inventory is already open, and made reload autosave checks preserve the saved farm.
 - 2026-07-05: Persisted the selected speed as a separate UI preference so reloading an idle farm keeps the player's 2x or 4x pacing without changing the deterministic farm save.
 - 2026-07-05: Moved side-panel tutorial cards beside the panel so seed, sell, and tier guidance no longer covers the controls it asks players to use.
+- 2026-07-05: Added readable action labels to Crop Mix sliders so the LLM/player reports identify them as crop-specific controls instead of anonymous inputs.

@@ -1120,10 +1120,11 @@ function upgradeRow(state: FarmState, upgradeId: UpgradeId): string {
 function cropMixRow(state: FarmState, cropId: CropId): string {
   const locked = !state.tier.unlockedCrops.includes(cropId);
   const value = Math.round(state.cropMix[cropId] * 100);
+  const actionLabel = `Set ${CROPS[cropId].label} crop mix`;
   return `
     <label class="crop-mix">
       <span class="crop-mix-name">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label}</span>
-      <input type="range" min="0" max="100" value="${value}" data-mix="${cropId}" ${locked ? 'disabled' : ''} />
+      <input type="range" min="0" max="100" value="${value}" data-mix="${cropId}" title="${actionLabel}" aria-label="${actionLabel}" ${locked ? 'disabled' : ''} />
       <span>${value}%</span>
     </label>
   `;

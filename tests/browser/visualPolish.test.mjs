@@ -154,6 +154,34 @@ describe('visual polish', () => {
     }
   }, 15000);
 
+  test('crop mix sliders expose readable action labels', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="mix"]');
+      await page.waitForSelector('[data-mix="carrot"]');
+
+      const sliderLabels = await page.evaluate(() => (
+        Array.from(globalThis.document.querySelectorAll('input[type="range"][data-mix]'))
+          .map((input) => ({
+            id: input.getAttribute('data-mix'),
+            ariaLabel: input.getAttribute('aria-label') ?? '',
+            title: input.getAttribute('title') ?? '',
+          }))
+      ));
+
+      expect(sliderLabels).toEqual([
+        { id: 'carrot', ariaLabel: 'Set Carrot crop mix', title: 'Set Carrot crop mix' },
+        { id: 'wheat', ariaLabel: 'Set Wheat crop mix', title: 'Set Wheat crop mix' },
+        { id: 'tomato', ariaLabel: 'Set Tomato crop mix', title: 'Set Tomato crop mix' },
+      ]);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('compact desktop toolbar avoids truncated labels', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
     const page = await context.newPage();
