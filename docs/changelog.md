@@ -30,3 +30,4 @@
 - Extended the scripted LLM/player surface tour to pan the camera with the keyboard and zoom with the mouse wheel.
 - Extended the step-by-step visual LLM loop to pan the camera with held keyboard input and zoom over the canvas with mouse-wheel actions.
 - Kept Inventory crop rows in sync with HUD storage on the next frame so screenshot-based playtests no longer see stale crop counts.
+- Raised the default visual-loop step budget so the LLM player has room to claim the first ready tier after camera and plot actions.

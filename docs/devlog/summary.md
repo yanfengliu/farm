@@ -34,3 +34,4 @@
 - 2026-07-05: Extended the scripted LLM player surface tour to exercise camera panning and wheel zoom, matching the documented player controls.
 - 2026-07-05: Extended the step-by-step visual LLM loop so the action schema and local heuristic exercise camera panning and mouse-wheel zoom through player-facing controls.
 - 2026-07-05: Fixed a short-lived Inventory panel stale-render case where HUD storage and tutorial guidance could update before visible crop rows did.
+- 2026-07-05: Raised the step-by-step visual LLM loop budget so the default run completes the first visible tier claim instead of ending one action early.

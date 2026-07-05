@@ -31,7 +31,7 @@ describe('LLM visual loop harness contract', () => {
   test('visual loop has enough default budget to reach the first tier claim', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 18');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 20');
   });
 
   test('visual loop recognizes both seed guidance and buy-seed controls', async () => {

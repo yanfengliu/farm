@@ -8,7 +8,7 @@ import { hasVisibleSellableCrops } from './llm-visual-loop/visible-state.mjs';
 const cwd = process.cwd();
 const outputDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop');
 const screenshotDir = path.join(outputDir, 'steps');
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 18, 1, 40);
+const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 20, 1, 40);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
