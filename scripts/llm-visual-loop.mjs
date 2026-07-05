@@ -51,7 +51,7 @@ try {
     url,
     mode: 'step-by-step-visual-loop',
     decisionProvider: providerCommand ? 'external-command' : 'local-heuristic',
-    actionBoundary: 'Each decision receives screenshot path, visible text, and visible controls; execution is limited to click, coordinate click, keypress, wait, viewport, or stop.',
+    actionBoundary: 'Each decision receives screenshot path, visible text, and visible controls; execution is limited to click, drag, adjust, press, wait, viewport, or stop.',
     summary: {
       consoleErrors,
       pageErrors,
@@ -135,7 +135,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     function buildDecisionPrompt(observation) {
       return [
         'You are playtesting a desktop idle farming game as a real player.',
-        'Use the screenshot and visible controls only. Pick one action from the schema: click, press, wait, viewport, or stop. Click actions may include x/y coordinates relative to the chosen element.',
+        'Use the screenshot and visible controls only. Pick one action from the schema: click, drag, adjust, press, wait, viewport, or stop. Click actions may include x/y coordinates relative to the chosen element.',
         JSON.stringify(observation, null, 2),
       ].join('\n\n');
     }
@@ -339,10 +339,13 @@ async function chooseWithExternalProvider(command, payload) {
     schema: {
       rationale: 'short explanation',
       action: {
-        kind: 'click | press | wait | viewport | stop',
-        selector: 'required for click',
+        kind: 'click | drag | adjust | press | wait | viewport | stop',
+        selector: 'required for click, drag, and adjust',
         x: 'optional x coordinate relative to the clicked element',
         y: 'optional y coordinate relative to the clicked element',
+        deltaX: 'optional horizontal drag distance in pixels',
+        deltaY: 'optional vertical drag distance in pixels',
+        value: 'optional adjustment target from 0 to 100 for range controls',
         key: 'required for press',
         ms: 'optional for wait',
         width: 'required for viewport',
@@ -399,7 +402,7 @@ function normalizeDecision(decision, observation, provider) {
   if (!decision || typeof decision !== 'object') return fallback;
 
   const action = decision.action && typeof decision.action === 'object' ? decision.action : {};
-  const kind = ['click', 'press', 'wait', 'viewport', 'stop'].includes(action.kind) ? action.kind : 'wait';
+  const kind = ['click', 'drag', 'adjust', 'press', 'wait', 'viewport', 'stop'].includes(action.kind) ? action.kind : 'wait';
   const normalized = {
     rationale: String(decision.rationale || fallback.rationale),
     action: { kind },
@@ -416,6 +419,19 @@ function normalizeDecision(decision, observation, provider) {
       normalized.action.x = boundedNumber(action.x, Math.round(visibleAction.bounds.width / 2), 0, visibleAction.bounds.width);
       normalized.action.y = boundedNumber(action.y, Math.round(visibleAction.bounds.height / 2), 0, visibleAction.bounds.height);
     }
+  } else if (kind === 'drag') {
+    const visibleAction = observation.availableActions.find((candidate) => candidate.selector === action.selector);
+    if (!visibleAction) return fallback;
+    normalized.action.selector = visibleAction.selector;
+    normalized.action.label = visibleAction.label;
+    normalized.action.deltaX = boundedNumber(action.deltaX, -96, -360, 360);
+    normalized.action.deltaY = boundedNumber(action.deltaY, 0, -220, 220);
+  } else if (kind === 'adjust') {
+    const visibleAction = observation.availableActions.find((candidate) => candidate.selector === action.selector);
+    if (!visibleAction) return fallback;
+    normalized.action.selector = visibleAction.selector;
+    normalized.action.label = visibleAction.label;
+    normalized.action.value = boundedNumber(action.value, 50, 0, 100);
   } else if (kind === 'press') {
     normalized.action.key = String(action.key || 'Escape');
   } else if (kind === 'wait') {
@@ -437,6 +453,25 @@ async function executePlayerDecision(page, decision) {
         clickOptions.position = { x: decision.action.x, y: decision.action.y };
       }
       await page.locator(decision.action.selector).first().click(clickOptions);
+    } else if (decision.action.kind === 'drag') {
+      const locator = page.locator(decision.action.selector).first();
+      await locator.waitFor({ state: 'visible', timeout: 5000 });
+      const box = await locator.boundingBox();
+      if (!box) throw new Error(`Cannot drag ${decision.action.selector}; no visible bounds`);
+      const startX = box.x + box.width / 2;
+      const startY = box.y + box.height / 2;
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      await page.mouse.move(startX + decision.action.deltaX, startY + decision.action.deltaY, { steps: 8 });
+      await page.mouse.up();
+    } else if (decision.action.kind === 'adjust') {
+      const locator = page.locator(decision.action.selector).first();
+      await locator.waitFor({ state: 'visible', timeout: 5000 });
+      const box = await locator.boundingBox();
+      if (!box) throw new Error(`Cannot adjust ${decision.action.selector}; no visible bounds`);
+      const trackX = box.x + box.width * (decision.action.value / 100);
+      const trackY = box.y + box.height / 2;
+      await page.mouse.click(trackX, trackY);
     } else if (decision.action.kind === 'press') {
       await page.keyboard.press(decision.action.key);
     } else if (decision.action.kind === 'wait') {

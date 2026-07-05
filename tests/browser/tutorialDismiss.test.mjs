@@ -47,11 +47,37 @@ describe('tutorial tips', () => {
     try {
       await page.goto(url, { waitUntil: 'networkidle' });
       await page.waitForFunction(() => Boolean(globalThis.__farmDebug?.getState));
-      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="open-goals-for-seeds"]');
+      await page.waitForSelector('.tutorial-tip');
       await page.click('.tutorial-close');
       await page.waitForTimeout(250);
 
       expect(await page.locator('.tutorial-tip').count()).toBe(0);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
+  test('seed shortage tip points at visible Inventory seed buys when already in Inventory', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'inventory-seed-tip' }));
+    savedState.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0 };
+    savedState.coins = savedState.crops.carrot.seedPrice * 2;
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="buy-needed-seeds"]');
+
+      const target = await page.locator('[data-buy-seeds="carrot"]:not([disabled])').first().boundingBox();
+      const tipText = await page.locator('.tutorial-tip').innerText();
+
+      expect(target).not.toBeNull();
+      expect(tipText).toContain('Buy Seeds');
     } finally {
       await context.close();
     }

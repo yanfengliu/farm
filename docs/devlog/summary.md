@@ -27,3 +27,4 @@
 - 2026-07-05: Added a step-by-step LLM visual playtest loop with screenshot observations, visible action extraction, player-only execution, optional external decision provider, and an HTML replay viewer.
 - 2026-07-05: Extended the visual loop to exercise the first Worker Boots upgrade, disabled empty or unaffordable economy actions, and clamped tutorial tips so canvas and panel prompts remain visible in screenshots.
 - 2026-07-05: Polished the UI/graphics pass with a warm-charcoal stage, HUD stat chips, surfaced panel rows, cleaner button states, richer tile contrast, icon-only side-panel tabs, compact icon-plus-key toolbar controls, and SVG-safe click handling.
+- 2026-07-05: Expanded the LLM/player browser playtest so it touches every visible control surface, added drag/range actions to the visual loop, fixed seed guidance when Inventory is already open, and made reload autosave checks preserve the saved farm.

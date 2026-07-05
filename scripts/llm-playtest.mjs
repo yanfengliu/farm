@@ -32,7 +32,10 @@ try {
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   await context.addInitScript(() => {
+    const cleanBootKey = 'farm-playtest-storage-cleared';
+    if (sessionStorage.getItem(cleanBootKey)) return;
     localStorage.clear();
+    sessionStorage.setItem(cleanBootKey, 'true');
   });
   const page = await context.newPage();
 
@@ -48,6 +51,10 @@ try {
 
   scenarios.push(await captureScenario(page, 'fresh-start', 'Fresh playable farm'));
 
+  await runPlayerSurfaceTour(page);
+  await playerWait(page, 250, 'Let the full player-surface tour settle');
+  scenarios.push(await captureScenario(page, 'player-surface-tour', 'Full visible player surface tour'));
+
   await playerClick(page, '[data-panel="goals"]', 'Open Goals panel');
   await playerWaitForSelector(page, '[data-command="claim-tier"]', 'Wait until the visible Goals panel offers tier claiming', 60000);
   await playerWait(page, 250, 'Let the tier-ready UI settle');
@@ -61,6 +68,21 @@ try {
   }
   scenarios.push(await captureScenario(page, 'tier-claimed', 'Tier claimed goals panel'));
 
+  await playerClick(page, '[data-panel="mix"]', 'Open Crop Mix panel after tier unlock');
+  await playerPressSelector(page, '[data-mix="wheat"]', 'ArrowRight', 'Adjust wheat crop mix through the focused range input');
+  await playerPressSelector(page, '[data-mix="carrot"]', 'ArrowLeft', 'Adjust carrot crop mix through the focused range input');
+  await playerWait(page, 150, 'Let crop mix adjustment settle');
+  scenarios.push(await captureScenario(page, 'crop-mix-adjusted', 'Crop mix adjusted through visible range controls'));
+
+  await playerClick(page, '[data-panel="inventory"]', 'Open Inventory panel for sell controls');
+  await page.waitForSelector('[data-command="sell-all"]', { state: 'visible', timeout: 1000 }).catch(() => null);
+  const canSellAll = await page.locator('[data-command="sell-all"]').first().isEnabled().catch(() => false);
+  if (canSellAll) {
+    await playerClick(page, '[data-command="sell-all"]', 'Sell all visible stored crops through the Inventory panel');
+    await playerWait(page, 150, 'Let the visible sale settle');
+  }
+  scenarios.push(await captureScenario(page, 'post-sale', 'Inventory sell controls exercised'));
+
   await playerSetViewport(page, { width: 1024, height: 720 }, 'Resize to compact desktop viewport');
   await playerWait(page, 150, 'Let compact layout settle');
   scenarios.push(await captureScenario(page, 'compact-desktop', 'Compact desktop viewport'));
@@ -68,6 +90,10 @@ try {
   await playerWait(page, 15000, 'Watch the farm run at visible 4x speed for worker-care inspection');
   await playerWait(page, 250, 'Let worker-care UI settle');
   scenarios.push(await captureScenario(page, 'worker-care', 'Worker care priorities'));
+
+  await playerReload(page, 'Reload browser to verify autosave through normal page reload');
+  await playerWait(page, 250, 'Let the reloaded autosave state settle');
+  scenarios.push(await captureScenario(page, 'post-reload', 'Autosave state after normal reload'));
 
   const run = {
     generatedAt: new Date().toISOString(),
@@ -107,9 +133,59 @@ try {
   await server.close();
 }
 
+async function runPlayerSurfaceTour(page) {
+  await playerClick(page, '[data-panel="inventory"]', 'Open Inventory panel');
+  await playerClick(page, '[data-panel="goals"]', 'Open Goals panel');
+  await playerClick(page, '[data-panel="mix"]', 'Open Crop Mix panel');
+  await playerClick(page, '[data-panel="inspect"]', 'Open Inspect panel');
+  await playerDragResize(page, '[data-panel-resizer]', -88, 0, 'Drag the visible side-panel resize handle wider');
+  await playerClick(page, '[data-command="toggle-panel"]', 'Collapse the visible side panel');
+  await playerClick(page, '[data-command="toggle-panel"]', 'Expand the visible side panel');
+  await playerClick(page, '[data-command="pause"]', 'Pause with the visible toolbar control');
+  await playerPress(page, 'Space', 'Resume with the visible keyboard shortcut');
+  await playerClick(page, '[data-speed="1"]', 'Switch to visible 1x speed');
+  await playerClick(page, '[data-speed="2"]', 'Switch to visible 2x speed');
+  await playerClick(page, '[data-speed="4"]', 'Return to visible 4x speed');
+  await playerClick(page, '[data-tool="plot"]', 'Select Plot tool');
+  await playerCanvasClick(page, 390, 300, 'Paint a plot on visible owned land');
+  await playerClick(page, '[data-command="undo"]', 'Undo the plot paint through the visible toolbar');
+  await playerClick(page, '[data-command="redo"]', 'Redo the plot paint through the visible toolbar');
+  await playerClick(page, '[data-tool="well"]', 'Select Well tool');
+  await playerCanvasClick(page, 535, 348, 'Place a well through a visible canvas click');
+  await playerClick(page, '[data-tool="storage"]', 'Select Storage tool');
+  await playerCanvasClick(page, 584, 348, 'Place storage through a visible canvas click');
+  await playerClick(page, '[data-tool="land"]', 'Select Land tool');
+  await playerCanvasClick(page, 342, 300, 'Buy adjacent land through a visible canvas click');
+  await playerClick(page, '[data-tool="bulldoze"]', 'Select Bulldoze tool');
+  await playerCanvasClick(page, 390, 300, 'Bulldoze the player-painted plot through the canvas');
+  await playerClick(page, '[data-command="undo"]', 'Undo the bulldoze through the visible toolbar');
+  await playerClick(page, '[data-tool="inspect"]', 'Select Inspect tool');
+  await playerCanvasClick(page, 390, 300, 'Inspect a visible farm tile through the canvas');
+  await playerClick(page, '[data-panel="goals"]', 'Return to Goals panel after the surface tour');
+  await playerClick(page, '[data-speed="4"]', 'Keep the farm at visible 4x speed after the tour');
+}
+
 async function playerClick(page, selector, label) {
   await page.locator(selector).first().click();
   playerActions.push({ kind: 'click', label, selector });
+}
+
+async function playerCanvasClick(page, x, y, label) {
+  await page.locator('canvas').first().click({ position: { x, y } });
+  playerActions.push({ kind: 'click', label, selector: 'canvas', position: { x, y } });
+}
+
+async function playerDragResize(page, selector, deltaX, deltaY, label) {
+  const locator = page.locator(selector).first();
+  const box = await locator.boundingBox();
+  if (!box) throw new Error(`Cannot drag ${selector}; no visible bounds`);
+  const startX = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 8 });
+  await page.mouse.up();
+  playerActions.push({ kind: 'drag', label, selector, deltaX, deltaY });
 }
 
 async function playerWaitForSelector(page, selector, label, timeout) {
@@ -132,6 +208,17 @@ async function playerWaitForHudValue(page, hudLabel, value, label, timeout) {
   playerActions.push({ kind: 'waitForHudValue', label, hudLabel, value, timeout });
 }
 
+async function playerPress(page, key, label) {
+  await page.keyboard.press(key);
+  playerActions.push({ kind: 'press', label, key });
+}
+
+async function playerPressSelector(page, selector, key, label) {
+  await page.locator(selector).first().focus();
+  await page.keyboard.press(key);
+  playerActions.push({ kind: 'press', label, selector, key });
+}
+
 async function playerWait(page, ms, label) {
   await page.waitForTimeout(ms);
   playerActions.push({ kind: 'wait', label, ms });
@@ -140,6 +227,13 @@ async function playerWait(page, ms, label) {
 async function playerSetViewport(page, viewport, label) {
   await page.setViewportSize(viewport);
   playerActions.push({ kind: 'viewport', label, viewport });
+}
+
+async function playerReload(page, label) {
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('.toolbar .tool-button');
+  await page.waitForSelector('canvas');
+  playerActions.push({ kind: 'reload', label });
 }
 
 function consumeScenarioActions() {
@@ -214,7 +308,9 @@ async function captureScenario(page, id, label) {
         availableUnlockedSeeds: unlockedCrops.reduce((sum, cropId) => sum + state.inventory.seeds[cropId], 0),
         canBuyUnlockedSeeds: unlockedCrops.some((cropId) => state.coins >= state.crops[cropId].seedPrice),
         hasSeedGuidance: (document.body.textContent ?? '').includes('Buy seeds'),
-        seedGuidanceActionCount: document.querySelectorAll('[data-seed-guidance-action]').length,
+        seedGuidanceActionCount: Array.from(document.querySelectorAll('[data-seed-guidance-action], [data-buy-seeds]:not([disabled])'))
+          .filter((element) => isVisible(element) && !element.disabled)
+          .length,
       },
     };
 
@@ -243,12 +339,16 @@ async function captureScenario(page, id, label) {
       ));
       if (dataAttribute) {
         return dataAttribute.value
-          ? `[${dataAttribute.name}="${CSS.escape(dataAttribute.value)}"]`
+          ? `[${dataAttribute.name}="${escapeAttributeValue(dataAttribute.value)}"]`
           : `[${dataAttribute.name}]`;
       }
       if (element.id) return `#${CSS.escape(element.id)}`;
       if (element.getAttribute('role')) return `[role="${CSS.escape(element.getAttribute('role'))}"]`;
       return element.tagName.toLowerCase();
+    }
+
+    function escapeAttributeValue(value) {
+      return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     }
   }, {
     scenarioId: id,

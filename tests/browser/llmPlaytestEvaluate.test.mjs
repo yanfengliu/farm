@@ -177,4 +177,46 @@ describe('LLM playtest evaluator', () => {
 
     expect(findings.map((finding) => finding.id)).toContain('worker-duplicate-targets');
   });
+
+  test('flags reload checks that lose the autosaved farm state', () => {
+    const run = {
+      ...baseRun,
+      scenarios: [
+        {
+          id: 'worker-care',
+          label: 'Worker care priorities',
+          text: 'tick=1200 workers=2 tier=2',
+          screenshot: 'worker-care.png',
+          metrics: {
+            tick: 1200,
+            tier: 2,
+            workers: 2,
+            horizontalOverflow: 0,
+            thirstyPlots: 0,
+            hasWateringWorker: false,
+            duplicateWorkerTargetCount: 0,
+          },
+        },
+        {
+          id: 'post-reload',
+          label: 'Autosave state after normal reload',
+          text: 'tick=5 workers=1 tier=1',
+          screenshot: 'post-reload.png',
+          metrics: {
+            tick: 5,
+            tier: 1,
+            workers: 1,
+            horizontalOverflow: 0,
+            thirstyPlots: 0,
+            hasWateringWorker: false,
+            duplicateWorkerTargetCount: 0,
+          },
+        },
+      ],
+    };
+
+    const findings = evaluatePlaytest(run);
+
+    expect(findings.map((finding) => finding.id)).toContain('autosave-reload-lost-state');
+  });
 });

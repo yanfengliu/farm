@@ -23,3 +23,4 @@
 - Added `npm run playtest:llm:visual-loop`, a step-by-step screenshot/action/replay harness for LLM-style playtesting through visible player controls.
 - Tightened the visual-loop playtest path by exercising Worker Boots, disabling empty or unaffordable economy actions, and keeping tutorial callouts inside the visible play area.
 - Polished the first-run UI with a warm-charcoal playfield stage, HUD stat chips, surfaced panel rows, cleaner active/disabled controls, icon-only side-panel tabs with accessible labels, and compact icon-plus-key toolbar controls.
+- Expanded the LLM/player playtest to exercise every visible control surface, added drag/range actions to the visual loop, fixed seed tips when Inventory is already open, and made reload autosave verification preserve the saved farm.

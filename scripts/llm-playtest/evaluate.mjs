@@ -132,6 +132,31 @@ export function evaluatePlaytest(run) {
     }
   }
 
+  const scenariosById = new Map((run.scenarios ?? []).map((scenario) => [scenario.id, scenario]));
+  const workerCare = scenariosById.get('worker-care');
+  const postReload = scenariosById.get('post-reload');
+  if (workerCare?.metrics && postReload?.metrics) {
+    const before = workerCare.metrics;
+    const after = postReload.metrics;
+    const reloadedFreshFarm = (
+      (Number(after.tier ?? 0) < Number(before.tier ?? 0)) ||
+      (Number(after.workers ?? 0) < Number(before.workers ?? 0)) ||
+      (Number(after.tick ?? 0) < Math.max(0, Number(before.tick ?? 0) - 120))
+    );
+
+    if (reloadedFreshFarm) {
+      findings.push({
+        id: 'autosave-reload-lost-state',
+        severity: 'P1',
+        scenarioId: postReload.id,
+        screenshot: postReload.screenshot,
+        title: 'Reload did not preserve the autosaved farm',
+        evidence: `Before reload: tick ${before.tick}, tier ${before.tier}, workers ${before.workers}. After reload: tick ${after.tick}, tier ${after.tier}, workers ${after.workers}.`,
+        recommendation: 'Keep the browser playtest clean boot from clearing localStorage during reload, and verify the farm autosave payload restores progress.',
+      });
+    }
+  }
+
   return findings.sort((a, b) => severityRank[a.severity] - severityRank[b.severity] || a.id.localeCompare(b.id));
 }
 

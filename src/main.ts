@@ -895,16 +895,18 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
 
   const alerts = state.alerts.join(' ');
   if (alerts.includes('Buy seeds')) {
-    if (activePanel === 'goals' && !isTutorialSeen('buy-needed-seeds')) {
+    if ((activePanel === 'inventory' || activePanel === 'goals') && !isTutorialSeen('buy-needed-seeds')) {
       return {
         id: 'buy-needed-seeds',
         icon: 'seed',
         title: 'Buy Seeds',
         body: 'Farmers plant seeds automatically once empty plots are available.',
-        targetSelector: '[data-seed-guidance-action]',
+        targetSelector: activePanel === 'inventory'
+          ? '[data-buy-seeds]:not([disabled])'
+          : '[data-seed-guidance-action]',
       };
     }
-    if (activePanel !== 'goals' && !isTutorialSeen('open-goals-for-seeds')) {
+    if (activePanel !== 'inventory' && activePanel !== 'goals' && !isTutorialSeen('open-goals-for-seeds')) {
       return {
         id: 'open-goals-for-seeds',
         icon: 'flag',

@@ -60,4 +60,16 @@ describe('LLM visual loop harness contract', () => {
 
     expect(source).not.toContain('decisionProviderCommand');
   });
+
+  test('visual loop can execute every visible action hint it offers to an LLM player', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('click, drag, adjust, press, wait, viewport, or stop');
+    expect(source).toContain("kind: 'click | drag | adjust | press | wait | viewport | stop'");
+    expect(source).toContain("['click', 'drag', 'adjust', 'press', 'wait', 'viewport', 'stop']");
+    expect(source).toContain("decision.action.kind === 'drag'");
+    expect(source).toContain("decision.action.kind === 'adjust'");
+    expect(source).toContain('page.mouse.down()');
+    expect(source).toContain('page.mouse.up()');
+  });
 });
