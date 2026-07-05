@@ -86,6 +86,7 @@ let lastPanelMarkup = '';
 let lastRenderedPanel: Panel | null = null;
 let lastRenderedCollapsed = false;
 let lastPanelRenderedAt = 0;
+let lastPanelStateSignature = '';
 let lastTutorialMarkup = '';
 let activeTutorialTip: TutorialTip | null = null;
 let panelWidth = loadPanelWidth();
@@ -746,10 +747,15 @@ function renderPanel(): void {
   }
 
   const now = performance.now();
-  const forceRender = activePanel !== lastRenderedPanel || panelCollapsed !== lastRenderedCollapsed;
+  const state = getFarmSnapshot(farmGame);
+  const panelSignature = panelStateSignature(state);
+  const forceRender = (
+    activePanel !== lastRenderedPanel ||
+    panelCollapsed !== lastRenderedCollapsed ||
+    panelSignature !== lastPanelStateSignature
+  );
   if (!forceRender && now - lastPanelRenderedAt < PANEL_RENDER_INTERVAL_MS) return;
 
-  const state = getFarmSnapshot(farmGame);
   let markup = '';
   if (activePanel === 'inventory') {
     const hasSellableCrops = storedCropCount(state) > 0;
@@ -804,6 +810,7 @@ function renderPanel(): void {
   lastRenderedPanel = activePanel;
   lastRenderedCollapsed = panelCollapsed;
   lastPanelRenderedAt = now;
+  lastPanelStateSignature = panelSignature;
 }
 
 function renderTutorialTip(): void {
@@ -1178,6 +1185,21 @@ function storedCropCount(state: FarmState): number {
   return Object.values(state.inventory.crops).reduce((sum, count) => sum + count, 0);
 }
 
+function panelStateSignature(state: FarmState): string {
+  if (activePanel !== 'inventory') return activePanel;
+  return [
+    activePanel,
+    state.coins,
+    state.inventory.cropCapacity,
+    ...CROP_IDS.map((cropId) => [
+      cropId,
+      state.inventory.crops[cropId],
+      state.inventory.seeds[cropId],
+      state.tier.unlockedCrops.includes(cropId) ? 'unlocked' : 'locked',
+    ].join(':')),
+  ].join('|');
+}
+
 function tileVariant(x: number, y: number, colors: number[]): number {
   return colors[Math.abs((x * 17 + y * 31) % colors.length)] ?? colors[0];
 }
@@ -1305,6 +1327,7 @@ function resetFarm(): void {
   lastHudMarkup = '';
   lastToolbarMarkup = '';
   lastPanelMarkup = '';
+  lastPanelStateSignature = '';
   lastTutorialMarkup = '';
 }
 

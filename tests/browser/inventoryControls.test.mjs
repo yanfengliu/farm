@@ -84,4 +84,51 @@ describe('inventory controls', () => {
       await context.close();
     }
   }, 15000);
+
+  test('inventory crop rows stay in sync with HUD storage on the next frame', async () => {
+    const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
+    await context.addInitScript(() => {
+      globalThis.localStorage.clear();
+    });
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="goals"]');
+      await expect.poll(async () => page.locator('#panel-content h2').first().textContent()).toContain('Tier');
+      await page.click('[data-panel="inventory"]');
+      await expect.poll(async () => page.locator('#panel-content h2').first().textContent()).toContain('Inventory');
+
+      await page.evaluate(() => {
+        globalThis.window.advanceTime(60000);
+      });
+      await page.evaluate(() => new Promise((resolve) => {
+        globalThis.requestAnimationFrame(() => resolve(undefined));
+      }));
+
+      const inventorySync = await page.evaluate(() => {
+        const hudStorageText = Array.from(globalThis.document.querySelectorAll('.hud > div'))
+          .find((item) => item.querySelector('strong')?.textContent?.trim() === 'Storage')
+          ?.querySelector('span')
+          ?.textContent
+          ?.trim() ?? '0/0';
+        const visibleCropTotal = Array.from(globalThis.document.querySelectorAll('.panel-content .row-label'))
+          .map((label) => label.textContent ?? '')
+          .filter((text) => /Carrot:|Wheat:|Tomato:/i.test(text))
+          .reduce((sum, text) => {
+            const amount = Number(text.match(/:\s*(\d+)/)?.[1] ?? 0);
+            return sum + amount;
+          }, 0);
+        return {
+          hudStored: Number(hudStorageText.split('/')[0] ?? 0),
+          visibleCropTotal,
+        };
+      });
+
+      expect(inventorySync.hudStored).toBeGreaterThan(0);
+      expect(inventorySync.visibleCropTotal).toBe(inventorySync.hudStored);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
 });

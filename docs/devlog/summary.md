@@ -33,3 +33,4 @@
 - 2026-07-05: Added readable action labels to Crop Mix sliders so the LLM/player reports identify them as crop-specific controls instead of anonymous inputs.
 - 2026-07-05: Extended the scripted LLM player surface tour to exercise camera panning and wheel zoom, matching the documented player controls.
 - 2026-07-05: Extended the step-by-step visual LLM loop so the action schema and local heuristic exercise camera panning and mouse-wheel zoom through player-facing controls.
+- 2026-07-05: Fixed a short-lived Inventory panel stale-render case where HUD storage and tutorial guidance could update before visible crop rows did.
