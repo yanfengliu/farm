@@ -95,6 +95,7 @@ Run adversarial review before declaring non-trivial behavior, architecture, work
 ## Git Hygiene
 
 - Work directly on `main` unless the user asks for a branch.
+- Commit early and often: as soon as a self-contained coherent unit of change is implemented and verified, stage and commit that unit rather than batching unrelated work.
 - Stage only the coherent unit of work.
 - Never revert unrelated user changes.
 - Before committing, inspect `git diff --cached --stat` and `git diff --cached`.
