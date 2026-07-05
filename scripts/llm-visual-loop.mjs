@@ -8,7 +8,7 @@ import { hasVisibleSellableCrops } from './llm-visual-loop/visible-state.mjs';
 const cwd = process.cwd();
 const outputDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop');
 const screenshotDir = path.join(outputDir, 'steps');
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 16, 1, 40);
+const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 18, 1, 40);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
@@ -51,7 +51,7 @@ try {
     url,
     mode: 'step-by-step-visual-loop',
     decisionProvider: providerCommand ? 'external-command' : 'local-heuristic',
-    actionBoundary: 'Each decision receives screenshot path, visible text, and visible controls; execution is limited to click, drag, adjust, press, wait, viewport, or stop.',
+    actionBoundary: 'Each decision receives screenshot path, visible text, and visible controls; execution is limited to click, drag, adjust, wheel, press, wait, viewport, or stop.',
     summary: {
       consoleErrors,
       pageErrors,
@@ -135,7 +135,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     function buildDecisionPrompt(observation) {
       return [
         'You are playtesting a desktop idle farming game as a real player.',
-        'Use the screenshot and visible controls only. Pick one action from the schema: click, drag, adjust, press, wait, viewport, or stop. Click actions may include x/y coordinates relative to the chosen element.',
+        'Use the screenshot and visible controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click actions may include x/y coordinates relative to the chosen element.',
         JSON.stringify(observation, null, 2),
       ].join('\n\n');
     }
@@ -214,11 +214,14 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const clickedSelectors = new Set(actionHistory.filter((action) => action.kind === 'click').map((action) => action.selector));
   const waitCount = actionHistory.filter((action) => action.kind === 'wait').length;
   const canvasClickCount = actionHistory.filter((action) => action.kind === 'click' && action.selector === 'canvas').length;
+  const pannedCamera = actionHistory.some((action) => action.kind === 'press' && action.key === 'ArrowRight');
+  const zoomedCamera = actionHistory.some((action) => action.kind === 'wheel');
   const claimedTier = actionHistory.some((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]');
   const waitsAfterClaim = claimedTier
     ? actionHistory.slice(actionHistory.findIndex((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]') + 1)
       .filter((action) => action.kind === 'wait').length
     : 0;
+  const canvasAction = findAction(observation, 'canvas');
 
   const claimAction = findAction(observation, '[data-command="claim-tier"]');
   if (claimAction) {
@@ -233,6 +236,14 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const speedAction = findAction(observation, '[data-speed="4"]');
   if (speedAction && !clickedSelectors.has(speedAction.selector)) {
     return clickDecision(speedAction, 'Use the visible 4x speed control so idle farming progress can be observed in real browser time.');
+  }
+
+  if (canvasAction && !pannedCamera) {
+    return pressDecision('ArrowRight', 'Pan the farm camera right with the keyboard so spatial navigation is covered like a player would do it.', 260);
+  }
+
+  if (canvasAction && !zoomedCamera) {
+    return wheelDecision(canvasAction, 'Zoom the farm camera with the mouse wheel to verify readable play after changing scale.', -360);
   }
 
   const tutorialAction = tutorialActionFromText(observation);
@@ -250,7 +261,6 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
   }
 
-  const canvasAction = findAction(observation, 'canvas');
   if (canvasAction && canvasClickCount < 2 && /TOOL Plot|Paint plots|Select Plot/i.test(observation.visibleText)) {
     return clickDecision(
       canvasAction,
@@ -315,6 +325,33 @@ function clickDecision(action, rationale, position) {
   };
 }
 
+function pressDecision(key, rationale, durationMs = 0) {
+  return {
+    rationale,
+    action: {
+      kind: 'press',
+      key,
+      durationMs,
+    },
+    expectedResult: durationMs > 0
+      ? `The held ${key} key should move the farm camera while ordinary player controls remain available.`
+      : `The ${key} key should trigger the same visible behavior a player would get from the keyboard.`,
+  };
+}
+
+function wheelDecision(action, rationale, deltaY) {
+  return {
+    rationale,
+    action: {
+      kind: 'wheel',
+      selector: action.selector,
+      label: action.label,
+      deltaY,
+    },
+    expectedResult: 'The farm camera should zoom while the HUD, toolbar, and side panel stay readable.',
+  };
+}
+
 function findAction(observation, selector) {
   return observation.availableActions.find((action) => action.selector === selector || action.selector.startsWith(selector));
 }
@@ -339,14 +376,15 @@ async function chooseWithExternalProvider(command, payload) {
     schema: {
       rationale: 'short explanation',
       action: {
-        kind: 'click | drag | adjust | press | wait | viewport | stop',
-        selector: 'required for click, drag, and adjust',
+        kind: 'click | drag | adjust | wheel | press | wait | viewport | stop',
+        selector: 'required for click, drag, adjust, and wheel',
         x: 'optional x coordinate relative to the clicked element',
         y: 'optional y coordinate relative to the clicked element',
         deltaX: 'optional horizontal drag distance in pixels',
-        deltaY: 'optional vertical drag distance in pixels',
+        deltaY: 'optional vertical drag or wheel distance in pixels',
         value: 'optional adjustment target from 0 to 100 for range controls',
         key: 'required for press',
+        durationMs: 'optional hold duration for press',
         ms: 'optional for wait',
         width: 'required for viewport',
         height: 'required for viewport',
@@ -402,7 +440,7 @@ function normalizeDecision(decision, observation, provider) {
   if (!decision || typeof decision !== 'object') return fallback;
 
   const action = decision.action && typeof decision.action === 'object' ? decision.action : {};
-  const kind = ['click', 'drag', 'adjust', 'press', 'wait', 'viewport', 'stop'].includes(action.kind) ? action.kind : 'wait';
+  const kind = ['click', 'drag', 'adjust', 'wheel', 'press', 'wait', 'viewport', 'stop'].includes(action.kind) ? action.kind : 'wait';
   const normalized = {
     rationale: String(decision.rationale || fallback.rationale),
     action: { kind },
@@ -432,8 +470,15 @@ function normalizeDecision(decision, observation, provider) {
     normalized.action.selector = visibleAction.selector;
     normalized.action.label = visibleAction.label;
     normalized.action.value = boundedNumber(action.value, 50, 0, 100);
+  } else if (kind === 'wheel') {
+    const visibleAction = observation.availableActions.find((candidate) => candidate.selector === action.selector);
+    if (!visibleAction) return fallback;
+    normalized.action.selector = visibleAction.selector;
+    normalized.action.label = visibleAction.label;
+    normalized.action.deltaY = boundedNumber(action.deltaY, -320, -900, 900);
   } else if (kind === 'press') {
     normalized.action.key = String(action.key || 'Escape');
+    normalized.action.durationMs = boundedNumber(action.durationMs, 0, 0, 1500);
   } else if (kind === 'wait') {
     normalized.action.ms = boundedNumber(action.ms, defaultWaitMs, 100, 15000);
   } else if (kind === 'viewport') {
@@ -472,8 +517,21 @@ async function executePlayerDecision(page, decision) {
       const trackX = box.x + box.width * (decision.action.value / 100);
       const trackY = box.y + box.height / 2;
       await page.mouse.click(trackX, trackY);
+    } else if (decision.action.kind === 'wheel') {
+      const locator = page.locator(decision.action.selector).first();
+      await locator.waitFor({ state: 'visible', timeout: 5000 });
+      const box = await locator.boundingBox();
+      if (!box) throw new Error(`Cannot wheel ${decision.action.selector}; no visible bounds`);
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.wheel(0, decision.action.deltaY);
     } else if (decision.action.kind === 'press') {
-      await page.keyboard.press(decision.action.key);
+      if (decision.action.durationMs > 0) {
+        await page.keyboard.down(decision.action.key);
+        await page.waitForTimeout(decision.action.durationMs);
+        await page.keyboard.up(decision.action.key);
+      } else {
+        await page.keyboard.press(decision.action.key);
+      }
     } else if (decision.action.kind === 'wait') {
       await page.waitForTimeout(decision.action.ms);
     } else if (decision.action.kind === 'viewport') {

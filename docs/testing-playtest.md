@@ -54,7 +54,7 @@ npm run playtest:llm:visual-loop
 
 This starts the browser, captures a screenshot, extracts visible text and visible controls, asks a decision provider for one player action, executes only that player-facing action, and repeats. The default provider is a deterministic local heuristic so the command works without API keys. To plug in a real LLM or another agent, set `FARM_LLM_VISUAL_LOOP_COMMAND` to a command that reads the observation JSON from stdin and returns a decision JSON object with `rationale`, `action`, and `expectedResult`.
 
-Visual loop action kinds are `click`, `drag`, `adjust`, `press`, `wait`, `viewport`, and `stop`. Click actions may include `x`/`y` coordinates relative to the clicked element, which lets an LLM choose canvas locations from the screenshot. Drag actions move the mouse from the center of a visible control by a bounded pixel delta, and adjust actions click a visible range input at a bounded 0-100 target. Tune local runs with `FARM_VISUAL_LOOP_STEPS`, `FARM_VISUAL_LOOP_WAIT_MS`, and `FARM_VISUAL_LOOP_SETTLE_MS`.
+Visual loop action kinds are `click`, `drag`, `adjust`, `wheel`, `press`, `wait`, `viewport`, and `stop`. Click actions may include `x`/`y` coordinates relative to the clicked element, which lets an LLM choose canvas locations from the screenshot. Drag actions move the mouse from the center of a visible control by a bounded pixel delta, wheel actions move the mouse over a visible target before scrolling, adjust actions click a visible range input at a bounded 0-100 target, and press actions may include a bounded `durationMs` hold for camera panning. Tune local runs with `FARM_VISUAL_LOOP_STEPS`, `FARM_VISUAL_LOOP_WAIT_MS`, and `FARM_VISUAL_LOOP_SETTLE_MS`.
 
 The visual loop writes:
 
@@ -65,7 +65,7 @@ The visual loop writes:
 
 Use `latest.html` to watch the screenshot replay with each observation, decision, execution result, available action list, and finding. The visual loop should remain a player-surface harness: it may clear localStorage before load for a fresh run, but decisions should be based on screenshots, visible text, and available controls, not private simulation state.
 
-The default local visual-loop heuristic should keep exercising the early upgrade path: after opening Goals, it buys the first visible Worker Boots upgrade when affordable, then continues watching, selling, claiming tiers, opening Crop Mix, painting plots, and restocking seeds through visible controls. Keep dead-end controls disabled, such as empty sell actions and unaffordable seed or upgrade buys, so the extracted action list matches what a player can meaningfully do.
+The default local visual-loop heuristic should keep exercising the early upgrade path: it sets 4x speed, pans the camera with a held keyboard press, zooms over the canvas with the mouse wheel, opens Goals, buys the first visible Worker Boots upgrade when affordable, then continues watching, selling, claiming tiers, opening Crop Mix, painting plots, and restocking seeds through visible controls. Keep dead-end controls disabled, such as empty sell actions and unaffordable seed or upgrade buys, so the extracted action list matches what a player can meaningfully do.
 
 The worker-care scenario checks that seed-shortage stalls are explained and actionable: when workers are idle with empty plots, no desired unlocked seeds, and enough coins to buy seeds, the UI should show guidance and at least one visible seed-buy action.
 

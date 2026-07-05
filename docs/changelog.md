@@ -28,3 +28,4 @@
 - Repositioned side-panel tutorial callouts beside the panel so guidance cards do not cover seed-buy, sell, or tier controls.
 - Added readable labels to Crop Mix sliders so playtest reports and replay prompts name crop-specific mix actions.
 - Extended the scripted LLM/player surface tour to pan the camera with the keyboard and zoom with the mouse wheel.
+- Extended the step-by-step visual LLM loop to pan the camera with held keyboard input and zoom over the canvas with mouse-wheel actions.
