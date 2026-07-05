@@ -45,7 +45,16 @@ describe('LLM visual loop harness contract', () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('NEXT CLICK Tune Crop Mix');
+    expect(source).toContain('FARM GUIDE Tune Crop Mix');
     expect(source).toContain("findAction(observation, '[data-panel=\"mix\"]')");
+  });
+
+  test('visual loop reads stabilized Farm Guide prompts without treating them as HUD tool state', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('FARM GUIDE Select Plot');
+    expect(source).toContain('FARM GUIDE Open Goals');
+    expect(source).toContain('/\\bTOOL Plot\\b|Paint plots on empty land/i');
   });
 
   test('visual loop tries a visible worker upgrade during the goals flow', async () => {

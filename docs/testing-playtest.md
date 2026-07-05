@@ -103,5 +103,5 @@ The replay bundle is a deterministic debugging aid. It can use the simulation di
 - Collapse and expand the side panel.
 - Drag the side-panel resize handle and reload to confirm the width preference restores.
 - Select 2x or 4x speed and reload to confirm the speed preference restores.
-- Confirm tutorial tips point at the next action without covering side-panel controls.
+- Confirm Farm Guide cards point at the next action, use a consistent Do/Why format, remain readable when guidance changes, and do not cover side-panel controls.
 - Reload and confirm localStorage autosave restores the farm.

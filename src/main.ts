@@ -51,6 +51,8 @@ type TutorialTip = {
   icon: IconName;
   title: string;
   body: string;
+  action: string;
+  why: string;
   targetSelector: string;
 };
 
@@ -66,7 +68,8 @@ const PANEL_WIDTH_DEFAULT = 320;
 const PANEL_WIDTH_MIN = 300;
 const PANEL_WIDTH_MAX = 560;
 const PANEL_PLAYFIELD_MIN = 360;
-const TUTORIAL_TIP_WIDTH = 286;
+const TUTORIAL_TIP_WIDTH = 320;
+const TUTORIAL_MIN_VISIBLE_MS = 4500;
 const TUTORIAL_VIEWPORT_PADDING = 8;
 const TUTORIAL_TARGET_GAP = 12;
 
@@ -89,6 +92,7 @@ let lastPanelRenderedAt = 0;
 let lastPanelStateSignature = '';
 let lastTutorialMarkup = '';
 let activeTutorialTip: TutorialTip | null = null;
+let activeTutorialTipShownAt = 0;
 let panelWidth = loadPanelWidth();
 let panelResizeDrag: { pointerId: number; startX: number; startWidth: number } | null = null;
 const seenTutorialTips = loadTutorialSeen();
@@ -815,8 +819,15 @@ function renderPanel(): void {
 
 function renderTutorialTip(): void {
   const state = getFarmSnapshot(farmGame);
-  const tip = currentTutorialTip(state);
-  activeTutorialTip = tip;
+  const candidate = currentTutorialTip(state);
+  const now = performance.now();
+  const shouldHoldCurrent = Boolean(
+    activeTutorialTip &&
+    activeTutorialTip.id !== candidate?.id &&
+    now - activeTutorialTipShownAt < TUTORIAL_MIN_VISIBLE_MS,
+  );
+  const tip = shouldHoldCurrent ? activeTutorialTip : candidate;
+
   if (!tip) {
     clearTutorialTip();
     return;
@@ -824,18 +835,34 @@ function renderTutorialTip(): void {
 
   const target = visibleTutorialTarget(tip.targetSelector);
   if (!target) {
+    if (shouldHoldCurrent && lastTutorialMarkup) return;
     clearTutorialTip();
     return;
+  }
+
+  if (!activeTutorialTip || activeTutorialTip.id !== tip.id || activeTutorialTip.targetSelector !== tip.targetSelector) {
+    activeTutorialTip = tip;
+    activeTutorialTipShownAt = now;
   }
 
   const { left, top, placement } = tutorialTipPosition(target);
   const markup = `
     <aside class="tutorial-tip ${placement}" style="left: ${left}px; top: ${top}px;" data-tutorial-tip="${tip.id}">
       <div class="tutorial-callout-icon">${iconSvg(tip.icon)}</div>
-      <div>
-        <span class="banner-kicker">Next Click</span>
-        <strong>${tip.title}</strong>
-        <p>${tip.body}</p>
+      <div class="tutorial-copy">
+        <span class="tutorial-kicker">Farm Guide</span>
+        <strong class="tutorial-title">${tip.title}</strong>
+        <p class="tutorial-summary">${tip.body}</p>
+        <div class="tutorial-details">
+          <section class="tutorial-detail">
+            <span class="tutorial-detail-label">Do</span>
+            <p>${tip.action}</p>
+          </section>
+          <section class="tutorial-detail">
+            <span class="tutorial-detail-label">Why</span>
+            <p>${tip.why}</p>
+          </section>
+        </div>
       </div>
       <button class="tutorial-close" data-command="dismiss-tutorial" title="Dismiss tip" aria-label="Dismiss tip">x</button>
     </aside>
@@ -912,6 +939,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'claim',
         title: `Claim Tier ${claimable}`,
         body: 'Milestones make rewards ready, but you choose when to unlock them.',
+        action: 'Click Claim Rewards in Goals.',
+        why: 'Claiming adds the next crop, worker, and planning options without changing your layout.',
         targetSelector: '[data-command="claim-tier"]',
       };
     }
@@ -921,6 +950,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'flag',
         title: 'Open Goals',
         body: `Tier ${claimable} is ready. Open Goals to claim the reward.`,
+        action: 'Click the Goals tab on the right panel.',
+        why: 'Tier rewards live in Goals so you can review the unlock before accepting it.',
         targetSelector: '[data-panel="goals"]',
       };
     }
@@ -934,6 +965,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'seed',
         title: 'Buy Seeds',
         body: 'Farmers plant seeds automatically once empty plots are available.',
+        action: 'Buy a seed packet for any desired crop with zero seeds.',
+        why: 'Workers cannot plant without seeds, even when plots and water are ready.',
         targetSelector: activePanel === 'inventory'
           ? '[data-buy-seeds]:not([disabled])'
           : '[data-seed-guidance-action]',
@@ -945,6 +978,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'flag',
         title: 'Open Goals',
         body: 'The farm needs seeds. Goals will show the direct restock button.',
+        action: 'Click Goals, then use a seed restock button.',
+        why: 'Goals highlights the exact crop that is blocking your workers.',
         targetSelector: '[data-panel="goals"]',
       };
     }
@@ -957,6 +992,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'plot',
         title: 'Select Plot',
         body: 'You have seeds, but no empty plots. Select Plot first.',
+        action: 'Press 2 or click Plot in the toolbar.',
+        why: 'Workers need empty plot tiles before they can carry seeds and plant crops.',
         targetSelector: '[data-tool="plot"]',
       };
     }
@@ -966,6 +1003,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'plot',
         title: 'Paint Empty Land',
         body: 'Click an empty green tile. Farmers will bring carrot seeds there.',
+        action: 'Click a green owned tile that does not already contain a building or plot.',
+        why: 'Painted plots become the planting targets workers use for the next crop cycle.',
         targetSelector: '#game-canvas',
       };
     }
@@ -979,6 +1018,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'coins',
         title: 'Sell Crops',
         body: 'Turn stored crops into coins when you want more seeds or upgrades.',
+        action: 'Click Sell All or a crop-specific sell button.',
+        why: 'Coins buy seeds, land, storage, wells, and worker upgrades.',
         targetSelector: '[data-sell], [data-command="sell-all"]',
       };
     }
@@ -988,6 +1029,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'backpack',
         title: 'Open Inventory',
         body: 'You have crops ready to sell.',
+        action: 'Click Inventory to see crop counts and sell controls.',
+        why: 'Selling harvested crops converts stored goods into spendable coins.',
         targetSelector: '[data-panel="inventory"]',
       };
     }
@@ -999,6 +1042,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
       icon: 'sliders',
       title: 'Tune Crop Mix',
       body: 'Mix is a target. Farmers still use carrot seeds if wheat seeds run out.',
+      action: 'Open Crop Mix and adjust the crop sliders.',
+      why: 'Crop mix tells workers which seeds to prefer as you unlock more crops.',
       targetSelector: '[data-panel="mix"]',
     };
   }
@@ -1016,6 +1061,7 @@ function visibleTutorialTarget(selector: string): HTMLElement | null {
 
 function clearTutorialTip(): void {
   activeTutorialTip = null;
+  activeTutorialTipShownAt = 0;
   if (!lastTutorialMarkup) return;
   tutorialLayer.innerHTML = '';
   lastTutorialMarkup = '';
@@ -1329,6 +1375,8 @@ function resetFarm(): void {
   lastPanelMarkup = '';
   lastPanelStateSignature = '';
   lastTutorialMarkup = '';
+  activeTutorialTip = null;
+  activeTutorialTipShownAt = 0;
 }
 
 panelResizer.addEventListener('pointerdown', (event) => {

@@ -684,8 +684,9 @@ body.panel-resizing .panel-resizer::before {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) 24px;
   gap: 9px;
-  width: 286px;
-  padding: 10px;
+  width: 320px;
+  min-height: 156px;
+  padding: 11px;
   border: 1px solid var(--line-bright);
   border-radius: 6px;
   background:
@@ -750,17 +751,55 @@ body.panel-resizing .panel-resizer::before {
   height: 20px;
 }
 
+.tutorial-copy {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.tutorial-kicker,
+.tutorial-detail-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .tutorial-tip strong {
   display: block;
-  margin-top: 2px;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.15;
 }
 
 .tutorial-tip p {
-  margin: 3px 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.tutorial-summary {
+  color: var(--text);
+}
+
+.tutorial-details {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.tutorial-detail {
+  display: grid;
+  gap: 2px;
+  padding: 6px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.tutorial-detail p {
+  color: var(--text);
 }
 
 .tutorial-close {

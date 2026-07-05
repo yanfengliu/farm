@@ -83,6 +83,84 @@ describe('tutorial tips', () => {
     }
   }, 15000);
 
+  test('tutorial tips use a consistent readable guidance format', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'guidance-format-seed' }));
+    savedState.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0 };
+    savedState.coins = savedState.crops.carrot.seedPrice * 2;
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="buy-needed-seeds"]');
+
+      const format = await page.evaluate(() => {
+        const tip = globalThis.document.querySelector('.tutorial-tip');
+        return {
+          kicker: tip?.querySelector('.tutorial-kicker')?.textContent?.trim() ?? '',
+          title: tip?.querySelector('.tutorial-title')?.textContent?.trim() ?? '',
+          sectionLabels: Array.from(tip?.querySelectorAll('.tutorial-detail-label') ?? [])
+            .map((item) => item.textContent?.trim()),
+          detailCount: tip?.querySelectorAll('.tutorial-detail').length ?? 0,
+          minHeight: Number.parseFloat(globalThis.getComputedStyle(tip).minHeight),
+          text: tip?.textContent ?? '',
+        };
+      });
+
+      expect(format.kicker).toBe('Farm Guide');
+      expect(format.title).toBe('Buy Seeds');
+      expect(format.sectionLabels).toEqual(['Do', 'Why']);
+      expect(format.detailCount).toBe(2);
+      expect(format.minHeight).toBeGreaterThanOrEqual(150);
+      expect(format.text).toContain('Buy a seed packet');
+      expect(format.text).toContain('Workers cannot plant without seeds');
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
+  test('tutorial tips stay readable briefly when guidance changes', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'guidance-hold' }));
+    savedState.inventory.seeds = { carrot: 5, wheat: 0, tomato: 0 };
+    for (const tile of Object.values(savedState.tiles)) {
+      if (tile.kind === 'plot') {
+        tile.plot = { cropId: 'carrot', growth: 1, water: 100 };
+      }
+    }
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="select-plot-tool"]');
+
+      await page.keyboard.press('2');
+      await page.waitForTimeout(750);
+
+      const heldTip = await page.locator('.tutorial-tip').evaluate((tip) => ({
+        id: tip.getAttribute('data-tutorial-tip'),
+        title: tip.querySelector('.tutorial-title')?.textContent?.trim() ?? '',
+        text: tip.textContent ?? '',
+      }));
+
+      expect(heldTip.id).toBe('select-plot-tool');
+      expect(heldTip.title).toBe('Select Plot');
+      expect(heldTip.text).toContain('Press 2 or click Plot');
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('seed shortage tip does not cover visible seed-buy buttons', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'inventory-seed-tip-clear-targets' }));
     savedState.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0 };

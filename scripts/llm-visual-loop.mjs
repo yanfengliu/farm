@@ -261,7 +261,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
   }
 
-  if (canvasAction && canvasClickCount < 2 && /TOOL Plot|Paint plots|Select Plot/i.test(observation.visibleText)) {
+  if (canvasAction && canvasClickCount < 2 && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {
     return clickDecision(
       canvasAction,
       'The selected plot tool needs a field click, so click an open farm tile visible on the canvas.',
@@ -299,12 +299,12 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
 
 function tutorialActionFromText(observation) {
   const text = observation.visibleText;
-  if (/NEXT CLICK Select Plot/i.test(text)) return findAction(observation, '[data-tool="plot"]');
-  if (/NEXT CLICK Open Inventory/i.test(text)) return findAction(observation, '[data-panel="inventory"]');
-  if (/NEXT CLICK Open Goals/i.test(text)) return findAction(observation, '[data-panel="goals"]');
-  if (/NEXT CLICK Tune Crop Mix/i.test(text)) return findAction(observation, '[data-panel="mix"]');
-  if (/NEXT CLICK Buy seeds/i.test(text)) return findSeedAction(observation);
-  if (/NEXT CLICK Claim/i.test(text)) return findAction(observation, '[data-command="claim-tier"]');
+  if (/NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(text)) return findAction(observation, '[data-tool="plot"]');
+  if (/NEXT CLICK Open Inventory|FARM GUIDE Open Inventory/i.test(text)) return findAction(observation, '[data-panel="inventory"]');
+  if (/NEXT CLICK Open Goals|FARM GUIDE Open Goals/i.test(text)) return findAction(observation, '[data-panel="goals"]');
+  if (/NEXT CLICK Tune Crop Mix|FARM GUIDE Tune Crop Mix/i.test(text)) return findAction(observation, '[data-panel="mix"]');
+  if (/NEXT CLICK Buy seeds|FARM GUIDE Buy Seeds/i.test(text)) return findSeedAction(observation);
+  if (/NEXT CLICK Claim|FARM GUIDE Claim/i.test(text)) return findAction(observation, '[data-command="claim-tier"]');
   return null;
 }
 
