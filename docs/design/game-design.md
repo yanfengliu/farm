@@ -20,23 +20,26 @@ Idle progress runs only while the tab/window is open. There is no offline simula
 4. Crops and seeds are tracked in inventory. Storage buildings increase shared capacity.
 5. Workers must physically haul crops to storage drop-off points before those crops enter the shared inventory.
 6. The player manually sells crops, and crop overflow auto-sells at normal price when crop storage is full.
-7. Milestones unlock more crops, land capacity, workers, buildings, and tool upgrades.
+7. Milestones make the next tier claimable, and the player manually unlocks that tier from the Goals panel to receive more crops, workers, buildings, and tool upgrades.
 8. The player expands adjacent land tile by tile, tunes layout, adjusts crop mix, and watches the farm improve.
 
 ## Player Controls
 
 Workers are priority-autonomous. The player does not assign individual worker tasks in the MVP. The only worker priority control is crop mix percentages across unlocked crops. Workers automatically balance watering, planting, harvesting, hauling seeds, hauling water, and hauling crops.
 
+When multiple workers are available, they should reserve distinct active plot targets for planting, watering, and harvesting whenever enough work exists. Workers may still share sources such as one storage bin or well, so they can briefly walk similar routes before splitting toward different plot jobs.
+
 The player can:
 
-- Paint plots by click-drag.
-- Place wells and storage bins with single clicks.
+- Paint plots by click-drag on empty owned land. Plot painting does not replace wells, storage bins, or existing plots.
+- Place wells and storage bins with single clicks on empty owned land.
 - Buy adjacent land tiles.
 - Bulldoze farm objects for free with no refund.
 - Adjust crop mix percentages.
+- Claim the next milestone tier once its requirement is met.
 - Sell a selected crop amount or sell all sellable crops.
 - Pause and set 1x, 2x, or 4x speed.
-- Undo and redo build, bulldoze, and crop-priority changes.
+- Undo and redo player-issued farm edits, upgrade purchases, and tier claims.
 - Pan and zoom the camera with mouse and keyboard.
 - Use visible keyboard shortcuts for all tools.
 
@@ -57,6 +60,10 @@ Unwatered or blocked crops pause or slow down. They do not die in the MVP. No sp
 
 Seeds are tracked per crop. Seeds can be bought with coins once a crop is unlocked, and harvests can sometimes return seeds. Starter crop seeds regenerate slowly so the game cannot brick if the player runs out of seeds and coins.
 
+If workers are idle because empty plots have no desired unlocked seeds and the player can afford seed restocks, the HUD should explain the stall. The Goals panel should surface compact seed-buy actions in that state so the player can restart planting without hunting through panels.
+
+Crop mix is a target ratio, not a hard queue. If carrot is 75% and wheat is 25%, but only carrot seeds are available, workers should still plant carrots rather than waiting for wheat seeds. If workers have seeds but no empty plots, the HUD should explain that more plots are needed.
+
 Tools are global upgrades. They improve worker speed, crop handling, or farm efficiency without creating physical tool items. The first playable upgrades are worker boots, which increase movement speed, and watering cans, which keep crops watered longer.
 
 ## Logistics
@@ -75,11 +82,15 @@ Workers can walk across open owned land and plots. Storage bins and wells block 
 
 Workers do not collide with each other in MVP. Multiple workers can occupy or pass through the same tile.
 
+Blocking buildings cannot be placed on a tile currently occupied by a worker. Legacy saves that already contain a worker inside a storage bin or well are repaired on load by clearing the blocking tile back to empty owned land.
+
+Placement tools are non-overwriting. A plot, well, or storage bin remains in that cell until the player explicitly bulldozes it, then places something else on the empty land.
+
 ## Economy And Progression
 
 The economy uses coins, crops, seeds, and milestone stats. Processing and crafting buildings are not in MVP.
 
-Progression uses linear milestone tiers. Milestones unlock availability rather than acting as a final endpoint. The game has no win condition; content can run out, but the farm should feel open-ended.
+Progression uses linear milestone tiers. Completing a milestone makes the next tier available, but the player must claim the tier manually from the Goals panel before rewards apply. Tier claims are part of the same undo/redo history as other direct player commands. The game has no win condition; content can run out, but the farm should feel open-ended.
 
 Milestones should teach and pace the game through goals like:
 
@@ -99,7 +110,7 @@ The starting farm is a tiny starter kit:
 - A few plots.
 - One worker.
 - One well.
-- One storage bin.
+- One storage bin on a separate utility tile outside the starter plot row, so workers can begin seed and crop logistics without the player building storage first. Older starter saves that had the old storage position or no storage recover that utility bin when safe.
 - Starter crop seeds.
 - A small coin balance.
 - Minimal contextual hints.
@@ -117,18 +128,26 @@ The layout uses a canvas playfield with a bottom toolbar and collapsible side pa
 - Selected tool
 - Speed and pause state
 - Alerts
+- First-time contextual tutorial tips that point at the next relevant click when a process becomes needed
 
 Side panels provide:
 
 - Inventory and manual selling.
 - Crop mix percentages.
-- Tier/milestone details.
+- Tier/milestone details and manual tier claiming.
+- Contextual seed-restock guidance when workers are waiting for buyable seeds.
 - Upgrades and unlocks.
 - Inspect details for the selected tile, worker, plot, well, or storage bin.
 
 Worker task state is visible only on hover or inspect, not as permanent icons over every worker.
 
-The UI chrome should feel elegant and desktop-first: black and white, semi-transparent, glassy, and compact. The farm itself can stay colorful and cozy, but the surrounding HUD, panels, toolbar, and non-playfield backdrop should avoid a green theme.
+The side panel can be collapsed for more playfield space or resized from its inner edge when text-heavy inventory, goals, crop-mix, or inspect content needs more room. The chosen side-panel width is a UI preference and is separate from the deterministic farm save.
+
+The UI chrome should feel elegant and desktop-first: black and white, semi-transparent, glassy, icon-led, and compact but readable. The farm itself can stay colorful and cozy, but the surrounding HUD, panels, toolbar, and non-playfield backdrop should avoid a green theme.
+
+UI icons should use colorful, crisp pixel-art glyphs rather than generic line icons so the chrome still belongs to the top-down pixel farm without turning the surrounding panels green.
+
+The current icon direction is informed by the generated concept sheet at `docs/design/assets/generated-ui-icon-concept.png`: icons should read as familiar objects such as a magnifier, fenced plot, bucket well, wooden crate, hill, shovel, backpack, flag, coins, crop, seed pouch, gift, and sliders.
 
 ## Art
 

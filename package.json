@@ -5,7 +5,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "playtest:llm": "node scripts/llm-playtest.mjs",
+    "playtest:llm:visual-loop": "node scripts/llm-visual-loop.mjs",
+    "playtest:llm:replay": "node scripts/llm-playtest-replay.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --no-error-on-unmatched-pattern",

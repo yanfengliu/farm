@@ -6,3 +6,18 @@
 - Planned the MVP as a desktop-first browser idle farming game with autonomous workers, grid placement, crop logistics, milestone progression, local autosave, and debug/playtest APIs.
 - Added the first playable vertical slice: deterministic farm simulation, Phaser canvas, DOM HUD/panels, visible hotkeys, autosave, selling, seed buying, global tool upgrades, undo/redo, speed controls, and debug APIs.
 - Removed path tiles from the MVP and removed all sound effects from the browser client.
+- Changed tier rewards to a player-claimed Goals action and tightened button chrome with icons.
+- Made Plot painting non-destructive so existing structures are not replaced accidentally.
+- Added an LLM playtest harness with findings, annotations, screenshots, civ-engine replay capture, and replay inspection.
+- Added idle seed-shortage guidance and direct seed-buy actions to the Goals panel, with LLM playtest checks for the stall state.
+- Added first-time next-click tutorial tips, crop/seed icons, and plot-space guidance for workers that have seeds but nowhere to plant.
+- Converted UI icons to crisp pixel-art glyphs and fixed worker-trap saves by blocking storage/well placement on occupied worker tiles and normalizing legacy saves.
+- Moved starter storage onto a separate utility tile, recovered older no-storage starter saves, and made build placement non-overwriting until the player bulldozes a cell.
+- Fixed tutorial close buttons so dismissing a visible first-time tip removes it immediately instead of re-showing paired guidance.
+- Colored the pixel-art UI icons with per-icon palettes while keeping the compact black-and-white glass chrome.
+- Generated a pixel-art icon concept sheet, enlarged the desktop UI chrome slightly, and refined the control icons into more recognizable object silhouettes.
+- Added a draggable side-panel resize handle so players can widen the panel when inventory, goals, crop mix, or inspect content needs more room.
+- Reduced bottom toolbar button width so the controls stay compact instead of stretching across wide desktop viewports.
+- Fixed worker task assignment so multiple farmhands reserve different active plot targets instead of wasting trips on the same planting, watering, or harvesting job.
+- Changed the LLM browser playtest harness to drive scenarios through visible player controls, while reporting screenshots, visible text, available actions, and player action logs for LLM review.
+- Added `npm run playtest:llm:visual-loop`, a step-by-step screenshot/action/replay harness for LLM-style playtesting through visible player controls.

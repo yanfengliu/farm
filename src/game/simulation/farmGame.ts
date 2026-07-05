@@ -93,6 +93,7 @@ export type FarmCommand =
   | { type: 'sellAllCrops' }
   | { type: 'buySeeds'; cropId: CropId; amount: number }
   | { type: 'buyUpgrade'; upgradeId: UpgradeId }
+  | { type: 'claimNextTier' }
   | { type: 'buyLand'; x: number; y: number }
   | { type: 'paintTile'; x: number; y: number; tile: 'empty' | 'plot' }
   | { type: 'placeBuilding'; x: number; y: number; building: 'well' | 'storage' }
@@ -111,6 +112,8 @@ const FARM_TPS = 10;
 const STARTER_SEED_TRICKLE_TICKS = 240;
 const LAND_COST = 5;
 const STORAGE_CAPACITY_PER_BIN = 15;
+const STARTER_STORAGE_POSITION = { x: 7, y: 2 };
+const LEGACY_STARTER_STORAGE_POSITION = { x: 6, y: 2 };
 
 export function createFarmGame(options: { seed?: string | number; state?: FarmState } = {}): FarmGame {
   const initial = normalizeFarmState(options.state ? cloneState(options.state) : createInitialFarmState());
@@ -180,7 +183,14 @@ export function renderFarmToText(game: FarmGame): string {
     `cropMix=${mix}`,
     `upgrades=${upgrades}`,
     `tier=${state.tier.level}`,
+    `claimableTier=${claimableTierLevel(state) ?? 0}`,
   ].join(' ');
+}
+
+export function claimableTierLevel(state: FarmState): TierLevel | null {
+  if (state.tier.level === 1 && state.stats.lifetimeHarvested.carrot >= 10) return 2;
+  if (state.tier.level === 2 && state.stats.lifetimeHarvested.wheat >= 20) return 3;
+  return null;
 }
 
 function createInitialFarmState(): FarmState {
@@ -200,7 +210,10 @@ function createInitialFarmState(): FarmState {
   }
 
   tiles[keyOf(2, 2)] = { x: 2, y: 2, kind: 'well' };
-  tiles[keyOf(6, 2)] = { x: 6, y: 2, kind: 'storage' };
+  tiles[keyOf(STARTER_STORAGE_POSITION.x, STARTER_STORAGE_POSITION.y)] = {
+    ...STARTER_STORAGE_POSITION,
+    kind: 'storage',
+  };
 
   return {
     version: 1,
@@ -251,7 +264,9 @@ function updateFarmState(state: FarmState): void {
     updateWorker(state, worker);
   }
 
-  updateTier(state);
+  updateTierAlerts(state);
+  updateSeedGuidanceAlerts(state);
+  updatePlantingSpaceAlerts(state);
 }
 
 function trickleStarterSeeds(state: FarmState): void {
@@ -369,7 +384,11 @@ function completeWorkerTaskPhase(state: FarmState, worker: FarmWorker): boolean 
 }
 
 function assignWorkerTask(state: FarmState, worker: FarmWorker): void {
-  const ready = findNearestTile(state, worker, (tile) => tile.kind === 'plot' && isReady(tile));
+  const ready = findNearestTile(state, worker, (tile) => (
+    tile.kind === 'plot' &&
+    isReady(tile) &&
+    !isPlotTaskReserved(state, worker, tile)
+  ));
   if (ready) {
     routeWorkerTo(state, worker, 'harvesting', 'to-plot', ready);
     return;
@@ -379,14 +398,19 @@ function assignWorkerTask(state: FarmState, worker: FarmWorker): void {
     tile.kind === 'plot' &&
     tile.plot !== undefined &&
     tile.plot.water <= 0 &&
-    tile.plot.growth < CROPS[tile.plot.cropId].growTicks
+    tile.plot.growth < CROPS[tile.plot.cropId].growTicks &&
+    !isPlotTaskReserved(state, worker, tile)
   ));
   if (thirsty && findNearestBuilding(state, worker, 'well')) {
     routeWorkerToWell(state, worker, thirsty);
     return;
   }
 
-  const emptyPlot = findNearestTile(state, worker, (tile) => tile.kind === 'plot' && !tile.plot);
+  const emptyPlot = findNearestTile(state, worker, (tile) => (
+    tile.kind === 'plot' &&
+    !tile.plot &&
+    !isPlotTaskReserved(state, worker, tile)
+  ));
   const cropId = emptyPlot ? chooseCropForPlanting(state) : null;
   if (emptyPlot && cropId && state.inventory.seeds[cropId] > 0) {
     routeWorkerToStorage(state, worker, emptyPlot, cropId);
@@ -517,6 +541,15 @@ function findNearestBuilding(state: FarmState, worker: FarmWorker, kind: 'well' 
   return findNearestTile(state, worker, (tile) => tile.kind === kind);
 }
 
+function isPlotTaskReserved(state: FarmState, worker: FarmWorker, tile: FarmTile): boolean {
+  return state.workers.some((other) => (
+    other.id !== worker.id &&
+    (other.task.kind === 'planting' || other.task.kind === 'watering' || other.task.kind === 'harvesting') &&
+    other.task.target?.x === tile.x &&
+    other.task.target.y === tile.y
+  ));
+}
+
 function chooseCropForPlanting(state: FarmState): CropId | null {
   const unlocked = state.tier.unlockedCrops.filter((id) => state.cropMix[id] > 0);
   if (unlocked.length === 0) return null;
@@ -563,6 +596,9 @@ function applyFarmCommand(state: FarmState, command: FarmCommand): void {
       break;
     case 'buyUpgrade':
       mutateWithHistory(state, () => buyUpgrade(state, command.upgradeId));
+      break;
+    case 'claimNextTier':
+      mutateWithHistory(state, () => claimNextTier(state));
       break;
     case 'buyLand':
       mutateWithHistory(state, () => buyLand(state, command.x, command.y));
@@ -628,6 +664,7 @@ function buyLand(state: FarmState, x: number, y: number): void {
 function paintTile(state: FarmState, x: number, y: number, kind: 'empty' | 'plot'): void {
   const tile = tileAt(state, x, y);
   if (!tile) return;
+  if (kind === 'plot' && tile.kind !== 'empty') return;
   tile.kind = kind;
   delete tile.plot;
   reconcileStorageCapacity(state);
@@ -636,6 +673,8 @@ function paintTile(state: FarmState, x: number, y: number, kind: 'empty' | 'plot
 function placeBuilding(state: FarmState, x: number, y: number, building: 'well' | 'storage'): void {
   const tile = tileAt(state, x, y);
   if (!tile) return;
+  if (tile.kind !== 'empty') return;
+  if (hasWorkerAt(state, x, y)) return;
   tile.kind = building;
   delete tile.plot;
   reconcileStorageCapacity(state);
@@ -653,19 +692,56 @@ function setCropMix(state: FarmState, mix: Partial<Record<CropId, number>>): voi
   }
 }
 
-function updateTier(state: FarmState): void {
-  if (state.tier.level === 1 && state.stats.lifetimeHarvested.carrot >= 10) {
-    state.tier = tierState(2);
-    state.workers.push({ id: 2, x: 4, y: 2, task: idleTask() });
+function claimNextTier(state: FarmState): void {
+  const nextLevel = claimableTierLevel(state);
+  if (!nextLevel) return;
+
+  state.tier = tierState(nextLevel);
+  state.workers.push({ id: nextWorkerId(state), x: 4, y: 2, task: idleTask() });
+  if (nextLevel === 2) {
     state.inventory.seeds.wheat += 4;
     state.cropMix = { carrot: 0.75, wheat: 0.25, tomato: 0 };
-  }
-  if (state.tier.level === 2 && state.stats.lifetimeHarvested.wheat >= 20) {
-    state.tier = tierState(3);
-    state.workers.push({ id: 3, x: 4, y: 2, task: idleTask() });
+  } else if (nextLevel === 3) {
     state.inventory.seeds.tomato += 4;
     state.cropMix = { carrot: 0.6, wheat: 0.25, tomato: 0.15 };
   }
+}
+
+function updateTierAlerts(state: FarmState): void {
+  const nextLevel = claimableTierLevel(state);
+  if (!nextLevel) return;
+  const nextTier = FARM_TIERS[nextLevel];
+  state.alerts.push(`Tier ${nextLevel} ready: unlock ${nextTier.label} in Goals.`);
+}
+
+function updateSeedGuidanceAlerts(state: FarmState): void {
+  if (state.alerts.length > 0) return;
+  if (!state.workers.some((worker) => worker.task.kind === 'idle')) return;
+  if (!Object.values(state.tiles).some((tile) => tile.kind === 'plot' && !tile.plot)) return;
+
+  const desiredCrops = state.tier.unlockedCrops.filter((cropId) => state.cropMix[cropId] > 0);
+  if (desiredCrops.length === 0) return;
+
+  const availableSeeds = desiredCrops.reduce((sum, cropId) => sum + state.inventory.seeds[cropId], 0);
+  if (availableSeeds > 0) return;
+  if (!desiredCrops.some((cropId) => state.coins >= CROPS[cropId].seedPrice)) return;
+
+  state.alerts.push('Buy seeds in Inventory to keep farmers planting.');
+}
+
+function updatePlantingSpaceAlerts(state: FarmState): void {
+  if (state.alerts.length > 0) return;
+  if (!state.workers.some((worker) => worker.task.kind === 'idle')) return;
+  if (Object.values(state.tiles).some((tile) => tile.kind === 'plot' && !tile.plot)) return;
+  if (!Object.values(state.tiles).some((tile) => tile.kind === 'empty')) return;
+
+  const desiredCrops = state.tier.unlockedCrops.filter((cropId) => state.cropMix[cropId] > 0);
+  if (desiredCrops.length === 0) return;
+
+  const availableSeeds = desiredCrops.reduce((sum, cropId) => sum + state.inventory.seeds[cropId], 0);
+  if (availableSeeds <= 0) return;
+
+  state.alerts.push('Paint plots on empty land so farmers can plant seeds.');
 }
 
 function mutateWithHistory(state: FarmState, mutate: () => void): void {
@@ -754,8 +830,16 @@ function countTiles(state: FarmState, kind: TileKind): number {
   return Object.values(state.tiles).filter((tile) => tile.kind === kind).length;
 }
 
+function hasWorkerAt(state: FarmState, x: number, y: number): boolean {
+  return state.workers.some((worker) => worker.x === x && worker.y === y);
+}
+
 function movementMultiplier(state: FarmState): number {
   return 1 + state.upgrades.boots * 0.2;
+}
+
+function nextWorkerId(state: FarmState): number {
+  return Math.max(0, ...state.workers.map((worker) => worker.id)) + 1;
 }
 
 function reconcileStorageCapacity(state: FarmState): void {
@@ -789,8 +873,39 @@ function normalizeFarmState(state: FarmState): FarmState {
       tile.kind = 'empty';
       delete tile.plot;
     }
+    if ((tile.kind === 'well' || tile.kind === 'storage') && hasWorkerAt(state, tile.x, tile.y)) {
+      tile.kind = 'empty';
+      delete tile.plot;
+    }
   }
+  normalizeStarterUtilityStorage(state);
   state.upgrades = { ...zeroUpgradeRecord(), ...(state.upgrades ?? {}) };
   state.stats.lifetimeUpgradePurchases ??= 0;
+  reconcileStorageCapacity(state);
   return state;
+}
+
+function normalizeStarterUtilityStorage(state: FarmState): void {
+  const legacyStorage = tileAt(state, LEGACY_STARTER_STORAGE_POSITION.x, LEGACY_STARTER_STORAGE_POSITION.y);
+  if (legacyStorage?.kind === 'storage' && canRecoverStarterStorageAt(state, STARTER_STORAGE_POSITION.x, STARTER_STORAGE_POSITION.y)) {
+    state.tiles[keyOf(STARTER_STORAGE_POSITION.x, STARTER_STORAGE_POSITION.y)] = {
+      ...STARTER_STORAGE_POSITION,
+      kind: 'storage',
+    };
+    legacyStorage.kind = 'empty';
+    delete legacyStorage.plot;
+  }
+
+  if (countTiles(state, 'storage') > 0) return;
+  if (!canRecoverStarterStorageAt(state, STARTER_STORAGE_POSITION.x, STARTER_STORAGE_POSITION.y)) return;
+  state.tiles[keyOf(STARTER_STORAGE_POSITION.x, STARTER_STORAGE_POSITION.y)] = {
+    ...STARTER_STORAGE_POSITION,
+    kind: 'storage',
+  };
+}
+
+function canRecoverStarterStorageAt(state: FarmState, x: number, y: number): boolean {
+  if (hasWorkerAt(state, x, y)) return false;
+  const tile = tileAt(state, x, y);
+  return !tile || tile.kind === 'empty';
 }

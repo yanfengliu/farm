@@ -10,3 +10,18 @@
 - 2026-07-04: Smoothed worker rendering by easing visual positions along simulation path-progress targets instead of drawing only at tile centers.
 - 2026-07-04: Re-skinned UI chrome and broad backdrops from green farm panels to compact black-and-white glass while preserving colorful farm objects.
 - 2026-07-04: Removed path tiles as a farm concept, normalized legacy path saves to empty land, removed the Path tool, and deleted all browser sound effects.
+- 2026-07-04: Changed tier progression from automatic rewards to player-claimed unlocks, tightened button sizing, added icon-led controls, and removed the tiny Vite config so sandboxed verification can run.
+- 2026-07-04: Made Plot painting non-destructive so it only converts empty owned land and cannot replace wells, storage bins, or existing plots.
+- 2026-07-04: Added an LLM playtest harness with browser screenshots, structured findings, improvement annotations, civ-engine replay bundle capture, and a replay inspector.
+- 2026-07-04: Extended the LLM playtest loop to catch idle no-seed stalls, added HUD guidance, and placed direct seed-buy actions in the Goals panel when farmers are waiting.
+- 2026-07-05: Added first-time next-click tutorial tips, crop/seed icons, and plot-space guidance so seed-rich idle workers tell the player to paint more plots.
+- 2026-07-05: Converted UI controls to crisp pixel-art glyphs and fixed a worker-trap case where blocking buildings could strand workers on occupied tiles in existing saves.
+- 2026-07-05: Moved starter storage to an outside utility tile, recovered older no-storage starter saves, and made all placement tools non-overwriting until the player bulldozes the existing cell content.
+- 2026-07-05: Fixed tutorial tip dismissal so the close button hides the currently visible paired guidance tip and added browser regression coverage.
+- 2026-07-05: Recolored UI pixel icons with small per-icon palettes so controls stay compact but read as colorful farm-game graphics.
+- 2026-07-05: Generated a pixel-art icon concept sheet, scaled the desktop UI up modestly, and revised icon masks toward more recognizable object silhouettes.
+- 2026-07-05: Added a draggable, persisted side-panel width preference so text-heavy panel content can be widened without changing the deterministic farm save.
+- 2026-07-05: Capped bottom toolbar button widths so the larger readable controls remain compact on desktop.
+- 2026-07-05: Fixed duplicate worker plot targeting so extra farmhands reserve separate planting, watering, and harvesting jobs when enough work is available.
+- 2026-07-05: Reworked the LLM browser playtest harness so browser scenarios are controlled through visible player actions and reports include observations/actions an LLM can review.
+- 2026-07-05: Added a step-by-step LLM visual playtest loop with screenshot observations, visible action extraction, player-only execution, optional external decision provider, and an HTML replay viewer.

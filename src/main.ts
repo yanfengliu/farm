@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import './styles.css';
 import { CROP_IDS, CROPS, type CropId } from './game/content/crops';
-import { FARM_TIER_LIST } from './game/content/tiers';
+import { FARM_TIERS, FARM_TIER_LIST, type TierLevel } from './game/content/tiers';
 import { UPGRADE_IDS, UPGRADES, type UpgradeId } from './game/content/upgrades';
 import {
   advanceFarm,
   advanceFarmByMs,
+  claimableTierLevel,
   createFarmGame,
   getFarmSnapshot,
   renderFarmToText,
@@ -21,10 +22,47 @@ import { clearFarmSave, loadSavedFarmState, saveFarmState } from './persistence/
 
 type Tool = 'inspect' | 'plot' | 'well' | 'storage' | 'land' | 'bulldoze';
 type Panel = 'inventory' | 'goals' | 'mix' | 'inspect';
+type IconName =
+  | 'backpack'
+  | 'bulldoze'
+  | 'carrot'
+  | 'claim'
+  | 'coins'
+  | 'flag'
+  | 'gauge'
+  | 'inspect'
+  | 'land'
+  | 'package'
+  | 'pause'
+  | 'play'
+  | 'plot'
+  | 'redo'
+  | 'seed'
+  | 'sliders'
+  | 'storage'
+  | 'tomato'
+  | 'undo'
+  | 'upgrade'
+  | 'well'
+  | 'wheat'
+  | 'zap';
+type TutorialTip = {
+  id: string;
+  icon: IconName;
+  title: string;
+  body: string;
+  targetSelector: string;
+};
 
 const TILE_SIZE = 32;
 const PAN_SPEED = 420;
 const PANEL_RENDER_INTERVAL_MS = 250;
+const TUTORIAL_STORAGE_KEY = 'farm-tutorial-seen-v1';
+const PANEL_WIDTH_STORAGE_KEY = 'farm-side-panel-width-v1';
+const PANEL_WIDTH_DEFAULT = 320;
+const PANEL_WIDTH_MIN = 300;
+const PANEL_WIDTH_MAX = 560;
+const PANEL_PLAYFIELD_MIN = 360;
 
 let farmGame: FarmGame = createFarmGame({ state: loadSavedFarmState() ?? undefined });
 let selectedTool: Tool = 'inspect';
@@ -42,6 +80,106 @@ let lastPanelMarkup = '';
 let lastRenderedPanel: Panel | null = null;
 let lastRenderedCollapsed = false;
 let lastPanelRenderedAt = 0;
+let lastTutorialMarkup = '';
+let activeTutorialTip: TutorialTip | null = null;
+let panelWidth = loadPanelWidth();
+let panelResizeDrag: { pointerId: number; startX: number; startWidth: number } | null = null;
+const seenTutorialTips = loadTutorialSeen();
+
+const iconPixels: Record<IconName, string[]> = {
+  backpack: ['...####...', '..#....#..', '.########.', '.#.####.#.', '.#......#.', '.#.####.#.', '.#.#..#.#.', '.########.', '..#....#..', '..........'],
+  bulldoze: ['......##..', '.....##...', '....##....', '...##.....', '..#######.', '.#########', '.##..###..', '##....##..', '..........', '..........'],
+  carrot: ['...#.#....', '..#####...', '...###....', '...###....', '...##.....', '..###.....', '..##......', '.##.......', '..........', '..........'],
+  claim: ['...#..#...', '..######..', '.########.', '.##.##.##.', '.########.', '.##.##.##.', '.##.##.##.', '.########.', '..........', '..........'],
+  coins: ['..####....', '.######...', '.##..##...', '.######...', '..####....', '...####...', '..######..', '..##..##..', '..######..', '..........'],
+  flag: ['.##.......', '.######...', '.#######..', '.##...##..', '.######...', '.##.......', '.##.......', '.##.......', '.##.......', '..........'],
+  gauge: ['..........', '..######..', '.##....##.', '##..##..##', '##....####', '##..#...##', '.########.', '...####...', '..........', '..........'],
+  inspect: ['..####....', '.##..##...', '##.##.##..', '##.##.##..', '.##..##...', '..####....', '....##....', '.....##...', '......##..', '..........'],
+  land: ['..........', '..........', '.....#....', '...#####..', '..#######.', '.#########', '##########', '##..##..##', '..........', '..........'],
+  package: ['..######..', '.########.', '##......##', '##########', '##..##..##', '##..##..##', '##########', '.##....##.', '..........', '..........'],
+  pause: ['..........', '..##..##..', '..##..##..', '..##..##..', '..##..##..', '..##..##..', '..##..##..', '..........', '..........', '..........'],
+  play: ['..........', '..##......', '..####....', '..######..', '..########', '..######..', '..####....', '..##......', '..........', '..........'],
+  plot: ['..........', '.########.', '##......##', '##.##.##.#', '##......##', '##.##.##.#', '##......##', '.########.', '..#....#..', '..........'],
+  redo: ['..........', '....####..', '......##..', '..######..', '.##...##..', '..#####...', '..........', '..........', '..........', '..........'],
+  seed: ['..........', '....##....', '...####...', '..######..', '..######..', '...####...', '....##....', '....##....', '..........', '..........'],
+  sliders: ['##..######', '##..#.....', '##########', '....##....', '######..##', '....#...##', '##########', '..........', '..........', '..........'],
+  storage: ['.########.', '##########', '##.####.##', '##########', '##..##..##', '##.####.##', '##########', '.########.', '..........', '..........'],
+  tomato: ['....##....', '...####...', '..######..', '.########.', '##########', '##########', '.########.', '..######..', '..........', '..........'],
+  undo: ['..........', '..####....', '..##......', '..######..', '..##...##.', '...#####..', '..........', '..........', '..........', '..........'],
+  upgrade: ['....##....', '...####...', '..######..', '.########.', '....##....', '....##....', '..######..', '.########.', '..........', '..........'],
+  well: ['..######..', '.##....##.', '##########', '##.####.##', '##.####.##', '.########.', '.##....##.', '..######..', '..........', '..........'],
+  wheat: ['....##....', '...###....', '....###...', '...###....', '....###...', '...###....', '..####....', '....##....', '....##....', '..........'],
+  zap: ['.....##...', '....##....', '...######.', '..#####...', '.....##...', '....##....', '...##.....', '..##......', '..........', '..........'],
+};
+
+const iconPalettes: Record<IconName, { primary: string; highlight: string; shadow: string }> = {
+  backpack: { primary: '#9b6a43', highlight: '#d6a166', shadow: '#5b3826' },
+  bulldoze: { primary: '#d9a441', highlight: '#ffe08a', shadow: '#7a5524' },
+  carrot: { primary: '#f07f2f', highlight: '#6fc36a', shadow: '#9a4722' },
+  claim: { primary: '#b993ff', highlight: '#ffe785', shadow: '#6d4ecf' },
+  coins: { primary: '#e4a92f', highlight: '#ffe178', shadow: '#9b6721' },
+  flag: { primary: '#ff6f61', highlight: '#ffd2a6', shadow: '#8c3d42' },
+  gauge: { primary: '#67b7dc', highlight: '#b8efff', shadow: '#315d7a' },
+  inspect: { primary: '#8fd6ff', highlight: '#f1fbff', shadow: '#38627b' },
+  land: { primary: '#6fb45c', highlight: '#b7e37a', shadow: '#3f6d37' },
+  package: { primary: '#c5874e', highlight: '#f2c27d', shadow: '#6f472c' },
+  pause: { primary: '#d8d8d8', highlight: '#ffffff', shadow: '#8c8c8c' },
+  play: { primary: '#83d778', highlight: '#c8ff9b', shadow: '#438f43' },
+  plot: { primary: '#8b6036', highlight: '#7ccf6d', shadow: '#4f3422' },
+  redo: { primary: '#78b7ff', highlight: '#d5ecff', shadow: '#3f6bb2' },
+  seed: { primary: '#d4a35b', highlight: '#86d66b', shadow: '#7a5932' },
+  sliders: { primary: '#d6d6d6', highlight: '#8fd6ff', shadow: '#777777' },
+  storage: { primary: '#b96f38', highlight: '#f3b96f', shadow: '#683c24' },
+  tomato: { primary: '#df4b42', highlight: '#6fc36a', shadow: '#8a2d2d' },
+  undo: { primary: '#78b7ff', highlight: '#d5ecff', shadow: '#3f6bb2' },
+  upgrade: { primary: '#a989ff', highlight: '#ffe785', shadow: '#6247b8' },
+  well: { primary: '#7f8793', highlight: '#79c9e8', shadow: '#4b5560' },
+  wheat: { primary: '#d8a944', highlight: '#ffe28a', shadow: '#8a6428' },
+  zap: { primary: '#f0c73b', highlight: '#fff08a', shadow: '#ad7620' },
+};
+
+function iconSvg(name: IconName): string {
+  const rows = iconPixels[name];
+  const width = Math.max(...rows.map((row) => row.length));
+  const height = rows.length;
+  const rects = rows.flatMap((row, y) => (
+    Array.from(row).map((cell, x) => (
+      cell === '.' ? '' : `<rect x="${x}" y="${y}" width="1" height="1" fill="${iconPixelFill(name, x, y, width, height)}" />`
+    ))
+  )).join('');
+  return `<svg class="button-icon pixel-icon" viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false">${rects}</svg>`;
+}
+
+function iconPixelFill(name: IconName, x: number, y: number, width: number, height: number): string {
+  const palette = iconPalettes[name];
+  if (name === 'carrot') return y <= 1 ? palette.highlight : y >= 5 ? palette.shadow : palette.primary;
+  if (name === 'tomato') return y <= 1 ? palette.highlight : y >= 6 ? palette.shadow : palette.primary;
+  if (name === 'wheat') return (x + y) % 3 === 0 ? palette.highlight : y >= 5 ? palette.shadow : palette.primary;
+  if (name === 'seed') return y <= 2 ? palette.highlight : y >= 5 ? palette.shadow : palette.primary;
+  if (name === 'well') return y === 3 || y === 4 ? palette.highlight : y >= 5 ? palette.shadow : palette.primary;
+  if (name === 'storage' || name === 'package' || name === 'backpack') {
+    if (y <= 1 || (x + y) % 5 === 0) return palette.highlight;
+    if (y >= height - 3 || x === 0 || x === width - 1) return palette.shadow;
+    return palette.primary;
+  }
+  if (name === 'plot' || name === 'land') return y <= 3 ? palette.highlight : y >= height - 2 ? palette.shadow : palette.primary;
+  if (name === 'coins' || name === 'claim' || name === 'upgrade' || name === 'zap') {
+    return y <= 2 ? palette.highlight : y >= height - 3 ? palette.shadow : palette.primary;
+  }
+  if (name === 'sliders') return x === 2 || x === 4 || y === 3 ? palette.highlight : palette.primary;
+  if (name === 'pause' || name === 'play' || name === 'redo' || name === 'undo' || name === 'gauge' || name === 'inspect') {
+    return y <= 1 ? palette.highlight : y >= height - 3 ? palette.shadow : palette.primary;
+  }
+  return y <= 2 ? palette.highlight : y >= height - 3 ? palette.shadow : palette.primary;
+}
+
+function buttonContent(icon: IconName, label: string): string {
+  return `${iconSvg(icon)}<span class="button-text">${label}</span>`;
+}
+
+function toolbarButtonContent(icon: IconName, key: string, label: string): string {
+  return `${iconSvg(icon)}<span class="key">${key}</span><span class="label">${label}</span>`;
+}
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) {
@@ -53,18 +191,31 @@ app.innerHTML = `
     <header class="hud" id="hud"></header>
     <main class="play-area" id="play-area">
       <div id="game-canvas"></div>
-      <aside class="side-panel">
+      <aside class="side-panel" id="side-panel">
+        <div
+          class="panel-resizer"
+          data-panel-resizer
+          role="separator"
+          tabindex="0"
+          title="Drag to resize panel"
+          aria-label="Resize side panel"
+          aria-orientation="vertical"
+          aria-valuemin="${PANEL_WIDTH_MIN}"
+          aria-valuemax="${PANEL_WIDTH_MAX}"
+          aria-valuenow="${panelWidth}"
+        ></div>
         <div class="panel-tabs">
-          <button data-panel="inventory">Inventory</button>
-          <button data-panel="goals">Goals</button>
-          <button data-panel="mix">Crop Mix</button>
-          <button data-panel="inspect">Inspect</button>
-          <button class="panel-toggle" data-command="toggle-panel" title="Collapse panel">></button>
+          <button data-panel="inventory" title="Inventory" aria-label="Inventory">${buttonContent('backpack', 'Inventory')}</button>
+          <button data-panel="goals" title="Goals" aria-label="Goals">${buttonContent('flag', 'Goals')}</button>
+          <button data-panel="mix" title="Crop Mix" aria-label="Crop Mix">${buttonContent('sliders', 'Mix')}</button>
+          <button data-panel="inspect" title="Inspect" aria-label="Inspect">${buttonContent('inspect', 'Inspect')}</button>
+          <button class="panel-toggle" data-command="toggle-panel" title="Collapse panel" aria-label="Collapse panel">${iconSvg('redo')}</button>
         </div>
         <div class="panel-content" id="panel-content"></div>
       </aside>
     </main>
     <footer class="toolbar" id="toolbar"></footer>
+    <div class="tutorial-layer" id="tutorial-layer"></div>
   </div>
 `;
 
@@ -73,16 +224,21 @@ const toolbar = requireElement<HTMLDivElement>('#toolbar');
 const panelContent = requireElement<HTMLDivElement>('#panel-content');
 const canvasHost = requireElement<HTMLDivElement>('#game-canvas');
 const playArea = requireElement<HTMLElement>('#play-area');
+const sidePanel = requireElement<HTMLElement>('#side-panel');
+const panelResizer = requireElement<HTMLElement>('[data-panel-resizer]');
+const tutorialLayer = requireElement<HTMLDivElement>('#tutorial-layer');
 
-const tools: Array<{ id: Tool; key: string; label: string }> = [
-  { id: 'inspect', key: 'I', label: 'Inspect' },
-  { id: 'plot', key: '1', label: 'Plot' },
-  { id: 'well', key: '2', label: 'Well' },
-  { id: 'storage', key: '3', label: 'Storage' },
-  { id: 'land', key: '4', label: 'Land' },
-  { id: 'bulldoze', key: 'B', label: 'Bulldoze' },
-  { id: 'inspect', key: 'Z', label: 'Undo' },
-  { id: 'inspect', key: 'Y', label: 'Redo' },
+applyPanelWidth();
+
+const tools: Array<{ id: Tool; key: string; label: string; icon: IconName }> = [
+  { id: 'inspect', key: 'I', label: 'Inspect', icon: 'inspect' },
+  { id: 'plot', key: '1', label: 'Plot', icon: 'plot' },
+  { id: 'well', key: '2', label: 'Well', icon: 'well' },
+  { id: 'storage', key: '3', label: 'Storage', icon: 'storage' },
+  { id: 'land', key: '4', label: 'Land', icon: 'land' },
+  { id: 'bulldoze', key: 'B', label: 'Bulldoze', icon: 'bulldoze' },
+  { id: 'inspect', key: 'Z', label: 'Undo', icon: 'undo' },
+  { id: 'inspect', key: 'Y', label: 'Redo', icon: 'redo' },
 ];
 
 class FarmScene extends Phaser.Scene {
@@ -128,6 +284,7 @@ class FarmScene extends Phaser.Scene {
     renderHud();
     renderToolbar();
     renderPanel();
+    renderTutorialTip();
   }
 
   private autosave(): void {
@@ -491,7 +648,7 @@ class FarmScene extends Phaser.Scene {
 }
 
 new Phaser.Game({
-  type: Phaser.AUTO,
+  type: Phaser.CANVAS,
   parent: canvasHost,
   width: canvasHost.clientWidth,
   height: canvasHost.clientHeight,
@@ -547,15 +704,15 @@ function renderToolbar(): void {
   const toolButtons = tools.map((tool) => {
     if (tool.key === 'Z' || tool.key === 'Y') {
       const command = tool.key === 'Z' ? 'undo' : 'redo';
-      return `<button class="tool-button" data-command="${command}"><span class="key">${tool.key}</span><span class="label">${tool.label}</span></button>`;
+      return `<button class="tool-button" data-command="${command}" title="${tool.label} (${tool.key})" aria-label="${tool.label}">${toolbarButtonContent(tool.icon, tool.key, tool.label)}</button>`;
     }
-    return `<button class="tool-button ${selectedTool === tool.id ? 'active' : ''}" data-tool="${tool.id}"><span class="key">${tool.key}</span><span class="label">${tool.label}</span></button>`;
+    return `<button class="tool-button ${selectedTool === tool.id ? 'active' : ''}" data-tool="${tool.id}" title="${tool.label} (${tool.key})" aria-label="${tool.label}">${toolbarButtonContent(tool.icon, tool.key, tool.label)}</button>`;
   }).join('');
   const speedButtons = [
-    `<button class="tool-button ${paused ? 'active' : ''}" data-command="pause"><span class="key">Space</span><span class="label">${paused ? 'Resume' : 'Pause'}</span></button>`,
-    `<button class="tool-button ${!paused && speed === 1 ? 'active' : ''}" data-speed="1"><span class="key">0</span><span class="label">1x</span></button>`,
-    `<button class="tool-button ${!paused && speed === 2 ? 'active' : ''}" data-speed="2"><span class="key">-</span><span class="label">2x</span></button>`,
-    `<button class="tool-button ${!paused && speed === 4 ? 'active' : ''}" data-speed="4"><span class="key">=</span><span class="label">4x</span></button>`,
+    `<button class="tool-button ${paused ? 'active' : ''}" data-command="pause" title="${paused ? 'Resume' : 'Pause'} (Space)" aria-label="${paused ? 'Resume' : 'Pause'}">${toolbarButtonContent(paused ? 'play' : 'pause', 'Space', paused ? 'Resume' : 'Pause')}</button>`,
+    `<button class="tool-button ${!paused && speed === 1 ? 'active' : ''}" data-speed="1" title="1x speed (0)" aria-label="1x speed">${toolbarButtonContent('gauge', '0', '1x')}</button>`,
+    `<button class="tool-button ${!paused && speed === 2 ? 'active' : ''}" data-speed="2" title="2x speed (-)" aria-label="2x speed">${toolbarButtonContent('zap', '-', '2x')}</button>`,
+    `<button class="tool-button ${!paused && speed === 4 ? 'active' : ''}" data-speed="4" title="4x speed (=)" aria-label="4x speed">${toolbarButtonContent('zap', '=', '4x')}</button>`,
   ].join('');
   const markup = toolButtons + speedButtons;
   if (markup !== lastToolbarMarkup) {
@@ -568,8 +725,9 @@ function renderPanel(): void {
   playArea.classList.toggle('panel-collapsed', panelCollapsed);
   const toggle = document.querySelector<HTMLButtonElement>('.panel-toggle');
   if (toggle) {
-    toggle.textContent = panelCollapsed ? '<' : '>';
+    toggle.innerHTML = iconSvg(panelCollapsed ? 'undo' : 'redo');
     toggle.title = panelCollapsed ? 'Expand panel' : 'Collapse panel';
+    toggle.setAttribute('aria-label', toggle.title);
   }
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-panel]')) {
@@ -588,7 +746,7 @@ function renderPanel(): void {
       ${CROP_IDS.map((id) => inventoryRow(state, id)).join('')}
       <h3>Seeds</h3>
       ${CROP_IDS.map((id) => seedRow(state, id)).join('')}
-      <button data-command="sell-all">Sell All Crops</button>
+      <button data-command="sell-all" title="Sell all crops" aria-label="Sell all crops">${buttonContent('coins', 'Sell All')}</button>
       <p class="small">Crop overflow auto-sells at normal price. Seeds never auto-sell.</p>
     `;
   } else if (activePanel === 'goals') {
@@ -597,6 +755,8 @@ function renderPanel(): void {
       <p>${state.tier.label}</p>
       <h3>Next milestone</h3>
       <p>${state.tier.nextMilestone}</p>
+      ${tierUnlockRow(state)}
+      ${seedGuidanceRow(state)}
       <h3>Tool Upgrades</h3>
       ${UPGRADE_IDS.map((id) => upgradeRow(state, id)).join('')}
       <h3>Progression</h3>
@@ -634,13 +794,166 @@ function renderPanel(): void {
   lastPanelRenderedAt = now;
 }
 
+function renderTutorialTip(): void {
+  const state = getFarmSnapshot(farmGame);
+  const tip = currentTutorialTip(state);
+  activeTutorialTip = tip;
+  if (!tip) {
+    clearTutorialTip();
+    return;
+  }
+
+  const target = visibleTutorialTarget(tip.targetSelector);
+  if (!target) {
+    clearTutorialTip();
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const width = 260;
+  const left = clamp(rect.left + rect.width / 2 - width / 2, 8, window.innerWidth - width - 8);
+  const above = rect.top > window.innerHeight * 0.55;
+  const top = above ? rect.top - 10 : rect.bottom + 10;
+  const markup = `
+    <aside class="tutorial-tip ${above ? 'above' : 'below'}" style="left: ${left}px; top: ${top}px;" data-tutorial-tip="${tip.id}">
+      <div class="tutorial-callout-icon">${iconSvg(tip.icon)}</div>
+      <div>
+        <span class="banner-kicker">Next Click</span>
+        <strong>${tip.title}</strong>
+        <p>${tip.body}</p>
+      </div>
+      <button class="tutorial-close" data-command="dismiss-tutorial" title="Dismiss tip" aria-label="Dismiss tip">x</button>
+    </aside>
+  `;
+  if (markup !== lastTutorialMarkup) {
+    tutorialLayer.innerHTML = markup;
+    lastTutorialMarkup = markup;
+  }
+}
+
+function currentTutorialTip(state: FarmState): TutorialTip | null {
+  const claimable = claimableTierLevel(state);
+  if (claimable) {
+    if (activePanel === 'goals' && !isTutorialSeen('claim-tier')) {
+      return {
+        id: 'claim-tier',
+        icon: 'claim',
+        title: `Claim Tier ${claimable}`,
+        body: 'Milestones make rewards ready, but you choose when to unlock them.',
+        targetSelector: '[data-command="claim-tier"]',
+      };
+    }
+    if (activePanel !== 'goals' && !isTutorialSeen('open-goals-for-claim')) {
+      return {
+        id: 'open-goals-for-claim',
+        icon: 'flag',
+        title: 'Open Goals',
+        body: `Tier ${claimable} is ready. Open Goals to claim the reward.`,
+        targetSelector: '[data-panel="goals"]',
+      };
+    }
+  }
+
+  const alerts = state.alerts.join(' ');
+  if (alerts.includes('Buy seeds')) {
+    if (activePanel === 'goals' && !isTutorialSeen('buy-needed-seeds')) {
+      return {
+        id: 'buy-needed-seeds',
+        icon: 'seed',
+        title: 'Buy Seeds',
+        body: 'Farmers plant seeds automatically once empty plots are available.',
+        targetSelector: '[data-seed-guidance-action]',
+      };
+    }
+    if (activePanel !== 'goals' && !isTutorialSeen('open-goals-for-seeds')) {
+      return {
+        id: 'open-goals-for-seeds',
+        icon: 'flag',
+        title: 'Open Goals',
+        body: 'The farm needs seeds. Goals will show the direct restock button.',
+        targetSelector: '[data-panel="goals"]',
+      };
+    }
+  }
+
+  if (alerts.includes('Paint plots')) {
+    if (selectedTool !== 'plot' && !isTutorialSeen('select-plot-tool')) {
+      return {
+        id: 'select-plot-tool',
+        icon: 'plot',
+        title: 'Select Plot',
+        body: 'You have seeds, but no empty plots. Select Plot first.',
+        targetSelector: '[data-tool="plot"]',
+      };
+    }
+    if (selectedTool === 'plot' && !isTutorialSeen('paint-empty-land')) {
+      return {
+        id: 'paint-empty-land',
+        icon: 'plot',
+        title: 'Paint Empty Land',
+        body: 'Click an empty green tile. Farmers will bring carrot seeds there.',
+        targetSelector: '#game-canvas',
+      };
+    }
+  }
+
+  const hasSellableCrops = Object.values(state.inventory.crops).some((count) => count > 0);
+  if (hasSellableCrops) {
+    if (activePanel === 'inventory' && !isTutorialSeen('sell-first-crop')) {
+      return {
+        id: 'sell-first-crop',
+        icon: 'coins',
+        title: 'Sell Crops',
+        body: 'Turn stored crops into coins when you want more seeds or upgrades.',
+        targetSelector: '[data-sell], [data-command="sell-all"]',
+      };
+    }
+    if (activePanel !== 'inventory' && !isTutorialSeen('open-inventory-for-selling')) {
+      return {
+        id: 'open-inventory-for-selling',
+        icon: 'backpack',
+        title: 'Open Inventory',
+        body: 'You have crops ready to sell.',
+        targetSelector: '[data-panel="inventory"]',
+      };
+    }
+  }
+
+  if (state.tier.unlockedCrops.length > 1 && !isTutorialSeen('open-mix-panel')) {
+    return {
+      id: 'open-mix-panel',
+      icon: 'sliders',
+      title: 'Tune Crop Mix',
+      body: 'Mix is a target. Farmers still use carrot seeds if wheat seeds run out.',
+      targetSelector: '[data-panel="mix"]',
+    };
+  }
+
+  return null;
+}
+
+function visibleTutorialTarget(selector: string): HTMLElement | null {
+  const target = document.querySelector<HTMLElement>(selector);
+  if (!target) return null;
+  const rect = target.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return target;
+}
+
+function clearTutorialTip(): void {
+  activeTutorialTip = null;
+  if (!lastTutorialMarkup) return;
+  tutorialLayer.innerHTML = '';
+  lastTutorialMarkup = '';
+}
+
 function inventoryRow(state: FarmState, cropId: CropId): string {
   return `
     <div class="row">
-      <span>${CROPS[cropId].label}: ${state.inventory.crops[cropId]}</span>
+      <span class="row-label">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label}: ${state.inventory.crops[cropId]}</span>
       <span>
-        <button data-sell="${cropId}" data-amount="1">Sell 1</button>
-        <button data-sell="${cropId}" data-amount="5">Sell 5</button>
+        <button data-sell="${cropId}" data-amount="1" title="Sell 1 ${CROPS[cropId].label}" aria-label="Sell 1 ${CROPS[cropId].label}">${buttonContent('coins', '1')}</button>
+        <button data-sell="${cropId}" data-amount="5" title="Sell 5 ${CROPS[cropId].label}" aria-label="Sell 5 ${CROPS[cropId].label}">${buttonContent('coins', '5')}</button>
       </span>
     </div>
   `;
@@ -650,9 +963,69 @@ function seedRow(state: FarmState, cropId: CropId): string {
   const locked = !state.tier.unlockedCrops.includes(cropId);
   return `
     <div class="row">
-      <span>${CROPS[cropId].label} seeds: ${state.inventory.seeds[cropId]}</span>
-      <button data-buy-seeds="${cropId}" ${locked ? 'disabled' : ''}>Buy ${CROPS[cropId].seedPrice}c</button>
+      <span class="row-label">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label} seeds: ${state.inventory.seeds[cropId]}</span>
+      <button data-buy-seeds="${cropId}" ${locked ? 'disabled' : ''} title="Buy ${CROPS[cropId].label} seeds" aria-label="Buy ${CROPS[cropId].label} seeds">${buttonContent('seed', `${CROPS[cropId].seedPrice}c`)}</button>
     </div>
+  `;
+}
+
+function tierUnlockRow(state: FarmState): string {
+  const level = claimableTierLevel(state);
+  if (!level) {
+    return `
+      <section class="tier-current-card">
+        <span class="banner-kicker">Current Tier</span>
+        <strong>${state.tier.label}</strong>
+        <p class="small">Complete the milestone, then claim the next tier here.</p>
+      </section>
+    `;
+  }
+  const tier = FARM_TIERS[level];
+  const currentTier = FARM_TIERS[state.tier.level as TierLevel];
+  return `
+    <section class="tier-unlock-banner" aria-label="Tier ${tier.level} ready">
+      <div class="tier-banner-decoration" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="tier-banner-copy">
+        <span class="banner-kicker">Tier Ready</span>
+        <strong>Tier ${tier.level}: ${tier.label}</strong>
+        <p>${currentTier.reward}</p>
+      </div>
+      <div class="reward-grid">
+        ${currentTier.rewardDetails.map((detail) => `<span class="reward-chip">${iconSvg('claim')} ${detail}</span>`).join('')}
+      </div>
+      <button class="primary-action claim-button" data-command="claim-tier" title="Unlock Tier ${tier.level}" aria-label="Unlock Tier ${tier.level}">${buttonContent('claim', 'Claim Rewards')}</button>
+    </section>
+  `;
+}
+
+function seedGuidanceRow(state: FarmState): string {
+  const hasSeedAlert = state.alerts.some((alert) => alert.includes('Buy seeds'));
+  if (!hasSeedAlert) return '';
+
+  const buyableCrops = state.tier.unlockedCrops.filter((cropId) => (
+    state.cropMix[cropId] > 0 &&
+    state.inventory.seeds[cropId] === 0 &&
+    state.coins >= CROPS[cropId].seedPrice
+  ));
+  if (buyableCrops.length === 0) return '';
+
+  return `
+    <section class="seed-guidance" aria-label="Seed guidance">
+      <div>
+        <span class="banner-kicker">Farmers Waiting</span>
+        <strong>Restock seeds</strong>
+        <p class="small">Empty plots are ready, but farmers have no seeds to plant.</p>
+      </div>
+      <div class="seed-actions">
+        ${buyableCrops.map((cropId) => `
+          <button data-buy-seeds="${cropId}" data-seed-guidance-action="${cropId}" title="Buy ${CROPS[cropId].label} seeds" aria-label="Buy ${CROPS[cropId].label} seeds">
+            ${buttonContent(cropIcon(cropId), `${CROPS[cropId].label} ${CROPS[cropId].seedPrice}c`)}
+          </button>
+        `).join('')}
+      </div>
+    </section>
   `;
 }
 
@@ -667,7 +1040,7 @@ function upgradeRow(state: FarmState, upgradeId: UpgradeId): string {
         <strong>${upgrade.label} ${level}/${upgrade.maxLevel}</strong>
         <p class="small">${upgrade.description}</p>
       </div>
-      <button data-buy-upgrade="${upgradeId}" ${maxed ? 'disabled' : ''}>${maxed ? 'Max' : `${cost}c`}</button>
+      <button data-buy-upgrade="${upgradeId}" ${maxed ? 'disabled' : ''} title="${maxed ? `${upgrade.label} maxed` : `Buy ${upgrade.label}`}" aria-label="${maxed ? `${upgrade.label} maxed` : `Buy ${upgrade.label}`}">${buttonContent('upgrade', maxed ? 'Max' : `${cost}c`)}</button>
     </div>
   `;
 }
@@ -677,7 +1050,7 @@ function cropMixRow(state: FarmState, cropId: CropId): string {
   const value = Math.round(state.cropMix[cropId] * 100);
   return `
     <label class="crop-mix">
-      <span>${CROPS[cropId].label}</span>
+      <span class="crop-mix-name">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label}</span>
       <input type="range" min="0" max="100" value="${value}" data-mix="${cropId}" ${locked ? 'disabled' : ''} />
       <span>${value}%</span>
     </label>
@@ -722,6 +1095,12 @@ function cropColor(cropId: CropId, ready: boolean, needsWater: boolean): number 
   return ready ? 0xd84f3f : 0x5ca75d;
 }
 
+function cropIcon(cropId: CropId): IconName {
+  if (cropId === 'carrot') return 'carrot';
+  if (cropId === 'wheat') return 'wheat';
+  return 'tomato';
+}
+
 function storedCropCount(state: FarmState): number {
   return Object.values(state.inventory.crops).reduce((sum, count) => sum + count, 0);
 }
@@ -756,6 +1135,69 @@ function labelForTool(tool: Tool): string {
   return tools.find((item) => item.id === tool)?.label ?? tool;
 }
 
+function loadPanelWidth(): number {
+  try {
+    const stored = Number(localStorage.getItem(PANEL_WIDTH_STORAGE_KEY));
+    return Number.isFinite(stored) ? clamp(stored, PANEL_WIDTH_MIN, PANEL_WIDTH_MAX) : PANEL_WIDTH_DEFAULT;
+  } catch {
+    return PANEL_WIDTH_DEFAULT;
+  }
+}
+
+function savePanelWidth(): void {
+  try {
+    localStorage.setItem(PANEL_WIDTH_STORAGE_KEY, String(panelWidth));
+  } catch {
+    // UI preferences are nice-to-have and should not block play.
+  }
+}
+
+function maxPanelWidth(): number {
+  return Math.max(PANEL_WIDTH_MIN, Math.min(PANEL_WIDTH_MAX, window.innerWidth - PANEL_PLAYFIELD_MIN));
+}
+
+function setPanelWidth(nextWidth: number, persist: boolean): void {
+  panelWidth = Math.round(clamp(nextWidth, PANEL_WIDTH_MIN, maxPanelWidth()));
+  applyPanelWidth();
+  if (persist) savePanelWidth();
+}
+
+function applyPanelWidth(): void {
+  const maxWidth = maxPanelWidth();
+  panelWidth = Math.round(clamp(panelWidth, PANEL_WIDTH_MIN, maxWidth));
+  playArea.style.setProperty('--side-panel-width', `${panelWidth}px`);
+  panelResizer.setAttribute('aria-valuemin', String(PANEL_WIDTH_MIN));
+  panelResizer.setAttribute('aria-valuemax', String(maxWidth));
+  panelResizer.setAttribute('aria-valuenow', String(panelWidth));
+}
+
+function loadTutorialSeen(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(TUTORIAL_STORAGE_KEY);
+    return stored ? JSON.parse(stored) as Record<string, boolean> : {};
+  } catch {
+    return {};
+  }
+}
+
+function isTutorialSeen(id: string): boolean {
+  return seenTutorialTips[id] === true;
+}
+
+function markTutorialSeen(id: string): void {
+  seenTutorialTips[id] = true;
+  try {
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, JSON.stringify(seenTutorialTips));
+  } catch {
+    // Local storage can fail in private or restricted browser contexts.
+  }
+  clearTutorialTip();
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 function setSpeed(next: number): void {
   speed = next;
   paused = false;
@@ -776,11 +1218,65 @@ function resetFarm(): void {
   lastHudMarkup = '';
   lastToolbarMarkup = '';
   lastPanelMarkup = '';
+  lastTutorialMarkup = '';
 }
+
+panelResizer.addEventListener('pointerdown', (event) => {
+  if (panelCollapsed) return;
+  panelResizeDrag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startWidth: sidePanel.getBoundingClientRect().width,
+  };
+  panelResizer.setPointerCapture(event.pointerId);
+  document.body.classList.add('panel-resizing');
+  event.preventDefault();
+});
+
+document.addEventListener('pointermove', (event) => {
+  if (!panelResizeDrag || panelResizeDrag.pointerId !== event.pointerId) return;
+  const draggedLeft = panelResizeDrag.startX - event.clientX;
+  setPanelWidth(panelResizeDrag.startWidth + draggedLeft, false);
+  event.preventDefault();
+});
+
+function stopPanelResize(event: PointerEvent): void {
+  if (!panelResizeDrag || panelResizeDrag.pointerId !== event.pointerId) return;
+  panelResizeDrag = null;
+  document.body.classList.remove('panel-resizing');
+  savePanelWidth();
+}
+
+document.addEventListener('pointerup', stopPanelResize);
+document.addEventListener('pointercancel', stopPanelResize);
+
+panelResizer.addEventListener('keydown', (event) => {
+  const step = event.shiftKey ? 48 : 24;
+  if (event.key === 'ArrowLeft') {
+    setPanelWidth(panelWidth + step, true);
+  } else if (event.key === 'ArrowRight') {
+    setPanelWidth(panelWidth - step, true);
+  } else if (event.key === 'Home') {
+    setPanelWidth(PANEL_WIDTH_MIN, true);
+  } else if (event.key === 'End') {
+    setPanelWidth(maxPanelWidth(), true);
+  } else {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+});
+
+window.addEventListener('resize', () => {
+  setPanelWidth(panelWidth, false);
+});
 
 document.addEventListener('click', (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
+  const clickedTutorialTarget = activeTutorialTip
+    ? Boolean(target.closest(activeTutorialTip.targetSelector))
+    : false;
   const tool = target.closest<HTMLElement>('[data-tool]')?.dataset.tool as Tool | undefined;
   if (tool) selectedTool = tool;
 
@@ -788,10 +1284,15 @@ document.addEventListener('click', (event) => {
   if (panel) activePanel = panel;
 
   const command = target.closest<HTMLElement>('[data-command]')?.dataset.command;
+  if (command === 'dismiss-tutorial') {
+    if (activeTutorialTip) markTutorialSeen(activeTutorialTip.id);
+    return;
+  }
   if (command === 'undo') submitFarmCommand(farmGame, { type: 'undo' });
   if (command === 'redo') submitFarmCommand(farmGame, { type: 'redo' });
   if (command === 'pause') paused = !paused;
   if (command === 'toggle-panel') panelCollapsed = !panelCollapsed;
+  if (command === 'claim-tier') submitFarmCommand(farmGame, { type: 'claimNextTier' });
   if (command === 'sell-all') {
     submitFarmCommand(farmGame, { type: 'sellAllCrops' });
   }
@@ -818,6 +1319,10 @@ document.addEventListener('click', (event) => {
   const buyUpgrade = target.closest<HTMLElement>('[data-buy-upgrade]');
   if (buyUpgrade?.dataset.buyUpgrade) {
     submitFarmCommand(farmGame, { type: 'buyUpgrade', upgradeId: buyUpgrade.dataset.buyUpgrade as UpgradeId });
+  }
+
+  if (clickedTutorialTarget && activeTutorialTip) {
+    markTutorialSeen(activeTutorialTip.id);
   }
 });
 

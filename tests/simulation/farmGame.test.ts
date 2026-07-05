@@ -13,6 +13,16 @@ function runStarterFarm(ticks: number) {
   return getFarmSnapshot(game);
 }
 
+function advanceUntil(
+  game: ReturnType<typeof createFarmGame>,
+  predicate: () => boolean,
+  maxTicks = 4000,
+) {
+  for (let i = 0; i < maxTicks && !predicate(); i++) {
+    advanceFarm(game, 1);
+  }
+}
+
 describe('farm simulation', () => {
   test('starter farm autonomously plants, waters, harvests, and stores crops', () => {
     const state = runStarterFarm(900);
@@ -37,6 +47,21 @@ describe('farm simulation', () => {
     expect(Object.values(state.tiles).map((tile) => tile.kind)).not.toContain('path');
   });
 
+  test('starter farm begins with utility storage outside the starter plots', () => {
+    const game = createFarmGame({ seed: 'starter-storage' });
+    const state = getFarmSnapshot(game);
+
+    expect(state.tiles['7,2']?.kind).toBe('storage');
+    expect(['3,3', '4,3', '5,3'].map((key) => state.tiles[key]?.kind)).toEqual(['plot', 'plot', 'plot']);
+    expect(state.inventory.cropCapacity).toBe(15);
+
+    advanceFarm(game, 30);
+
+    const active = getFarmSnapshot(game);
+    expect(active.stats.lifetimeWorkerDistance).toBeGreaterThan(0);
+    expect(active.workers[0]?.task.kind).not.toBe('blocked');
+  });
+
   test('legacy saved path tiles load as empty owned land', () => {
     const legacyState = getFarmSnapshot(createFarmGame({ seed: 'legacy-paths' }));
     legacyState.tiles['3,2'] = { x: 3, y: 2, kind: 'path' as never };
@@ -44,6 +69,28 @@ describe('farm simulation', () => {
     const game = createFarmGame({ seed: 'legacy-paths', state: legacyState });
 
     expect(getFarmSnapshot(game).tiles['3,2']?.kind).toBe('empty');
+  });
+
+  test('legacy saves recover starter utility storage', () => {
+    const oldLayout = getFarmSnapshot(createFarmGame({ seed: 'legacy-storage' }));
+    oldLayout.tiles['6,2'] = { x: 6, y: 2, kind: 'storage' };
+    delete oldLayout.tiles['7,2'];
+
+    const migrated = createFarmGame({ seed: 'legacy-storage', state: oldLayout });
+
+    expect(getFarmSnapshot(migrated).tiles['6,2']?.kind).toBe('empty');
+    expect(getFarmSnapshot(migrated).tiles['7,2']?.kind).toBe('storage');
+    expect(getFarmSnapshot(migrated).inventory.cropCapacity).toBe(15);
+
+    const missingStorage = getFarmSnapshot(createFarmGame({ seed: 'missing-storage' }));
+    for (const tile of Object.values(missingStorage.tiles)) {
+      if (tile.kind === 'storage') tile.kind = 'empty';
+    }
+
+    const recovered = createFarmGame({ seed: 'missing-storage', state: missingStorage });
+
+    expect(getFarmSnapshot(recovered).tiles['7,2']?.kind).toBe('storage');
+    expect(getFarmSnapshot(recovered).inventory.cropCapacity).toBe(15);
   });
 
   test('manual selling supports per-crop amounts and sell all crops', () => {
@@ -78,6 +125,33 @@ describe('farm simulation', () => {
     expect(after.inventory.seeds.carrot).toBe(before.inventory.seeds.carrot + 3);
   });
 
+  test('alerts the player when workers are waiting for buyable seeds', () => {
+    const stalled = getFarmSnapshot(createFarmGame({ seed: 'seed-guidance' }));
+    stalled.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0 };
+    stalled.coins = stalled.crops.carrot.seedPrice * 2;
+
+    const game = createFarmGame({ seed: 'seed-guidance', state: stalled });
+    advanceFarm(game, 1);
+
+    expect(getFarmSnapshot(game).alerts.join(' ')).toContain('Buy seeds');
+  });
+
+  test('alerts the player when workers have seeds but no empty plots', () => {
+    const stalled = getFarmSnapshot(createFarmGame({ seed: 'plot-guidance' }));
+    stalled.inventory.seeds = { carrot: 5, wheat: 0, tomato: 0 };
+    stalled.cropMix = { carrot: 1, wheat: 0, tomato: 0 };
+    for (const tile of Object.values(stalled.tiles)) {
+      if (tile.kind === 'plot') {
+        tile.plot = { cropId: 'carrot', growth: 1, water: 100 };
+      }
+    }
+
+    const game = createFarmGame({ seed: 'plot-guidance', state: stalled });
+    advanceFarm(game, 1);
+
+    expect(getFarmSnapshot(game).alerts.join(' ')).toContain('Paint plots');
+  });
+
   test('global tool upgrades spend coins and persist in the farm state', () => {
     const game = createFarmGame({ seed: 'upgrades' });
     const before = getFarmSnapshot(game);
@@ -90,6 +164,60 @@ describe('farm simulation', () => {
     expect(after.upgrades.boots).toBe(1);
     expect(after.stats.lifetimeUpgradePurchases).toBe(1);
     expect(renderFarmToText(game)).toContain('upgrades=boots:1,wateringCan:0');
+  });
+
+  test('milestone completion waits for the player to claim the next tier', () => {
+    const game = createFarmGame({ seed: 'manual-tier' });
+
+    advanceUntil(game, () => getFarmSnapshot(game).stats.lifetimeHarvested.carrot >= 10);
+    const ready = getFarmSnapshot(game);
+
+    expect(ready.stats.lifetimeHarvested.carrot).toBeGreaterThanOrEqual(10);
+    expect(ready.tier.level).toBe(1);
+    expect(ready.workers).toHaveLength(1);
+    expect(ready.tier.unlockedCrops).toEqual(['carrot']);
+    expect(ready.alerts.join(' ')).toContain('Tier 2 ready');
+
+    submitFarmCommand(game, { type: 'claimNextTier' });
+    advanceFarm(game, 1);
+    const claimed = getFarmSnapshot(game);
+
+    expect(claimed.tier.level).toBe(2);
+    expect(claimed.workers).toHaveLength(2);
+    expect(claimed.inventory.seeds.wheat).toBeGreaterThanOrEqual(4);
+    expect(claimed.cropMix.wheat).toBeGreaterThan(0);
+
+    submitFarmCommand(game, { type: 'undo' });
+    advanceFarm(game, 1);
+    const undone = getFarmSnapshot(game);
+
+    expect(undone.tier.level).toBe(1);
+    expect(undone.workers).toHaveLength(1);
+    expect(undone.inventory.seeds.wheat).toBe(0);
+
+    submitFarmCommand(game, { type: 'redo' });
+    advanceFarm(game, 1);
+    const redone = getFarmSnapshot(game);
+
+    expect(redone.tier.level).toBe(2);
+    expect(redone.workers).toHaveLength(2);
+    expect(redone.inventory.seeds.wheat).toBeGreaterThanOrEqual(4);
+  });
+
+  test('multiple workers reserve different planting targets when enough plots are available', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'worker-reservations' }));
+    state.workers.push({ id: 2, x: 4, y: 2, task: { kind: 'idle', path: [], progress: 0 } });
+    state.inventory.seeds.carrot = 10;
+
+    const game = createFarmGame({ seed: 'worker-reservations', state });
+    advanceFarm(game, 1);
+
+    const assignedTargets = getFarmSnapshot(game).workers
+      .filter((worker) => worker.task.kind === 'planting')
+      .map((worker) => `${worker.task.target?.x},${worker.task.target?.y}`);
+
+    expect(assignedTargets).toHaveLength(2);
+    expect(new Set(assignedTargets).size).toBe(assignedTargets.length);
   });
 
   test('build commands support adjacent land expansion and undo redo', () => {
@@ -111,6 +239,73 @@ describe('farm simulation', () => {
     expect(getFarmSnapshot(game).tiles['1,1']?.kind).toBe('plot');
   });
 
+  test('plot painting does not replace existing structures', () => {
+    const game = createFarmGame({ seed: 'protect-structures' });
+
+    expect(getFarmSnapshot(game).tiles['2,2']?.kind).toBe('well');
+    expect(getFarmSnapshot(game).tiles['7,2']?.kind).toBe('storage');
+
+    submitFarmCommand(game, { type: 'paintTile', x: 2, y: 2, tile: 'plot' });
+    advanceFarm(game, 1);
+    submitFarmCommand(game, { type: 'paintTile', x: 7, y: 2, tile: 'plot' });
+    advanceFarm(game, 1);
+
+    expect(getFarmSnapshot(game).tiles['2,2']?.kind).toBe('well');
+    expect(getFarmSnapshot(game).tiles['7,2']?.kind).toBe('storage');
+
+    submitFarmCommand(game, { type: 'bulldoze', x: 2, y: 2 });
+    advanceFarm(game, 1);
+
+    expect(getFarmSnapshot(game).tiles['2,2']?.kind).toBe('empty');
+  });
+
+  test('placement tools do not override occupied cells until bulldozed', () => {
+    const game = createFarmGame({ seed: 'no-overwrite-build' });
+
+    submitFarmCommand(game, { type: 'placeBuilding', x: 3, y: 3, building: 'storage' });
+    advanceFarm(game, 1);
+    expect(getFarmSnapshot(game).tiles['3,3']?.kind).toBe('plot');
+
+    submitFarmCommand(game, { type: 'placeBuilding', x: 2, y: 2, building: 'storage' });
+    advanceFarm(game, 1);
+    expect(getFarmSnapshot(game).tiles['2,2']?.kind).toBe('well');
+
+    submitFarmCommand(game, { type: 'placeBuilding', x: 7, y: 2, building: 'well' });
+    advanceFarm(game, 1);
+    expect(getFarmSnapshot(game).tiles['7,2']?.kind).toBe('storage');
+
+    submitFarmCommand(game, { type: 'bulldoze', x: 3, y: 3 });
+    advanceFarm(game, 1);
+    submitFarmCommand(game, { type: 'placeBuilding', x: 3, y: 3, building: 'storage' });
+    advanceFarm(game, 1);
+
+    expect(getFarmSnapshot(game).tiles['3,3']?.kind).toBe('storage');
+  });
+
+  test('blocking buildings cannot be placed on workers', () => {
+    const game = createFarmGame({ seed: 'worker-safe-build' });
+
+    expect(getFarmSnapshot(game).workers[0]).toMatchObject({ x: 4, y: 2 });
+    expect(getFarmSnapshot(game).tiles['4,2']?.kind).toBe('empty');
+
+    submitFarmCommand(game, { type: 'placeBuilding', x: 4, y: 2, building: 'storage' });
+    advanceFarm(game, 1);
+
+    expect(getFarmSnapshot(game).tiles['4,2']?.kind).toBe('empty');
+    expect(getFarmSnapshot(game).workers[0]?.task.kind).not.toBe('blocked');
+  });
+
+  test('legacy saves recover workers trapped inside blocking buildings', () => {
+    const trapped = getFarmSnapshot(createFarmGame({ seed: 'worker-trap-recovery' }));
+    trapped.tiles['4,2'] = { x: 4, y: 2, kind: 'storage' };
+
+    const game = createFarmGame({ seed: 'worker-trap-recovery', state: trapped });
+    advanceFarm(game, 1);
+
+    expect(getFarmSnapshot(game).tiles['4,2']?.kind).toBe('empty');
+    expect(getFarmSnapshot(game).workers[0]?.task.kind).not.toBe('blocked');
+  });
+
   test('storage capacity follows storage buildings and removed-capacity crops overflow sell', () => {
     const game = createFarmGame({ seed: 'storage-capacity' });
 
@@ -129,7 +324,7 @@ describe('farm simulation', () => {
 
     expect(storedBefore).toBeGreaterThan(0);
 
-    submitFarmCommand(game, { type: 'bulldoze', x: 6, y: 2 });
+    submitFarmCommand(game, { type: 'bulldoze', x: 7, y: 2 });
     advanceFarm(game, 1);
 
     const afterRemoval = getFarmSnapshot(game);

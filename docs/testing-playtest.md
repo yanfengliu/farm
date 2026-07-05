@@ -22,6 +22,67 @@ Every gameplay-facing browser change should verify that the canvas is nonblank a
 
 For idle-loop changes, also let real browser time pass without calling `window.advanceTime(ms)` and confirm `window.__farmDebug.getState().tick` increases. Debug advancement can hide frame-delta bugs.
 
+## LLM Playtest Harness
+
+Run the LLM-oriented browser harness with:
+
+```bash
+npm run playtest:llm
+```
+
+The harness starts Vite on a local port, drives browser scenarios through visible player controls, captures screenshots and structured debug state, records a civ-engine replay bundle, and writes:
+
+- `output/playwright/llm-playtest/latest.md`
+- `output/playwright/llm-playtest/latest.json`
+- `output/playwright/llm-playtest/latest.annotations.json`
+- `output/playwright/llm-playtest/latest.bundle.json`
+- `output/playwright/llm-playtest/latest.replay.html`
+- `output/playwright/llm-playtest/latest.replay.md`
+- `output/playwright/llm-playtest/screenshots/`
+
+Use the Markdown report as the review packet for an LLM-player loop: inspect the screenshots, visible text, available actions, player action log, structured findings, and annotations, choose the highest-impact player-facing improvement, implement it, then rerun the harness.
+
+Browser scenario control should stay player-like. The harness may read debug APIs after screenshots for metrics, but browser scenario actions should use visible inputs such as button clicks, keyboard shortcuts, pointer moves, waits, and viewport changes rather than `window.advanceTime()` or direct simulation commands.
+
+For step-by-step visual playtesting, run:
+
+```bash
+npm run playtest:llm:visual-loop
+```
+
+This starts the browser, captures a screenshot, extracts visible text and visible controls, asks a decision provider for one player action, executes only that player-facing action, and repeats. The default provider is a deterministic local heuristic so the command works without API keys. To plug in a real LLM or another agent, set `FARM_LLM_VISUAL_LOOP_COMMAND` to a command that reads the observation JSON from stdin and returns a decision JSON object with `rationale`, `action`, and `expectedResult`.
+
+Visual loop action kinds are `click`, `press`, `wait`, `viewport`, and `stop`. Click actions may include `x`/`y` coordinates relative to the clicked element, which lets an LLM choose canvas locations from the screenshot. Tune local runs with `FARM_VISUAL_LOOP_STEPS`, `FARM_VISUAL_LOOP_WAIT_MS`, and `FARM_VISUAL_LOOP_SETTLE_MS`.
+
+The visual loop writes:
+
+- `output/playwright/llm-visual-loop/latest.md`
+- `output/playwright/llm-visual-loop/latest.json`
+- `output/playwright/llm-visual-loop/latest.html`
+- `output/playwright/llm-visual-loop/steps/`
+
+Use `latest.html` to watch the screenshot replay with each observation, decision, execution result, available action list, and finding. The visual loop should remain a player-surface harness: it may clear localStorage before load for a fresh run, but decisions should be based on screenshots, visible text, and available controls, not private simulation state.
+
+The worker-care scenario checks that seed-shortage stalls are explained and actionable: when workers are idle with empty plots, no desired unlocked seeds, and enough coins to buy seeds, the UI should show guidance and at least one visible seed-buy action.
+
+The same scenario records duplicate active worker plot targets. Multiple workers can share a storage bin or well, but they should not reserve the same planting, watering, or harvesting plot target when other eligible plot work exists.
+
+To inspect the recorded replay without rerunning the browser harness:
+
+```bash
+npm run playtest:llm:replay
+```
+
+Pass a bundle path and optional ticks when needed:
+
+```bash
+npm run playtest:llm:replay -- output/playwright/llm-playtest/latest.bundle.json --ticks 0,657,662
+```
+
+The replay inspector opens the saved civ-engine `SessionBundle`, runs `SessionReplayer.selfCheck()`, samples marker ticks, and writes `output/playwright/llm-playtest/latest.replay-inspect.md`.
+
+The replay bundle is a deterministic debugging aid. It can use the simulation directly because it is not the player-facing browser control path.
+
 ## Manual Smoke Checklist
 
 - Start a new farm.
@@ -35,4 +96,5 @@ For idle-loop changes, also let real browser time pass without calling `window.a
 - Pause and use 1x, 2x, 4x speeds.
 - Undo and redo build/bulldoze/crop-mix changes.
 - Collapse and expand the side panel.
+- Drag the side-panel resize handle and reload to confirm the width preference restores.
 - Reload and confirm localStorage autosave restores the farm.

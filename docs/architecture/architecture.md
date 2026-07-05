@@ -84,6 +84,8 @@ UI actions submit commands through the same bridge used by Phaser and tests.
 
 The localStorage save contains serializable simulation state, including world tick, farm state, inventory, crop mix, global upgrades, milestones, stats, and RNG state. It does not contain Phaser sprites, DOM state, camera animations, or transient hover state.
 
+DOM-only UI preferences, such as the side-panel width and first-time tutorial dismissal state, may use their own localStorage keys. They must not be mixed into the deterministic farm autosave payload.
+
 ## Debug Boundary
 
 The debug surface provides text and structured snapshots that tests can inspect without reading private module internals.

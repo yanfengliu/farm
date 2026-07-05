@@ -1,0 +1,463 @@
+import { chromium } from '@playwright/test';
+import { createServer } from 'vite';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { SessionRecorder, SessionReplayer, bundleSummary } from 'civ-engine';
+import { buildAnnotations, evaluatePlaytest, renderPlaytestMarkdown } from './llm-playtest/evaluate.mjs';
+
+const cwd = process.cwd();
+const outputDir = path.join(cwd, 'output', 'playwright', 'llm-playtest');
+const screenshotDir = path.join(outputDir, 'screenshots');
+
+await fs.rm(outputDir, { recursive: true, force: true });
+await fs.mkdir(screenshotDir, { recursive: true });
+
+const server = await createServer({
+  root: cwd,
+  configFile: false,
+  logLevel: 'error',
+  server: { host: '127.0.0.1', port: 0 },
+});
+
+const consoleErrors = [];
+const pageErrors = [];
+const scenarios = [];
+const playerActions = [];
+let scenarioActionCursor = 0;
+let browser;
+
+try {
+  await server.listen();
+  const url = server.resolvedUrls?.local?.[0] ?? 'http://127.0.0.1:5173/';
+  browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+  await context.addInitScript(() => {
+    localStorage.clear();
+  });
+  const page = await context.newPage();
+
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.toolbar .tool-button');
+  await page.waitForSelector('canvas');
+  await playerClick(page, '[data-speed="4"]', 'Set visible speed control to 4x');
+
+  scenarios.push(await captureScenario(page, 'fresh-start', 'Fresh playable farm'));
+
+  await playerClick(page, '[data-panel="goals"]', 'Open Goals panel');
+  await playerWaitForSelector(page, '[data-command="claim-tier"]', 'Wait until the visible Goals panel offers tier claiming', 60000);
+  await playerWait(page, 250, 'Let the tier-ready UI settle');
+  scenarios.push(await captureScenario(page, 'tier-ready', 'Tier ready goals panel'));
+
+  const hasClaimButton = await page.locator('[data-command="claim-tier"]').count();
+  if (hasClaimButton > 0) {
+    await playerClick(page, '[data-command="claim-tier"]', 'Click the visible tier claim button');
+    await playerWaitForHudValue(page, 'Workers', '2', 'Wait until the visible HUD shows the claimed worker reward', 10000);
+    await playerWait(page, 250, 'Let the tier-claimed UI settle');
+  }
+  scenarios.push(await captureScenario(page, 'tier-claimed', 'Tier claimed goals panel'));
+
+  await playerSetViewport(page, { width: 1024, height: 720 }, 'Resize to compact desktop viewport');
+  await playerWait(page, 150, 'Let compact layout settle');
+  scenarios.push(await captureScenario(page, 'compact-desktop', 'Compact desktop viewport'));
+
+  await playerWait(page, 15000, 'Watch the farm run at visible 4x speed for worker-care inspection');
+  await playerWait(page, 250, 'Let worker-care UI settle');
+  scenarios.push(await captureScenario(page, 'worker-care', 'Worker care priorities'));
+
+  const run = {
+    generatedAt: new Date().toISOString(),
+    url,
+    summary: {
+      consoleErrors,
+      pageErrors,
+    },
+    scenarios,
+  };
+  const findings = evaluatePlaytest(run);
+  const annotations = buildAnnotations(run, findings);
+  const replay = await recordReplayBundle(server, annotations);
+  run.replay = replay.summary;
+  const report = renderPlaytestMarkdown(run, findings);
+
+  await fs.writeFile(path.join(outputDir, 'latest.json'), `${JSON.stringify({ ...run, findings, annotations }, null, 2)}\n`);
+  await fs.writeFile(path.join(outputDir, 'latest.md'), report);
+  await fs.writeFile(path.join(outputDir, 'latest.annotations.json'), `${JSON.stringify(annotations, null, 2)}\n`);
+  await fs.writeFile(path.join(outputDir, 'latest.bundle.json'), `${JSON.stringify(replay.bundle)}\n`);
+  await fs.writeFile(path.join(outputDir, 'latest.replay.json'), `${JSON.stringify(replay.data, null, 2)}\n`);
+  await fs.writeFile(path.join(outputDir, 'latest.replay.md'), replay.markdown);
+  await fs.writeFile(path.join(outputDir, 'latest.replay.html'), renderReplayHtml(run, replay.data));
+
+  console.log(JSON.stringify({
+    report: path.relative(cwd, path.join(outputDir, 'latest.md')),
+    data: path.relative(cwd, path.join(outputDir, 'latest.json')),
+    annotations: path.relative(cwd, path.join(outputDir, 'latest.annotations.json')),
+    replay: path.relative(cwd, path.join(outputDir, 'latest.replay.md')),
+    replayViewer: path.relative(cwd, path.join(outputDir, 'latest.replay.html')),
+    bundle: path.relative(cwd, path.join(outputDir, 'latest.bundle.json')),
+    screenshots: path.relative(cwd, screenshotDir),
+    findings: findings.map((finding) => ({ id: finding.id, severity: finding.severity, title: finding.title })),
+  }, null, 2));
+} finally {
+  if (browser) await browser.close();
+  await server.close();
+}
+
+async function playerClick(page, selector, label) {
+  await page.locator(selector).first().click();
+  playerActions.push({ kind: 'click', label, selector });
+}
+
+async function playerWaitForSelector(page, selector, label, timeout) {
+  await page.waitForSelector(selector, { state: 'visible', timeout });
+  playerActions.push({ kind: 'waitForSelector', label, selector, timeout });
+}
+
+async function playerWaitForText(page, text, label, timeout) {
+  await page.waitForFunction((expected) => document.body.textContent?.includes(expected), text, { timeout });
+  playerActions.push({ kind: 'waitForText', label, text, timeout });
+}
+
+async function playerWaitForHudValue(page, hudLabel, value, label, timeout) {
+  await page.waitForFunction(({ expectedLabel, expectedValue }) => (
+    Array.from(document.querySelectorAll('#hud div')).some((item) => (
+      item.querySelector('strong')?.textContent?.trim() === expectedLabel &&
+      item.querySelector('span')?.textContent?.trim() === expectedValue
+    ))
+  ), { expectedLabel: hudLabel, expectedValue: value }, { timeout });
+  playerActions.push({ kind: 'waitForHudValue', label, hudLabel, value, timeout });
+}
+
+async function playerWait(page, ms, label) {
+  await page.waitForTimeout(ms);
+  playerActions.push({ kind: 'wait', label, ms });
+}
+
+async function playerSetViewport(page, viewport, label) {
+  await page.setViewportSize(viewport);
+  playerActions.push({ kind: 'viewport', label, viewport });
+}
+
+function consumeScenarioActions() {
+  const actions = playerActions.slice(scenarioActionCursor);
+  scenarioActionCursor = playerActions.length;
+  return actions;
+}
+
+async function captureScenario(page, id, label) {
+  const screenshotName = `${id}.png`;
+  await page.screenshot({ path: path.join(screenshotDir, screenshotName), fullPage: false });
+  const actionsSincePrevious = consumeScenarioActions();
+
+  return page.evaluate(({ scenarioId, scenarioLabel, screenshotPath, playerActionsSincePrevious }) => {
+    const state = window.__farmDebug.getState();
+    const text = window.render_game_to_text();
+    const tiles = Object.values(state.tiles);
+    const unlockedCrops = state.tier.unlockedCrops.filter((cropId) => state.cropMix[cropId] > 0);
+    const thirstyPlots = tiles.filter((tile) => (
+      tile.kind === 'plot' &&
+      tile.plot &&
+      tile.plot.water <= 0 &&
+      tile.plot.growth < state.crops[tile.plot.cropId].growTicks
+    )).length;
+    const hasWateringWorker = state.workers.some((worker) => worker.task.kind === 'watering');
+    const activePlotTargets = state.workers
+      .filter((worker) => (
+        (worker.task.kind === 'planting' || worker.task.kind === 'watering' || worker.task.kind === 'harvesting') &&
+        worker.task.target
+      ))
+      .map((worker) => `${worker.task.target.x},${worker.task.target.y}`);
+    const duplicateWorkerTargetCount = activePlotTargets.length - new Set(activePlotTargets).size;
+    const claimableMatch = text.match(/claimableTier=(\d+)/);
+    const visibleText = compactText(document.body.innerText ?? '');
+    const availableActions = Array.from(document.querySelectorAll('button, input[type="range"], [role="separator"]'))
+      .filter((element) => isVisible(element) && !element.disabled)
+      .slice(0, 40)
+      .map((element) => ({
+        label: element.getAttribute('aria-label') || element.getAttribute('title') || compactText(element.textContent ?? ''),
+        selector: playerSelectorFor(element),
+        bounds: roundedBounds(element.getBoundingClientRect()),
+      }));
+
+    return {
+      id: scenarioId,
+      label: scenarioLabel,
+      screenshot: screenshotPath,
+      text,
+      observation: {
+        screenshot: screenshotPath,
+        visibleText,
+        availableActions,
+        playerActionsSincePrevious,
+      },
+      metrics: {
+        tier: state.tier.level,
+        tick: state.tick,
+        workers: state.workers.length,
+        claimableTier: claimableMatch ? Number(claimableMatch[1]) : 0,
+        hasClaimButton: Boolean(document.querySelector('[data-command="claim-tier"]')),
+        hasUnlockBanner: Boolean(document.querySelector('.tier-unlock-banner')),
+        rewardChipCount: document.querySelectorAll('.reward-chip').length,
+        horizontalOverflow: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
+        toolbarButtons: document.querySelectorAll('.tool-button').length,
+        maxToolbarButtonHeight: Math.max(0, ...Array.from(document.querySelectorAll('.tool-button')).map((button) => Math.round(button.getBoundingClientRect().height))),
+        thirstyPlots,
+        hasWateringWorker,
+        duplicateWorkerTargetCount,
+        plantedPlots: tiles.filter((tile) => tile.kind === 'plot' && tile.plot).length,
+        emptyPlots: tiles.filter((tile) => tile.kind === 'plot' && !tile.plot).length,
+        idleWorkers: state.workers.filter((worker) => worker.task.kind === 'idle').length,
+        availableUnlockedSeeds: unlockedCrops.reduce((sum, cropId) => sum + state.inventory.seeds[cropId], 0),
+        canBuyUnlockedSeeds: unlockedCrops.some((cropId) => state.coins >= state.crops[cropId].seedPrice),
+        hasSeedGuidance: (document.body.textContent ?? '').includes('Buy seeds'),
+        seedGuidanceActionCount: document.querySelectorAll('[data-seed-guidance-action]').length,
+      },
+    };
+
+    function compactText(value) {
+      return value.replace(/\s+/g, ' ').trim().slice(0, 2200);
+    }
+
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    }
+
+    function roundedBounds(rect) {
+      return {
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      };
+    }
+
+    function playerSelectorFor(element) {
+      const dataAttribute = Array.from(element.attributes).find((attribute) => (
+        attribute.name.startsWith('data-') && attribute.name !== 'data-tutorial-tip'
+      ));
+      if (dataAttribute) {
+        return dataAttribute.value
+          ? `[${dataAttribute.name}="${CSS.escape(dataAttribute.value)}"]`
+          : `[${dataAttribute.name}]`;
+      }
+      if (element.id) return `#${CSS.escape(element.id)}`;
+      if (element.getAttribute('role')) return `[role="${CSS.escape(element.getAttribute('role'))}"]`;
+      return element.tagName.toLowerCase();
+    }
+  }, {
+    scenarioId: id,
+    scenarioLabel: label,
+    screenshotPath: path.join('screenshots', screenshotName).replaceAll('\\', '/'),
+    playerActionsSincePrevious: actionsSincePrevious,
+  });
+}
+
+async function recordReplayBundle(server, annotations) {
+  const farm = await server.ssrLoadModule('/src/game/simulation/farmGame.ts');
+  const {
+    advanceFarm,
+    createFarmGame,
+    getFarmSnapshot,
+    renderFarmToText,
+    submitFarmCommand,
+  } = farm;
+
+  const game = createFarmGame({ seed: 'llm-replay' });
+  const recorder = new SessionRecorder({ world: game, snapshotInterval: 60 });
+  const markers = [];
+
+  recorder.connect();
+  addMarker('fresh-start', 'Fresh farm booted for LLM replay inspection.');
+
+  for (let i = 0; i < 900; i += 1) {
+    advanceFarm(game, 1);
+    const state = getFarmSnapshot(game);
+    const harvested = Object.values(state.stats.lifetimeHarvested).reduce((sum, value) => sum + value, 0);
+    if (harvested >= 10) break;
+  }
+  addMarker('tier-ready', 'First milestone reached; tier should be claimable but not auto-claimed.');
+
+  for (const annotation of annotations.filter((entry) => entry.scenarioId === 'tier-ready')) {
+    addMarker(annotation.id, `Improvement: ${annotation.title}. ${annotation.recommendation}`);
+  }
+
+  submitFarmCommand(game, { type: 'claimNextTier' });
+  advanceFarm(game, 1);
+  addMarker('tier-claimed', 'Player claim command applied; tier rewards should now be visible in state.');
+
+  advanceFarm(game, 240);
+  addMarker('worker-care', 'Post-claim worker-care window for planting, watering, harvesting, and hauling inspection.');
+
+  recorder.disconnect();
+  const bundle = recorder.toBundle();
+  const replayer = SessionReplayer.fromBundle(bundle, {
+    worldFactory: (snapshot) => {
+      const replayGame = createFarmGame({ seed: 'llm-replay' });
+      replayGame.applySnapshot(snapshot);
+      return replayGame;
+    },
+  });
+  const selfCheck = replayer.selfCheck({ stopOnFirstDivergence: true });
+  const sampleTicks = [...new Set([
+    bundle.metadata.startTick,
+    ...markers.map((marker) => marker.tick),
+    bundle.metadata.endTick,
+  ])].sort((a, b) => a - b);
+  const samples = sampleTicks.map((tick) => {
+    const world = replayer.openAt(tick);
+    const state = getFarmSnapshot(world);
+    return {
+      tick,
+      text: renderFarmToText(world),
+      tier: state.tier.level,
+      workers: state.workers.length,
+      workerTasks: state.workers.map((worker) => `${worker.id}:${worker.task.kind}:${worker.task.phase ?? 'none'}`),
+      plantedPlots: Object.values(state.tiles).filter((tile) => tile.kind === 'plot' && tile.plot).length,
+      emptyPlots: Object.values(state.tiles).filter((tile) => tile.kind === 'plot' && !tile.plot).length,
+    };
+  });
+  const data = {
+    summary: bundleSummary(bundle),
+    selfCheck,
+    markers,
+    samples,
+  };
+
+  return {
+    bundle,
+    data,
+    summary: {
+      bundle: 'latest.bundle.json',
+      report: 'latest.replay.md',
+      selfCheckOk: selfCheck.ok,
+      markerCount: markers.length,
+      sampleTicks,
+    },
+    markdown: renderReplayMarkdown(data),
+  };
+
+  function addMarker(id, text) {
+    const state = getFarmSnapshot(game);
+    const tick = state.tick;
+    recorder.addMarker({
+      kind: 'annotation',
+      text,
+      refs: { tickRange: { from: tick, to: tick } },
+    });
+    markers.push({
+      id,
+      tick,
+      text,
+      state: renderFarmToText(game),
+    });
+  }
+}
+
+function renderReplayMarkdown(data) {
+  const lines = [
+    '# LLM Playtest Replay',
+    '',
+    `Self-check: ${data.selfCheck.ok ? 'ok' : 'failed'}`,
+    `Duration ticks: ${data.summary.durationTicks}`,
+    `Markers: ${data.markers.length}`,
+    '',
+    '## Markers',
+    '',
+  ];
+
+  for (const marker of data.markers) {
+    lines.push(`- tick ${marker.tick}: ${marker.id} - ${marker.text}`);
+  }
+
+  lines.push('');
+  lines.push('## Sampled State');
+  lines.push('');
+
+  for (const sample of data.samples) {
+    lines.push(`### Tick ${sample.tick}`);
+    lines.push('');
+    lines.push(`- ${sample.text}`);
+    lines.push(`- worker tasks: ${sample.workerTasks.join(', ') || 'none'}`);
+    lines.push(`- plots: ${sample.plantedPlots} planted, ${sample.emptyPlots} empty`);
+    lines.push('');
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+function renderReplayHtml(run, replayData) {
+  const scenariosJson = JSON.stringify(run.scenarios ?? []);
+  const replayJson = JSON.stringify(replayData);
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Farm LLM Replay</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #050505; color: #f4f4f4; }
+      body { margin: 0; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+      main { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; }
+      img { width: 100%; height: 100%; object-fit: contain; background: #0b0b0b; }
+      aside { border-left: 1px solid rgba(255,255,255,.18); padding: 14px; overflow: auto; background: rgba(255,255,255,.04); }
+      button { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.08); color: inherit; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+      button:hover, button.active { background: rgba(255,255,255,.18); }
+      .strip { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(255,255,255,.16); overflow-x: auto; background: rgba(255,255,255,.04); }
+      .meta { color: #bcbcbc; font-size: 12px; line-height: 1.45; }
+      pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; background: rgba(255,255,255,.06); padding: 8px; border-radius: 4px; }
+      li { margin: 8px 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img id="frame" alt="Replay screenshot" />
+      <div class="strip" id="strip"></div>
+    </main>
+    <aside>
+      <h1>LLM Replay</h1>
+      <p class="meta" id="frameMeta"></p>
+      <h2>Scenario State</h2>
+      <pre id="state"></pre>
+      <h2>Replay Markers</h2>
+      <ul id="markers"></ul>
+      <h2>Sampled Replay</h2>
+      <pre id="samples"></pre>
+    </aside>
+    <script>
+      const scenarios = ${scenariosJson};
+      const replay = ${replayJson};
+      let index = 0;
+      const frame = document.getElementById('frame');
+      const strip = document.getElementById('strip');
+      const frameMeta = document.getElementById('frameMeta');
+      const state = document.getElementById('state');
+      const markers = document.getElementById('markers');
+      const samples = document.getElementById('samples');
+      for (const [i, scenario] of scenarios.entries()) {
+        const button = document.createElement('button');
+        button.textContent = scenario.id;
+        button.addEventListener('click', () => show(i));
+        strip.append(button);
+      }
+      markers.innerHTML = replay.markers.map((marker) => '<li><strong>tick ' + marker.tick + '</strong><br />' + marker.text + '</li>').join('');
+      samples.textContent = replay.samples.map((sample) => 'tick ' + sample.tick + ': ' + sample.text + '\\nworkers: ' + sample.workerTasks.join(', ')).join('\\n\\n');
+      function show(next) {
+        index = next;
+        const scenario = scenarios[index];
+        frame.src = scenario.screenshot;
+        frameMeta.textContent = scenario.label + ' / ' + scenario.screenshot;
+        state.textContent = scenario.text + '\\n\\nObservation:\\n' + JSON.stringify(scenario.observation ?? {}, null, 2) + '\\n\\nMetrics:\\n' + JSON.stringify(scenario.metrics, null, 2);
+        [...strip.children].forEach((button, i) => button.classList.toggle('active', i === index));
+      }
+      show(0);
+      setInterval(() => show((index + 1) % scenarios.length), 3500);
+    </script>
+  </body>
+</html>
+`;
+}
