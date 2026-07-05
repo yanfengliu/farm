@@ -31,6 +31,21 @@ describe('farm simulation', () => {
     expect(second).toEqual(first);
   });
 
+  test('starter farm has no path tiles', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'no-paths' }));
+
+    expect(Object.values(state.tiles).map((tile) => tile.kind)).not.toContain('path');
+  });
+
+  test('legacy saved path tiles load as empty owned land', () => {
+    const legacyState = getFarmSnapshot(createFarmGame({ seed: 'legacy-paths' }));
+    legacyState.tiles['3,2'] = { x: 3, y: 2, kind: 'path' as never };
+
+    const game = createFarmGame({ seed: 'legacy-paths', state: legacyState });
+
+    expect(getFarmSnapshot(game).tiles['3,2']?.kind).toBe('empty');
+  });
+
   test('manual selling supports per-crop amounts and sell all crops', () => {
     const game = createFarmGame({ seed: 'selling' });
     advanceFarm(game, 1200);
@@ -82,10 +97,10 @@ describe('farm simulation', () => {
 
     submitFarmCommand(game, { type: 'buyLand', x: 1, y: 1 });
     advanceFarm(game, 1);
-    submitFarmCommand(game, { type: 'paintTile', x: 1, y: 1, tile: 'path' });
+    submitFarmCommand(game, { type: 'paintTile', x: 1, y: 1, tile: 'plot' });
     advanceFarm(game, 1);
 
-    expect(getFarmSnapshot(game).tiles['1,1']?.kind).toBe('path');
+    expect(getFarmSnapshot(game).tiles['1,1']?.kind).toBe('plot');
 
     submitFarmCommand(game, { type: 'undo' });
     advanceFarm(game, 1);
@@ -93,7 +108,7 @@ describe('farm simulation', () => {
 
     submitFarmCommand(game, { type: 'redo' });
     advanceFarm(game, 1);
-    expect(getFarmSnapshot(game).tiles['1,1']?.kind).toBe('path');
+    expect(getFarmSnapshot(game).tiles['1,1']?.kind).toBe('plot');
   });
 
   test('storage capacity follows storage buildings and removed-capacity crops overflow sell', () => {

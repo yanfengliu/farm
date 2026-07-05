@@ -26,7 +26,7 @@ For idle-loop changes, also let real browser time pass without calling `window.a
 
 - Start a new farm.
 - Watch a worker plant, fetch water, water, harvest, and deliver crops.
-- Paint plots and paths.
+- Paint plots.
 - Place wells and storage bins.
 - Buy adjacent land.
 - Adjust crop mix.

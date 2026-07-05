@@ -3,7 +3,7 @@ import { CROPS, CROP_IDS, type CropDefinition, type CropId } from '../content/cr
 import { FARM_TIERS, type TierLevel } from '../content/tiers';
 import { UPGRADES, UPGRADE_IDS, type UpgradeId } from '../content/upgrades';
 
-export type TileKind = 'empty' | 'plot' | 'path' | 'well' | 'storage';
+export type TileKind = 'empty' | 'plot' | 'well' | 'storage';
 
 export interface PlotState {
   cropId: CropId;
@@ -94,7 +94,7 @@ export type FarmCommand =
   | { type: 'buySeeds'; cropId: CropId; amount: number }
   | { type: 'buyUpgrade'; upgradeId: UpgradeId }
   | { type: 'buyLand'; x: number; y: number }
-  | { type: 'paintTile'; x: number; y: number; tile: 'empty' | 'plot' | 'path' }
+  | { type: 'paintTile'; x: number; y: number; tile: 'empty' | 'plot' }
   | { type: 'placeBuilding'; x: number; y: number; building: 'well' | 'storage' }
   | { type: 'bulldoze'; x: number; y: number }
   | { type: 'setCropMix'; mix: Partial<Record<CropId, number>> }
@@ -199,15 +199,6 @@ function createInitialFarmState(): FarmState {
     tiles[keyOf(pos.x, pos.y)] = { ...pos, kind: 'plot' };
   }
 
-  for (const pos of [
-    { x: 3, y: 2 },
-    { x: 4, y: 2 },
-    { x: 5, y: 2 },
-    { x: 4, y: 4 },
-  ]) {
-    tiles[keyOf(pos.x, pos.y)] = { ...pos, kind: 'path' };
-  }
-
   tiles[keyOf(2, 2)] = { x: 2, y: 2, kind: 'well' };
   tiles[keyOf(6, 2)] = { x: 6, y: 2, kind: 'storage' };
 
@@ -296,7 +287,7 @@ function updateWorker(state: FarmState, worker: FarmWorker): void {
 function moveWorkerAlongPath(state: FarmState, worker: FarmWorker): void {
   const next = worker.task.path[0];
   if (!next) return;
-  const speed = (tileAt(state, next.x, next.y)?.kind === 'path' ? 2 : 1) * movementMultiplier(state);
+  const speed = movementMultiplier(state);
   worker.task.progress += speed;
   if (worker.task.progress < 4) return;
 
@@ -501,7 +492,7 @@ function pathToTile(state: FarmState, worker: FarmWorker, target: Position): Pos
     start: { x: worker.x, y: worker.y },
     goal: target,
     blocked: (x, y) => !isWalkable(state, x, y),
-    cost: (_from, to) => tileAt(state, to.x, to.y)?.kind === 'path' ? 0.5 : 1,
+    cost: () => 1,
   });
   return result ? result.path.slice(1) : null;
 }
@@ -634,7 +625,7 @@ function buyLand(state: FarmState, x: number, y: number): void {
   state.stats.lifetimeLandPurchased += 1;
 }
 
-function paintTile(state: FarmState, x: number, y: number, kind: 'empty' | 'plot' | 'path'): void {
+function paintTile(state: FarmState, x: number, y: number, kind: 'empty' | 'plot'): void {
   const tile = tileAt(state, x, y);
   if (!tile) return;
   tile.kind = kind;
@@ -792,6 +783,13 @@ function tierState(level: TierLevel): FarmTier {
 }
 
 function normalizeFarmState(state: FarmState): FarmState {
+  for (const tile of Object.values(state.tiles)) {
+    const legacyKind = (tile as { kind: string }).kind;
+    if (legacyKind === 'path') {
+      tile.kind = 'empty';
+      delete tile.plot;
+    }
+  }
   state.upgrades = { ...zeroUpgradeRecord(), ...(state.upgrades ?? {}) };
   state.stats.lifetimeUpgradePurchases ??= 0;
   return state;

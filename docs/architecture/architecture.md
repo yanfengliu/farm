@@ -29,7 +29,7 @@ src/game/input/
   Action identifiers, keyboard shortcuts, mouse tool mapping, and command conversion.
 
 src/phaser/
-  Phaser scene setup, camera handling, farm renderer, sprite/texture helpers, and audio triggers.
+  Phaser scene setup, camera handling, farm renderer, and sprite/texture helpers.
 
 src/ui/
   DOM HUD, toolbar, panels, and UI state binding.
@@ -65,7 +65,6 @@ Phaser owns:
 - Camera pan/zoom.
 - Pointer hit-testing and screen-to-grid conversion.
 - Animation playback and simple effects.
-- Audio playback.
 
 Phaser scenes submit commands and consume projected farm snapshots. They do not mutate farm rules directly.
 

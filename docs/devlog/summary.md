@@ -9,3 +9,4 @@
 - 2026-07-04: Added denser object-level pixel details for farm tiles, crops, buildings, workers, cargo, locked land, and path surfaces.
 - 2026-07-04: Smoothed worker rendering by easing visual positions along simulation path-progress targets instead of drawing only at tile centers.
 - 2026-07-04: Re-skinned UI chrome and broad backdrops from green farm panels to compact black-and-white glass while preserving colorful farm objects.
+- 2026-07-04: Removed path tiles as a farm concept, normalized legacy path saves to empty land, removed the Path tool, and deleted all browser sound effects.

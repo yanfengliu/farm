@@ -19,7 +19,7 @@ import {
 } from './game/simulation/farmGame';
 import { clearFarmSave, loadSavedFarmState, saveFarmState } from './persistence/localSave';
 
-type Tool = 'inspect' | 'plot' | 'path' | 'well' | 'storage' | 'land' | 'bulldoze';
+type Tool = 'inspect' | 'plot' | 'well' | 'storage' | 'land' | 'bulldoze';
 type Panel = 'inventory' | 'goals' | 'mix' | 'inspect';
 
 const TILE_SIZE = 32;
@@ -77,17 +77,13 @@ const playArea = requireElement<HTMLElement>('#play-area');
 const tools: Array<{ id: Tool; key: string; label: string }> = [
   { id: 'inspect', key: 'I', label: 'Inspect' },
   { id: 'plot', key: '1', label: 'Plot' },
-  { id: 'path', key: '2', label: 'Path' },
-  { id: 'well', key: '3', label: 'Well' },
-  { id: 'storage', key: '4', label: 'Storage' },
-  { id: 'land', key: '5', label: 'Land' },
+  { id: 'well', key: '2', label: 'Well' },
+  { id: 'storage', key: '3', label: 'Storage' },
+  { id: 'land', key: '4', label: 'Land' },
   { id: 'bulldoze', key: 'B', label: 'Bulldoze' },
   { id: 'inspect', key: 'Z', label: 'Undo' },
   { id: 'inspect', key: 'Y', label: 'Redo' },
 ];
-
-let audioContext: AudioContext | null = null;
-let lastHarvestSoundCount = 0;
 
 class FarmScene extends Phaser.Scene {
   private graphics!: Phaser.GameObjects.Graphics;
@@ -127,7 +123,6 @@ class FarmScene extends Phaser.Scene {
     if (!paused) {
       advanceRealtime(delta * speed);
     }
-    playPassiveFarmSounds();
     this.autosave();
     this.drawFarm();
     renderHud();
@@ -215,8 +210,6 @@ class FarmScene extends Phaser.Scene {
 
     if (tile.kind === 'plot') {
       this.drawPlot(g, px, py, tile);
-    } else if (tile.kind === 'path') {
-      this.drawPath(g, px, py, x, y);
     } else if (tile.kind === 'well') {
       this.drawWell(g, px, py);
     } else if (tile.kind === 'storage') {
@@ -314,23 +307,6 @@ class FarmScene extends Phaser.Scene {
       g.fillStyle(0x89a374, 1);
       g.fillRect(px + 25, py + 7, 2, 1);
     }
-  }
-
-  private drawPath(g: Phaser.GameObjects.Graphics, px: number, py: number, x: number, y: number): void {
-    g.fillStyle(0x8d744d, 1);
-    g.fillRect(px + 2, py + 9, TILE_SIZE - 4, 14);
-    g.fillStyle(0xd2bd7d, 1);
-    g.fillRect(px + 3, py + 11, TILE_SIZE - 6, 10);
-    g.fillStyle(0xbda56c, 1);
-    g.fillRect(px + 4, py + 14, 11, 4);
-    g.fillRect(px + 17, py + 12, 10, 4);
-    g.fillRect(px + 16, py + 18, 8, 2);
-    g.fillStyle(tileVariant(x, y, [0x7e613d, 0x9c7b4c, 0x6d5335]), 1);
-    g.fillRect(px + 7, py + 7, 5, 3);
-    g.fillRect(px + 22, py + 22, 5, 3);
-    g.fillStyle(0xf0d98d, 0.85);
-    if ((x + y) % 2 === 0) g.fillRect(px + 9, py + 12, 3, 1);
-    if ((x * 3 + y) % 2 === 0) g.fillRect(px + 20, py + 18, 4, 1);
   }
 
   private drawWell(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
@@ -521,6 +497,9 @@ new Phaser.Game({
   height: canvasHost.clientHeight,
   backgroundColor: '#101010',
   pixelArt: true,
+  audio: {
+    noAudio: true,
+  },
   scene: FarmScene,
   scale: {
     mode: Phaser.Scale.RESIZE,
@@ -535,8 +514,6 @@ function commandForTool(tool: Tool, x: number, y: number): FarmCommand | null {
       return null;
     case 'plot':
       return { type: 'paintTile', x, y, tile: 'plot' };
-    case 'path':
-      return { type: 'paintTile', x, y, tile: 'path' };
     case 'well':
       return { type: 'placeBuilding', x, y, building: 'well' };
     case 'storage':
@@ -622,8 +599,8 @@ function renderPanel(): void {
       <p>${state.tier.nextMilestone}</p>
       <h3>Tool Upgrades</h3>
       ${UPGRADE_IDS.map((id) => upgradeRow(state, id)).join('')}
-      <h3>Tier Path</h3>
-      <div class="tier-path">
+      <h3>Progression</h3>
+      <div class="tier-list">
         ${FARM_TIER_LIST.map((tier) => `
           <div class="${tier.level === state.tier.level ? 'current' : ''}">
             <strong>Tier ${tier.level}: ${tier.label}</strong>
@@ -732,7 +709,6 @@ function colorForTile(tile: FarmTile, x: number, y: number): number {
   const colors: Record<TileKind, number[]> = {
     empty: [0x5e914f, 0x669957, 0x56884b],
     plot: [0x82522f, 0x8d5b35, 0x74472b],
-    path: [0xbba76e, 0xc6af76, 0xac925e],
     well: [0x586a77, 0x647887, 0x4c5d69],
     storage: [0xa96e3f, 0xb77946, 0x975f38],
   };
@@ -812,14 +788,12 @@ document.addEventListener('click', (event) => {
   if (panel) activePanel = panel;
 
   const command = target.closest<HTMLElement>('[data-command]')?.dataset.command;
-  if (target.closest('button')) playClickSound();
   if (command === 'undo') submitFarmCommand(farmGame, { type: 'undo' });
   if (command === 'redo') submitFarmCommand(farmGame, { type: 'redo' });
   if (command === 'pause') paused = !paused;
   if (command === 'toggle-panel') panelCollapsed = !panelCollapsed;
   if (command === 'sell-all') {
     submitFarmCommand(farmGame, { type: 'sellAllCrops' });
-    playTone(440, 0.05, 0.05);
   }
 
   const nextSpeed = target.closest<HTMLElement>('[data-speed]')?.dataset.speed;
@@ -834,7 +808,6 @@ document.addEventListener('click', (event) => {
       cropId: sell.dataset.sell as CropId,
       amount: Number(sell.dataset.amount ?? 1),
     });
-    playTone(440, 0.05, 0.05);
   }
 
   const buySeeds = target.closest<HTMLElement>('[data-buy-seeds]');
@@ -869,10 +842,9 @@ document.addEventListener('keydown', (event) => {
     event.preventDefault();
     paused = !paused;
   } else if (key === '1') selectedTool = 'plot';
-  else if (key === '2') selectedTool = 'path';
-  else if (key === '3') selectedTool = 'well';
-  else if (key === '4') selectedTool = 'storage';
-  else if (key === '5') selectedTool = 'land';
+  else if (key === '2') selectedTool = 'well';
+  else if (key === '3') selectedTool = 'storage';
+  else if (key === '4') selectedTool = 'land';
   else if (key === 'b') selectedTool = 'bulldoze';
   else if (key === 'i') selectedTool = 'inspect';
   else if (key === 'z') submitFarmCommand(farmGame, { type: 'undo' });
@@ -903,37 +875,6 @@ window.__farmDebug = {
   getState: () => getFarmSnapshot(farmGame),
   reset: resetFarm,
 };
-
-function playClickSound(): void {
-  playTone(260, 0.03, 0.025);
-}
-
-function playPassiveFarmSounds(): void {
-  const state = getFarmSnapshot(farmGame);
-  const harvests = Object.values(state.stats.lifetimeHarvested).reduce((sum, count) => sum + count, 0);
-  if (harvests > lastHarvestSoundCount) {
-    lastHarvestSoundCount = harvests;
-    playTone(620, 0.04, 0.035);
-  }
-}
-
-function playTone(frequency: number, durationSeconds: number, gainValue: number): void {
-  if (!audioContext) {
-    audioContext = new AudioContext();
-  }
-  if (audioContext.state === 'suspended') {
-    void audioContext.resume();
-  }
-  const oscillator = audioContext.createOscillator();
-  const gain = audioContext.createGain();
-  oscillator.frequency.value = frequency;
-  oscillator.type = 'square';
-  gain.gain.value = gainValue;
-  oscillator.connect(gain);
-  gain.connect(audioContext.destination);
-  oscillator.start();
-  oscillator.stop(audioContext.currentTime + durationSeconds);
-}
 
 function requireElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);

@@ -4,7 +4,7 @@
 
 `farm` is a desktop-first browser idle farming game about planning a small, readable, top-down pixel farm and watching tiny autonomous farmhands keep it alive. The player controls layout, crop mix, expansion, selling, and upgrades. Workers decide concrete tasks themselves.
 
-The first screen is the playable farm, not a landing page. The tone is plain cozy farm: carrots, wheat, tomatoes, wells, bins, paths, and tiny farmhands. No magic, no heavy story, no industrial theme, and no decorative-only build items in the MVP.
+The first screen is the playable farm, not a landing page. The tone is plain cozy farm: carrots, wheat, tomatoes, wells, bins, and tiny farmhands. No magic, no heavy story, no industrial theme, and no decorative-only build items in the MVP.
 
 ## Platform
 
@@ -14,7 +14,7 @@ Idle progress runs only while the tab/window is open. There is no offline simula
 
 ## Core Loop
 
-1. The player owns a small grid farm with plots, paths, wells, storage bins, seeds, coins, and one worker.
+1. The player owns a small grid farm with plots, wells, storage bins, seeds, coins, and one worker.
 2. The player sets a percentage crop mix for unlocked crops.
 3. Workers autonomously plant, water, harvest, and haul according to the crop mix and farm needs.
 4. Crops and seeds are tracked in inventory. Storage buildings increase shared capacity.
@@ -29,7 +29,7 @@ Workers are priority-autonomous. The player does not assign individual worker ta
 
 The player can:
 
-- Paint plots and paths by click-drag.
+- Paint plots by click-drag.
 - Place wells and storage bins with single clicks.
 - Buy adjacent land tiles.
 - Bulldoze farm objects for free with no refund.
@@ -71,7 +71,7 @@ Harvested crops must be carried to storage. The UI presents one global inventory
 
 Storage capacity is recalculated from placed storage bins. If storage is removed and existing crops exceed the new capacity, excess crops auto-sell at normal price.
 
-Paths are speed boosts. Workers can walk across open owned land and plots, but path tiles reduce movement cost. Storage bins and wells block movement. Plots and paths are walkable.
+Workers can walk across open owned land and plots. Storage bins and wells block movement.
 
 Workers do not collide with each other in MVP. Multiple workers can occupy or pass through the same tile.
 
@@ -130,11 +130,11 @@ Worker task state is visible only on hover or inspect, not as permanent icons ov
 
 The UI chrome should feel elegant and desktop-first: black and white, semi-transparent, glassy, and compact. The farm itself can stay colorful and cozy, but the surrounding HUD, panels, toolbar, and non-playfield backdrop should avoid a green theme.
 
-## Art And Audio
+## Art
 
 The MVP uses top-down pixel art. The grid should be readable, farm objects should be visually distinct, and tiny workers should be charming but simple.
 
-MVP audio includes simple UI clicks plus soft harvest and sell sounds. Full ambient audio can come later.
+The MVP is silent for now.
 
 ## Persistence
 
