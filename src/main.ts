@@ -14,6 +14,7 @@ import {
   type FarmGame,
   type FarmState,
   type FarmTile,
+  type FarmWorker,
   type TileKind,
 } from './game/simulation/farmGame';
 import { clearFarmSave, loadSavedFarmState, saveFarmState } from './persistence/localSave';
@@ -92,6 +93,7 @@ class FarmScene extends Phaser.Scene {
   private graphics!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
+  private readonly workerVisuals = new Map<number, { x: number; y: number }>();
 
   constructor() {
     super('FarmScene');
@@ -179,8 +181,16 @@ class FarmScene extends Phaser.Scene {
       }
     }
 
+    const activeWorkerIds = new Set<number>();
     for (const worker of state.workers) {
-      this.drawWorker(g, state, worker.id, worker.x, worker.y, worker.task.kind, worker.cargo?.kind);
+      activeWorkerIds.add(worker.id);
+      const position = this.workerVisualPosition(worker);
+      this.drawWorker(g, state, worker, position.x, position.y);
+    }
+    for (const workerId of this.workerVisuals.keys()) {
+      if (!activeWorkerIds.has(workerId)) {
+        this.workerVisuals.delete(workerId);
+      }
     }
 
     if (selectedCell) {
@@ -433,62 +443,74 @@ class FarmScene extends Phaser.Scene {
   private drawWorker(
     g: Phaser.GameObjects.Graphics,
     state: FarmState,
-    id: number,
-    x: number,
-    y: number,
-    task: string,
-    cargo?: string,
+    worker: FarmWorker,
+    px: number,
+    py: number,
   ): void {
+    const task = worker.task.kind;
+    const cargo = worker.cargo?.kind;
     const bob = task === 'idle' ? 0 : state.tick % 8 < 4 ? -1 : 0;
-    const offset = workerOffset(id);
-    const px = x * TILE_SIZE + TILE_SIZE / 2 + offset.x;
-    const py = y * TILE_SIZE + TILE_SIZE / 2 + offset.y + bob;
+    const drawY = py + bob;
     g.fillStyle(0x2a1d16, 0.25);
-    g.fillRect(px - 8, py + 8, 16, 3);
+    g.fillRect(px - 8, drawY + 8, 16, 3);
     g.fillStyle(0x5f8fb0, 1);
-    g.fillRect(px - 5, py - 2, 10, 12);
+    g.fillRect(px - 5, drawY - 2, 10, 12);
     g.fillStyle(task === 'idle' ? 0xf5d58f : 0xf0b85d, 1);
-    g.fillRect(px - 4, py - 3, 8, 5);
+    g.fillRect(px - 4, drawY - 3, 8, 5);
     g.fillStyle(0x3d5f7b, 1);
-    g.fillRect(px - 4, py + 4, 3, 6);
-    g.fillRect(px + 1, py + 4, 3, 6);
+    g.fillRect(px - 4, drawY + 4, 3, 6);
+    g.fillRect(px + 1, drawY + 4, 3, 6);
     g.fillStyle(0xffdfb0, 1);
-    g.fillRect(px - 4, py - 10, 8, 8);
+    g.fillRect(px - 4, drawY - 10, 8, 8);
     g.fillStyle(0x2f2119, 1);
-    g.fillRect(px - 2, py - 7, 1, 1);
-    g.fillRect(px + 2, py - 7, 1, 1);
-    g.fillRect(px - 1, py - 4, 3, 1);
+    g.fillRect(px - 2, drawY - 7, 1, 1);
+    g.fillRect(px + 2, drawY - 7, 1, 1);
+    g.fillRect(px - 1, drawY - 4, 3, 1);
     g.fillStyle(0x5c351e, 1);
-    g.fillRect(px - 6, py - 12, 12, 4);
-    g.fillRect(px - 3, py - 14, 6, 3);
+    g.fillRect(px - 6, drawY - 12, 12, 4);
+    g.fillRect(px - 3, drawY - 14, 6, 3);
     g.fillStyle(0x3a2820, 1);
-    g.fillRect(px - 5, py + 10, 4, 4);
-    g.fillRect(px + 1, py + 10, 4, 4);
+    g.fillRect(px - 5, drawY + 10, 4, 4);
+    g.fillRect(px + 1, drawY + 10, 4, 4);
     g.fillStyle(0xffdfb0, 1);
-    g.fillRect(px - 8, py, 3, 6);
-    g.fillRect(px + 5, py, 3, 6);
+    g.fillRect(px - 8, drawY, 3, 6);
+    g.fillRect(px + 5, drawY, 3, 6);
     if (cargo) {
       g.fillStyle(cargo === 'water' ? 0x62a9c8 : cargo === 'seed' ? 0xb98648 : 0xe08a3a, 1);
       if (cargo === 'water') {
-        g.fillRect(px + 6, py + 2, 5, 6);
+        g.fillRect(px + 6, drawY + 2, 5, 6);
         g.fillStyle(0xa7d8e5, 1);
-        g.fillRect(px + 7, py + 3, 3, 1);
+        g.fillRect(px + 7, drawY + 3, 3, 1);
       } else if (cargo === 'seed') {
-        g.fillRect(px + 6, py + 2, 5, 6);
+        g.fillRect(px + 6, drawY + 2, 5, 6);
         g.fillStyle(0xf0ca74, 1);
-        g.fillRect(px + 7, py + 3, 1, 1);
-        g.fillRect(px + 9, py + 5, 1, 1);
+        g.fillRect(px + 7, drawY + 3, 1, 1);
+        g.fillRect(px + 9, drawY + 5, 1, 1);
       } else {
-        g.fillRect(px + 6, py + 1, 6, 7);
+        g.fillRect(px + 6, drawY + 1, 6, 7);
         g.fillStyle(0x7a4a28, 1);
-        g.fillRect(px + 6, py, 6, 2);
+        g.fillRect(px + 6, drawY, 6, 2);
       }
     } else if (task === 'harvesting') {
       g.fillStyle(0x8c6a3d, 1);
-      g.fillRect(px + 7, py - 2, 2, 10);
+      g.fillRect(px + 7, drawY - 2, 2, 10);
       g.fillStyle(0xd8c07c, 1);
-      g.fillRect(px + 8, py - 3, 5, 2);
+      g.fillRect(px + 8, drawY - 3, 5, 2);
     }
+  }
+
+  private workerVisualPosition(worker: FarmWorker): { x: number; y: number } {
+    const target = workerTargetPosition(worker);
+    const current = this.workerVisuals.get(worker.id);
+    if (!current || Phaser.Math.Distance.Between(current.x, current.y, target.x, target.y) > TILE_SIZE * 1.5) {
+      const next = { ...target };
+      this.workerVisuals.set(worker.id, next);
+      return next;
+    }
+
+    current.x = Phaser.Math.Linear(current.x, target.x, 0.35);
+    current.y = Phaser.Math.Linear(current.y, target.y, 0.35);
+    return current;
   }
 }
 
@@ -730,6 +752,18 @@ function storedCropCount(state: FarmState): number {
 
 function tileVariant(x: number, y: number, colors: number[]): number {
   return colors[Math.abs((x * 17 + y * 31) % colors.length)] ?? colors[0];
+}
+
+function workerTargetPosition(worker: FarmWorker): { x: number; y: number } {
+  const offset = workerOffset(worker.id);
+  const next = worker.task.path[0];
+  const progress = next ? Phaser.Math.Clamp(worker.task.progress / 4, 0, 1) : 0;
+  const tileX = next ? Phaser.Math.Linear(worker.x, next.x, progress) : worker.x;
+  const tileY = next ? Phaser.Math.Linear(worker.y, next.y, progress) : worker.y;
+  return {
+    x: tileX * TILE_SIZE + TILE_SIZE / 2 + offset.x,
+    y: tileY * TILE_SIZE + TILE_SIZE / 2 + offset.y,
+  };
 }
 
 function workerOffset(id: number): { x: number; y: number } {
