@@ -5,3 +5,4 @@
 - 2026-07-04: Review pass fixed live browser tick accumulation, storage-capacity recalculation after storage removal, and added a collapsible side panel.
 - 2026-07-04: Added global tool upgrades for worker movement and watering efficiency so the documented tool-upgrade mechanic is playable.
 - 2026-07-04: Moved tier definitions into shared content and rendered the full tier path in the Goals panel.
+- 2026-07-04: Ran a UI/pixel-art playtest loop, tightened button chrome, improved pixel tile/worker rendering, and reordered Goals content around actionable upgrades.

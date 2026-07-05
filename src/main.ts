@@ -169,7 +169,7 @@ class FarmScene extends Phaser.Scene {
     const g = this.graphics;
     g.clear();
 
-    g.fillStyle(0x182019, 1);
+    g.fillStyle(0x142019, 1);
     g.fillRect(0, 0, state.width * TILE_SIZE, state.height * TILE_SIZE);
 
     for (let y = 0; y < state.height; y++) {
@@ -180,12 +180,7 @@ class FarmScene extends Phaser.Scene {
     }
 
     for (const worker of state.workers) {
-      const px = worker.x * TILE_SIZE + TILE_SIZE / 2;
-      const py = worker.y * TILE_SIZE + TILE_SIZE / 2;
-      g.fillStyle(worker.task.kind === 'idle' ? 0xffefd1 : 0xf8cf76, 1);
-      g.fillRect(px - 6, py - 8, 12, 16);
-      g.fillStyle(0x4d3324, 1);
-      g.fillRect(px - 5, py - 10, 10, 5);
+      this.drawWorker(g, state, worker.id, worker.x, worker.y, worker.task.kind, worker.cargo?.kind);
     }
 
     if (selectedCell) {
@@ -198,49 +193,169 @@ class FarmScene extends Phaser.Scene {
     const px = x * TILE_SIZE;
     const py = y * TILE_SIZE;
     if (!tile) {
-      g.fillStyle(0x111711, 1);
+      g.fillStyle(tileVariant(x, y, [0x101711, 0x111b12, 0x0e150f]), 1);
       g.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
+      g.fillStyle(0x172018, 1);
+      if ((x + y) % 3 === 0) g.fillRect(px + 13, py + 13, 5, 5);
       return;
     }
 
-    g.fillStyle(colorForTile(tile), 1);
+    g.fillStyle(colorForTile(tile, x, y), 1);
     g.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
-    g.lineStyle(1, 0x334133, 1);
-    g.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+    this.drawGroundTexture(g, px, py, x, y, tile);
+    g.lineStyle(1, 0x203123, 0.9);
+    g.strokeRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
 
     if (tile.kind === 'plot') {
       this.drawPlot(g, px, py, tile);
+    } else if (tile.kind === 'path') {
+      this.drawPath(g, px, py, x, y);
     } else if (tile.kind === 'well') {
-      g.fillStyle(0x6c7a89, 1);
-      g.fillRect(px + 7, py + 7, 18, 18);
-      g.fillStyle(0x65a6c7, 1);
-      g.fillRect(px + 10, py + 10, 12, 12);
+      this.drawWell(g, px, py);
     } else if (tile.kind === 'storage') {
-      g.fillStyle(0xb9814f, 1);
-      g.fillRect(px + 5, py + 8, 22, 18);
-      g.fillStyle(0x6a4027, 1);
-      g.fillRect(px + 5, py + 8, 22, 5);
+      this.drawStorage(g, px, py);
     }
   }
 
   private drawPlot(g: Phaser.GameObjects.Graphics, px: number, py: number, tile: FarmTile): void {
-    g.fillStyle(0x7c5630, 1);
+    g.fillStyle(0x72482d, 1);
     g.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+    g.fillStyle(0x8a5c35, 1);
+    g.fillRect(px + 6, py + 7, TILE_SIZE - 12, 3);
+    g.fillRect(px + 6, py + 14, TILE_SIZE - 12, 3);
+    g.fillRect(px + 6, py + 21, TILE_SIZE - 12, 3);
     if (!tile.plot) {
-      g.fillStyle(0x4f351f, 1);
-      g.fillRect(px + 9, py + 14, TILE_SIZE - 18, 4);
+      g.fillStyle(0x4d2f1e, 1);
+      g.fillRect(px + 10, py + 10, 12, 3);
+      g.fillRect(px + 9, py + 18, 14, 3);
       return;
     }
 
     const crop = CROPS[tile.plot.cropId];
     const ready = tile.plot.growth >= crop.growTicks;
     const needsWater = tile.plot.water <= 0;
-    g.fillStyle(cropColor(tile.plot.cropId, ready, needsWater), 1);
-    const size = ready ? 18 : Math.max(6, Math.floor(6 + (tile.plot.growth / crop.growTicks) * 12));
-    g.fillRect(px + 16 - size / 2, py + 16 - size / 2, size, size);
+    const growthRatio = Math.min(1, tile.plot.growth / crop.growTicks);
+    this.drawCrop(g, px, py, tile.plot.cropId, growthRatio, ready, needsWater);
     if (needsWater && !ready) {
       g.fillStyle(0x5fa8d3, 1);
-      g.fillRect(px + 22, py + 6, 4, 8);
+      g.fillRect(px + 24, py + 6, 3, 7);
+      g.fillStyle(0x9bc8de, 1);
+      g.fillRect(px + 23, py + 11, 5, 3);
+    }
+  }
+
+  private drawGroundTexture(
+    g: Phaser.GameObjects.Graphics,
+    px: number,
+    py: number,
+    x: number,
+    y: number,
+    tile: FarmTile,
+  ): void {
+    if (tile.kind !== 'empty') return;
+    const tuftColor = tileVariant(x, y, [0x79a765, 0x83ad6c, 0x557f48]);
+    g.fillStyle(tuftColor, 0.85);
+    if ((x * 3 + y) % 2 === 0) g.fillRect(px + 7, py + 9, 3, 7);
+    if ((x + y * 5) % 3 === 0) g.fillRect(px + 21, py + 20, 5, 2);
+    if ((x * 7 + y) % 4 === 0) g.fillRect(px + 15, py + 6, 2, 4);
+  }
+
+  private drawPath(g: Phaser.GameObjects.Graphics, px: number, py: number, x: number, y: number): void {
+    g.fillStyle(0xd2bd7d, 1);
+    g.fillRect(px + 2, py + 12, TILE_SIZE - 4, 8);
+    g.fillStyle(tileVariant(x, y, [0x947749, 0x7e613d, 0xb39458]), 1);
+    g.fillRect(px + 6, py + 8, 5, 4);
+    g.fillRect(px + 18, py + 20, 6, 3);
+  }
+
+  private drawWell(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
+    g.fillStyle(0x415262, 1);
+    g.fillRect(px + 6, py + 12, 20, 14);
+    g.fillStyle(0x6f8594, 1);
+    g.fillRect(px + 8, py + 9, 16, 16);
+    g.fillStyle(0x9bb3bd, 1);
+    g.fillRect(px + 11, py + 12, 10, 10);
+    g.fillStyle(0x3e8cb5, 1);
+    g.fillRect(px + 12, py + 13, 8, 8);
+    g.fillStyle(0x29404b, 1);
+    g.fillRect(px + 5, py + 7, 22, 4);
+    g.fillStyle(0x7c4d35, 1);
+    g.fillRect(px + 8, py + 5, 16, 3);
+  }
+
+  private drawStorage(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
+    g.fillStyle(0x7b4928, 1);
+    g.fillRect(px + 5, py + 10, 22, 17);
+    g.fillStyle(0xbb7c44, 1);
+    g.fillRect(px + 7, py + 12, 18, 13);
+    g.fillStyle(0x63351e, 1);
+    g.fillRect(px + 5, py + 8, 22, 4);
+    g.fillRect(px + 9, py + 17, 14, 3);
+    g.fillStyle(0xd49a59, 1);
+    g.fillRect(px + 9, py + 13, 4, 3);
+  }
+
+  private drawCrop(
+    g: Phaser.GameObjects.Graphics,
+    px: number,
+    py: number,
+    cropId: CropId,
+    growthRatio: number,
+    ready: boolean,
+    needsWater: boolean,
+  ): void {
+    const leaf = needsWater ? 0x8b9b57 : ready ? 0x4f9d4f : 0x65b85e;
+    const crop = cropColor(cropId, ready, needsWater);
+    const stemHeight = Math.max(4, Math.floor(5 + growthRatio * 9));
+    g.fillStyle(leaf, 1);
+    g.fillRect(px + 14, py + 19 - stemHeight, 4, stemHeight);
+    g.fillRect(px + 10, py + 17 - Math.floor(stemHeight / 2), 7, 3);
+    g.fillRect(px + 16, py + 14 - Math.floor(stemHeight / 2), 7, 3);
+    if (cropId === 'carrot') {
+      g.fillStyle(crop, 1);
+      g.fillRect(px + 13, py + 19, 6, ready ? 8 : 4);
+      if (ready) g.fillRect(px + 14, py + 27, 4, 2);
+    } else if (cropId === 'wheat') {
+      g.fillStyle(crop, 1);
+      for (let i = 0; i < 3; i++) {
+        g.fillRect(px + 10 + i * 5, py + 12, 3, ready ? 11 : 6);
+      }
+    } else {
+      g.fillStyle(crop, 1);
+      const fruit = ready ? 5 : 3;
+      g.fillRect(px + 10, py + 16, fruit, fruit);
+      g.fillRect(px + 18, py + 14, fruit, fruit);
+    }
+  }
+
+  private drawWorker(
+    g: Phaser.GameObjects.Graphics,
+    state: FarmState,
+    id: number,
+    x: number,
+    y: number,
+    task: string,
+    cargo?: string,
+  ): void {
+    const bob = task === 'idle' ? 0 : state.tick % 8 < 4 ? -1 : 0;
+    const offset = workerOffset(id);
+    const px = x * TILE_SIZE + TILE_SIZE / 2 + offset.x;
+    const py = y * TILE_SIZE + TILE_SIZE / 2 + offset.y + bob;
+    g.fillStyle(0x2a1d16, 0.25);
+    g.fillRect(px - 8, py + 8, 16, 3);
+    g.fillStyle(task === 'idle' ? 0xf5d58f : 0xf0b85d, 1);
+    g.fillRect(px - 5, py - 2, 10, 12);
+    g.fillStyle(0xffdfb0, 1);
+    g.fillRect(px - 4, py - 10, 8, 8);
+    g.fillStyle(0x5c351e, 1);
+    g.fillRect(px - 6, py - 12, 12, 4);
+    g.fillRect(px - 3, py - 14, 6, 3);
+    g.fillStyle(0x3a2820, 1);
+    g.fillRect(px - 5, py + 10, 4, 4);
+    g.fillRect(px + 1, py + 10, 4, 4);
+    if (cargo) {
+      g.fillStyle(cargo === 'water' ? 0x62a9c8 : cargo === 'seed' ? 0xb98648 : 0xe08a3a, 1);
+      g.fillRect(px + 6, py - 1, 5, 6);
     }
   }
 }
@@ -351,6 +466,8 @@ function renderPanel(): void {
       <p>${state.tier.label}</p>
       <h3>Next milestone</h3>
       <p>${state.tier.nextMilestone}</p>
+      <h3>Tool Upgrades</h3>
+      ${UPGRADE_IDS.map((id) => upgradeRow(state, id)).join('')}
       <h3>Tier Path</h3>
       <div class="tier-path">
         ${FARM_TIER_LIST.map((tier) => `
@@ -366,8 +483,6 @@ function renderPanel(): void {
       <p class="small">Harvested carrots: ${state.stats.lifetimeHarvested.carrot}</p>
       <p class="small">Worker distance: ${state.stats.lifetimeWorkerDistance}</p>
       <p class="small">Land purchased: ${state.stats.lifetimeLandPurchased}</p>
-      <h3>Tool Upgrades</h3>
-      ${UPGRADE_IDS.map((id) => upgradeRow(state, id)).join('')}
     `;
   } else if (activePanel === 'mix') {
     markup = `
@@ -459,15 +574,15 @@ function inspectMarkup(state: FarmState): string {
   `;
 }
 
-function colorForTile(tile: FarmTile): number {
-  const colors: Record<TileKind, number> = {
-    empty: 0x5f8d50,
-    plot: 0x8a6035,
-    path: 0xbca56b,
-    well: 0x596977,
-    storage: 0xa66d42,
+function colorForTile(tile: FarmTile, x: number, y: number): number {
+  const colors: Record<TileKind, number[]> = {
+    empty: [0x5e914f, 0x669957, 0x56884b],
+    plot: [0x82522f, 0x8d5b35, 0x74472b],
+    path: [0xbba76e, 0xc6af76, 0xac925e],
+    well: [0x586a77, 0x647887, 0x4c5d69],
+    storage: [0xa96e3f, 0xb77946, 0x975f38],
   };
-  return colors[tile.kind];
+  return tileVariant(x, y, colors[tile.kind]);
 }
 
 function cropColor(cropId: CropId, ready: boolean, needsWater: boolean): number {
@@ -479,6 +594,20 @@ function cropColor(cropId: CropId, ready: boolean, needsWater: boolean): number 
 
 function storedCropCount(state: FarmState): number {
   return Object.values(state.inventory.crops).reduce((sum, count) => sum + count, 0);
+}
+
+function tileVariant(x: number, y: number, colors: number[]): number {
+  return colors[Math.abs((x * 17 + y * 31) % colors.length)] ?? colors[0];
+}
+
+function workerOffset(id: number): { x: number; y: number } {
+  const offsets = [
+    { x: -3, y: -2 },
+    { x: 4, y: 2 },
+    { x: -1, y: 5 },
+    { x: 5, y: -4 },
+  ];
+  return offsets[(id - 1) % offsets.length] ?? offsets[0];
 }
 
 function labelForTool(tool: Tool): string {
