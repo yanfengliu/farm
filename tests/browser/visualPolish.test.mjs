@@ -311,7 +311,7 @@ describe('visual polish', () => {
     try {
       await page.goto(url, { waitUntil: 'networkidle' });
       await page.click('[data-panel="mix"]');
-      await page.waitForSelector('#panel-content h2');
+      await page.waitForSelector('.crop-mix');
 
       const rows = await page.evaluate(() => (
         Array.from(globalThis.document.querySelectorAll('.crop-mix'))
