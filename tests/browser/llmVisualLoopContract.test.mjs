@@ -106,6 +106,18 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('Zoom the farm camera');
   });
 
+  test('visual loop advertises and can execute canvas drag painting', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain("if (element.matches('canvas')) return 'click-or-drag-canvas-coordinate'");
+    expect(source).toContain('dragDecision(canvasAction');
+    expect(source).toContain('draggedCanvas');
+    expect(source).toContain('decision.action.x');
+    expect(source).toContain('decision.action.y');
+    expect(source).toContain('startX = box.x + decision.action.x');
+    expect(source).toContain('startY = box.y + decision.action.y');
+  });
+
   test('visual loop can observe and fill crop mix number inputs', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

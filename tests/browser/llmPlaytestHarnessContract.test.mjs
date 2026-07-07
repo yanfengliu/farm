@@ -16,6 +16,7 @@ describe('LLM playtest harness player contract', () => {
 
     expect(source).toContain('runPlayerSurfaceTour');
     expect(source).toContain('playerCanvasClick');
+    expect(source).toContain('playerCanvasDrag');
     expect(source).toContain('playerDragResize');
     expect(source).toContain('playerPress(');
     expect(source).toContain('playerPressSelector');
@@ -48,6 +49,7 @@ describe('LLM playtest harness player contract', () => {
       '[data-mix-number="wheat"]',
       '[data-command="sell-all"]',
       'ArrowRight',
+      'Drag-paint visible farm tiles',
     ]) {
       expect(source).toContain(selector);
     }
@@ -75,7 +77,7 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas');
     expect(source).toContain('actionHint: actionHintFor(element)');
     expect(source).toContain('state: controlStateFor(element)');
-    expect(source).toContain("if (element.matches('canvas')) return 'click-canvas-coordinate'");
+    expect(source).toContain("if (element.matches('canvas')) return 'click-or-drag-canvas-coordinate'");
     expect(source).toContain("if (element.matches('input[type=\"number\"]')) return 'adjust'");
     expect(source).toContain("if (element.matches('[data-player-scroll]')) return 'scroll'");
     expect(source).toContain('state.canScrollDown');

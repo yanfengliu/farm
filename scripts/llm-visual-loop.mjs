@@ -144,7 +144,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     function buildDecisionPrompt(observation) {
       return [
         'You are playtesting a desktop idle farming game as a real player.',
-        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click actions may include x/y coordinates relative to the chosen element.',
+        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click and canvas drag actions may include x/y coordinates relative to the chosen element.',
         JSON.stringify(observation, null, 2),
       ].join('\n\n');
     }
@@ -192,7 +192,7 @@ async function captureVisualObservation(page, stepIndex, label) {
 
     function actionHintFor(element) {
       if (element.matches('[data-player-scroll]')) return 'scroll';
-      if (element.matches('canvas')) return 'click-canvas-coordinate';
+      if (element.matches('canvas')) return 'click-or-drag-canvas-coordinate';
       if (element.matches('[role="separator"]')) return 'drag-resize';
       if (element.matches('input[type="range"]')) return 'adjust';
       if (element.matches('input[type="number"]')) return 'adjust';
@@ -372,6 +372,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     action.kind === 'wheel' &&
     action.selector === 'canvas'
   ));
+  const draggedCanvas = actionHistory.some((action) => action.kind === 'drag' && action.selector === 'canvas');
   const scrolledPanelDown = actionHistory.some((action) => (
     action.kind === 'wheel' &&
     action.selector === '[data-player-scroll="side-panel"]' &&
@@ -435,6 +436,14 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
       canvasAction,
       'The Plot shortcut already selected the tool, so continue by clicking the farm canvas instead of re-clicking the toolbar.',
       { x: 410, y: 290 },
+    );
+  }
+
+  if (canvasAction && !draggedCanvas && !selectedPlotGuideVisible && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {
+    return dragDecision(canvasAction,
+      'Drag across visible farm tiles with the selected Plot tool so drag-painting is covered like a player action.',
+      { x: 410, y: 290 },
+      { deltaX: 72, deltaY: 0 },
     );
   }
 
@@ -585,6 +594,22 @@ function wheelDecision(action, rationale, deltaY) {
   };
 }
 
+function dragDecision(action, rationale, start, delta) {
+  return {
+    rationale,
+    action: {
+      kind: 'drag',
+      selector: action.selector,
+      label: action.label,
+      x: start.x,
+      y: start.y,
+      deltaX: delta.deltaX,
+      deltaY: delta.deltaY,
+    },
+    expectedResult: `Dragging on "${action.label}" should apply the selected tool across visible farm tiles.`,
+  };
+}
+
 function findAction(observation, selector) {
   return observation.availableActions.find((action) => action.selector === selector || action.selector.startsWith(selector));
 }
@@ -615,8 +640,8 @@ async function chooseWithExternalProvider(command, payload) {
       action: {
         kind: 'click | drag | adjust | wheel | press | wait | viewport | stop',
         selector: 'required for click, drag, adjust, and wheel',
-        x: 'optional x coordinate relative to the clicked element',
-        y: 'optional y coordinate relative to the clicked element',
+        x: 'optional x coordinate relative to the clicked or dragged element',
+        y: 'optional y coordinate relative to the clicked or dragged element',
         deltaX: 'optional horizontal drag distance in pixels',
         deltaY: 'optional vertical drag or wheel distance in pixels',
         value: 'optional adjustment target from 0 to 100 for range or number controls',
@@ -699,6 +724,8 @@ function normalizeDecision(decision, observation, provider) {
     if (!visibleAction) return fallback;
     normalized.action.selector = visibleAction.selector;
     normalized.action.label = visibleAction.label;
+    normalized.action.x = boundedNumber(action.x, Math.round(visibleAction.bounds.width / 2), 0, visibleAction.bounds.width);
+    normalized.action.y = boundedNumber(action.y, Math.round(visibleAction.bounds.height / 2), 0, visibleAction.bounds.height);
     normalized.action.deltaX = boundedNumber(action.deltaX, -96, -360, 360);
     normalized.action.deltaY = boundedNumber(action.deltaY, 0, -220, 220);
   } else if (kind === 'adjust') {
@@ -740,8 +767,8 @@ async function executePlayerDecision(page, decision) {
       await locator.waitFor({ state: 'visible', timeout: 5000 });
       const box = await locator.boundingBox();
       if (!box) throw new Error(`Cannot drag ${decision.action.selector}; no visible bounds`);
-      const startX = box.x + box.width / 2;
-      const startY = box.y + box.height / 2;
+      const startX = box.x + decision.action.x;
+      const startY = box.y + decision.action.y;
       await page.mouse.move(startX, startY);
       await page.mouse.down();
       await page.mouse.move(startX + decision.action.deltaX, startY + decision.action.deltaY, { steps: 8 });

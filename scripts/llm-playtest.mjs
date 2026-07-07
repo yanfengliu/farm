@@ -157,6 +157,7 @@ async function runPlayerSurfaceTour(page) {
   await playerClick(page, '[data-speed="2"]', 'Switch to visible 2x speed');
   await playerClick(page, '[data-speed="4"]', 'Return to visible 4x speed');
   await playerClick(page, '[data-tool="plot"]', 'Select Plot tool');
+  await playerCanvasDrag(page, 390, 300, 72, 0, 'Drag-paint visible farm tiles with the Plot tool');
   await playerCanvasClick(page, 390, 300, 'Paint a plot on visible owned land');
   await playerClick(page, '[data-command="undo"]', 'Undo the plot paint through the visible toolbar');
   await playerClick(page, '[data-command="redo"]', 'Redo the plot paint through the visible toolbar');
@@ -187,6 +188,19 @@ async function playerClick(page, selector, label) {
 async function playerCanvasClick(page, x, y, label) {
   await page.locator('canvas').first().click({ position: { x, y } });
   playerActions.push({ kind: 'click', label, selector: 'canvas', position: { x, y } });
+}
+
+async function playerCanvasDrag(page, x, y, deltaX, deltaY, label) {
+  const canvas = page.locator('canvas').first();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('Cannot drag canvas; no visible bounds');
+  const startX = box.x + x;
+  const startY = box.y + y;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 8 });
+  await page.mouse.up();
+  playerActions.push({ kind: 'drag', label, selector: 'canvas', position: { x, y }, deltaX, deltaY });
 }
 
 async function playerDragResize(page, selector, deltaX, deltaY, label) {
@@ -446,7 +460,7 @@ async function captureScenario(page, id, label) {
 
     function actionHintFor(element) {
       if (element.matches('[data-player-scroll]')) return 'scroll';
-      if (element.matches('canvas')) return 'click-canvas-coordinate';
+      if (element.matches('canvas')) return 'click-or-drag-canvas-coordinate';
       if (element.matches('[role="separator"]')) return 'drag-resize';
       if (element.matches('input[type="range"]')) return 'adjust';
       if (element.matches('input[type="number"]')) return 'adjust';
