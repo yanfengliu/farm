@@ -38,3 +38,4 @@
 - 2026-07-05: Reworked transient tutorial tips into stable Farm Guide cards with consistent Do/Why sections, richer context, and a readable hold when guidance changes.
 - 2026-07-06: Added seed stock, planted counts, and readiness states to Crop Mix rows after the visual LLM loop exposed that percentages alone did not explain planting blockers.
 - 2026-07-06: Fixed stale Crop Mix guidance so opening the panel under another active guide prevents a later redundant Tune Crop Mix card.
+- 2026-07-06: Labeled locked seed purchases as Locked in Inventory after fresh-start screenshots showed disabled Wheat/Tomato seed prices lacked context.

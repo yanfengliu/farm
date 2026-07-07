@@ -34,3 +34,4 @@
 - Reworked next-step tutorial cards into stable Farm Guide cards with consistent Do/Why sections and a short readable hold when guidance changes.
 - Added seed stock, planted counts, and readiness states to Crop Mix rows so percentage targets explain whether each crop can actually be planted.
 - Treated opening Crop Mix as satisfying the Crop Mix guide step, preventing stale Tune Crop Mix cards after the player already used that panel.
+- Labeled locked seed purchases as Locked so disabled Wheat/Tomato seed buttons do not look like unexplained price buttons on a fresh farm.

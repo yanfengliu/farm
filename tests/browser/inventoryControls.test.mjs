@@ -85,6 +85,50 @@ describe('inventory controls', () => {
     }
   }, 15000);
 
+  test('locked seed purchases explain their disabled state', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript(() => {
+      globalThis.localStorage.clear();
+    });
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('[data-buy-seeds="wheat"]');
+
+      const seedRows = await page.evaluate(() => (
+        Array.from(globalThis.document.querySelectorAll('[data-buy-seeds]'))
+          .map((button) => ({
+            cropId: button.getAttribute('data-buy-seeds'),
+            disabled: button.disabled,
+            ariaLabel: button.getAttribute('aria-label') ?? '',
+            title: button.getAttribute('title') ?? '',
+            text: button.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            rowRight: button.closest('.row')?.getBoundingClientRect().right ?? 0,
+            panelRight: button.closest('.side-panel')?.getBoundingClientRect().right ?? 0,
+          }))
+      ));
+
+      const carrot = seedRows.find((row) => row.cropId === 'carrot');
+      const wheat = seedRows.find((row) => row.cropId === 'wheat');
+      const tomato = seedRows.find((row) => row.cropId === 'tomato');
+
+      expect(carrot?.text).toContain('1c');
+      expect(wheat?.disabled).toBe(true);
+      expect(wheat?.ariaLabel).toBe('Wheat seeds locked');
+      expect(wheat?.title).toContain('Unlock Wheat');
+      expect(wheat?.text).toContain('Locked');
+      expect(tomato?.disabled).toBe(true);
+      expect(tomato?.ariaLabel).toBe('Tomato seeds locked');
+      expect(tomato?.text).toContain('Locked');
+      expect(Math.max(...seedRows.map((row) => row.rowRight))).toBeLessThanOrEqual(
+        Math.min(...seedRows.map((row) => row.panelRight)) - 8,
+      );
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('inventory crop rows stay in sync with HUD storage on the next frame', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
     await context.addInitScript(() => {

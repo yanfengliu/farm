@@ -1086,10 +1086,14 @@ function seedRow(state: FarmState, cropId: CropId): string {
   const locked = !state.tier.unlockedCrops.includes(cropId);
   const unaffordable = state.coins < CROPS[cropId].seedPrice;
   const disabled = locked || unaffordable;
+  const label = CROPS[cropId].label;
+  const actionLabel = locked ? `${label} seeds locked` : `Buy ${label} seeds`;
+  const title = locked ? `Unlock ${label} before buying seeds` : actionLabel;
+  const buttonLabel = locked ? 'Locked' : `${CROPS[cropId].seedPrice}c`;
   return `
     <div class="row">
-      <span class="row-label">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label} seeds: ${state.inventory.seeds[cropId]}</span>
-      <button data-buy-seeds="${cropId}" ${disabled ? 'disabled' : ''} title="Buy ${CROPS[cropId].label} seeds" aria-label="Buy ${CROPS[cropId].label} seeds">${buttonContent('seed', `${CROPS[cropId].seedPrice}c`)}</button>
+      <span class="row-label">${iconSvg(cropIcon(cropId))}${label} seeds: ${state.inventory.seeds[cropId]}</span>
+      <button data-buy-seeds="${cropId}" ${disabled ? 'disabled' : ''} title="${title}" aria-label="${actionLabel}">${buttonContent('seed', buttonLabel)}</button>
     </div>
   `;
 }
