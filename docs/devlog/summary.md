@@ -68,3 +68,4 @@
 - 2026-07-07: Let visible tier-ready HUD prompts reopen Goals after the visual loop otherwise waited in Inventory when Tomato Rows was ready to claim.
 - 2026-07-07: Re-inspected the LLM-player harnesses end to end, confirmed live DOM control coverage, added absolute screenshot file paths to provider/review packets, and synchronized DOM observation with rendered frames.
 - 2026-07-07: Added a Tomato Rows Crop Mix guide and taught the visual LLM-player loop to open Crop Mix and type into the Tomato percentage field after Tier 3 unlocks.
+- 2026-07-07: Improved visual-loop seed restocking from visible Inventory rows so later zero-stock crops such as Tomato are exercised instead of repeatedly buying stocked starter seeds.

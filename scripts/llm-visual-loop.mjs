@@ -3,7 +3,11 @@ import { createServer } from 'vite';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { hasVisibleSellableCrops } from './llm-visual-loop/visible-state.mjs';
+import {
+  hasVisibleSellableCrops,
+  preferredVisibleZeroSeedCrop,
+  visibleSeedStock,
+} from './llm-visual-loop/visible-state.mjs';
 
 const cwd = process.cwd();
 const outputDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop');
@@ -496,6 +500,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     : 0;
   const canvasAction = findAction(observation, 'canvas');
   const panelScrollAction = findAction(observation, '[data-player-scroll="side-panel"]');
+  const inventoryAction = findAction(observation, '[data-panel="inventory"]');
   const goalsAction = findAction(observation, '[data-panel="goals"]');
   const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
   const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
@@ -595,6 +600,18 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
       tomatoNumberAction,
       'Type a direct Tomato crop mix percentage so the visual loop covers the newly unlocked crop control.',
       25,
+    );
+  }
+  if (
+    inventoryAction &&
+    !inventoryAction.state?.active &&
+    /Crop Mix/i.test(observation.visibleText) &&
+    /No seeds stocked/i.test(observation.visibleText) &&
+    !recentlyClicked(actionHistory, inventoryAction.selector)
+  ) {
+    return clickDecision(
+      inventoryAction,
+      'Crop Mix shows a crop with no seeds stocked, so open Inventory to restock visible seed rows.',
     );
   }
 
@@ -818,18 +835,16 @@ function findSeedActionForVisibleNeed(observation) {
   if (milestoneCrop && visibleSeedStock(observation.visibleText, milestoneCrop) === 0) {
     return findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`) || findSeedAction(observation);
   }
+  const zeroSeedCrop = preferredVisibleZeroSeedCrop(observation.visibleText);
+  if (zeroSeedCrop) {
+    return findAction(observation, `[data-buy-seeds="${zeroSeedCrop}"]`) || findSeedAction(observation);
+  }
   return findSeedAction(observation);
 }
 
 function visibleMilestoneCrop(visibleText) {
   const match = visibleText.match(/Harvest\s+\d+\/\d+\s+(carrot|wheat|tomato)/i);
   return match ? match[1].toLowerCase() : null;
-}
-
-function visibleSeedStock(visibleText, cropId) {
-  const label = `${cropId[0].toUpperCase()}${cropId.slice(1)}`;
-  const match = visibleText.match(new RegExp(`${label} seeds:\\s*(\\d+)`, 'i'));
-  return match ? Number(match[1]) : null;
 }
 
 function findUpgradeAction(observation) {

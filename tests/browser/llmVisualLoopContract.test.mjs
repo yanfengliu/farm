@@ -120,6 +120,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('Type a direct Tomato crop mix percentage');
   });
 
+  test('visual loop opens Inventory when Crop Mix shows missing seed stock', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('No seeds stocked');
+    expect(source).toContain('Crop Mix shows a crop with no seeds stocked');
+    expect(source).toContain("findAction(observation, '[data-panel=\"inventory\"]')");
+  });
+
   test('visual loop reopens Goals when visible HUD copy says a tier is ready', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
