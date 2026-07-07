@@ -11,7 +11,7 @@ const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
 const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24, 1, 40);
+const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24, 1, 80);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
@@ -485,6 +485,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const panelScrollAction = findAction(observation, '[data-player-scroll="side-panel"]');
   const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
   const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
+  const explicitPaintGuidanceVisible = /FARM GUIDE Paint Empty Land|Paint plots on empty land/i.test(observation.visibleText);
 
   const claimAction = findAction(observation, '[data-command="claim-tier"]');
   if (claimAction) {
@@ -582,11 +583,19 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
   }
 
+  if (canvasAction && explicitPaintGuidanceVisible && !selectedPlotGuideVisible && !recentlyUsedCanvas(actionHistory)) {
+    return clickDecision(
+      canvasAction,
+      'Visible plot guidance is still active, so place another plot instead of ending the run.',
+      nextPaintPosition(canvasClickCount),
+    );
+  }
+
   if (canvasAction && canvasClickCount < 2 && !selectedPlotGuideVisible && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {
     return clickDecision(
       canvasAction,
       'The selected plot tool needs a field click, so click an open farm tile visible on the canvas.',
-      { x: 410, y: 290 },
+      nextPaintPosition(canvasClickCount),
     );
   }
 
@@ -595,7 +604,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(goalsAction, 'Open the visible Goals panel because progression and tier rewards should be understandable there.');
   }
 
-  if (claimedTier && waitsAfterClaim >= 2) {
+  if (claimedTier && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)) {
     return {
       rationale: 'The loop already claimed a tier and watched the post-claim farm for two intervals.',
       action: { kind: 'stop' },
@@ -603,7 +612,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     };
   }
 
-  if (waitCount >= 7) {
+  if (waitCount >= 7 && !hasActionableGuidance(observation.visibleText)) {
     return {
       rationale: 'Several watch intervals have passed without a higher-priority visible action becoming available.',
       action: { kind: 'stop' },
@@ -622,6 +631,10 @@ function hasExplicitSeedGuidance(visibleText) {
   return /FARM GUIDE Buy Seeds|Farmers Waiting|Restock seeds/i.test(visibleText);
 }
 
+function hasActionableGuidance(visibleText) {
+  return /FARM GUIDE (Open Goals|Buy Seeds|Claim|Tune Crop Mix|Open Inventory|Sell Crops|Select Plot|Paint Empty Land)|Restock seeds|Paint plots on empty land|Tier \d+ ready/i.test(visibleText);
+}
+
 function tutorialActionFromText(observation) {
   const text = observation.visibleText;
   if (/NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(text)) return findAction(observation, '[data-tool="plot"]');
@@ -635,6 +648,23 @@ function tutorialActionFromText(observation) {
 
 function recentlyClicked(actionHistory, selector) {
   return actionHistory.slice(-2).some((action) => action.kind === 'click' && action.selector === selector);
+}
+
+function recentlyUsedCanvas(actionHistory) {
+  return actionHistory.slice(-2).some((action) => (
+    (action.kind === 'click' || action.kind === 'drag') && action.selector === 'canvas'
+  ));
+}
+
+function nextPaintPosition(canvasClickCount) {
+  const positions = [
+    { x: 410, y: 290 },
+    { x: 482, y: 290 },
+    { x: 410, y: 362 },
+    { x: 482, y: 362 },
+    { x: 554, y: 290 },
+  ];
+  return positions[canvasClickCount % positions.length];
 }
 
 function clickDecision(action, rationale, position) {

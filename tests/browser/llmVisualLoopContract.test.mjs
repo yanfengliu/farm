@@ -44,6 +44,7 @@ describe('LLM visual loop harness contract', () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24, 1, 80)');
   });
 
   test('visual loop recognizes both seed guidance and buy-seed controls', async () => {
@@ -238,6 +239,15 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('The Plot shortcut already selected the tool');
     expect(source).toContain('FARM GUIDE Select Plot');
     expect(source).toContain('TOOL Plot');
+  });
+
+  test('visual loop keeps playing while actionable guidance remains after a tier claim', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('function hasActionableGuidance');
+    expect(source).toContain('claimedTier && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)');
+    expect(source).toContain('waitCount >= 7 && !hasActionableGuidance(observation.visibleText)');
+    expect(source).toContain('FARM GUIDE Paint Empty Land');
   });
 
   test('visual loop replay viewer keeps screenshots in the viewport while metadata scrolls', async () => {

@@ -55,3 +55,4 @@
 - Changed the seed-stall HUD alert to neutral "Restock seeds" copy so it no longer contradicts Goals-based restock guidance.
 - Re-audited LLM/player harness visibility so observations list all hit-test-reachable controls, filter out occluded text/actions, and expose number-input arrow controls.
 - Prioritized active milestone crops in Goals seed-restock guidance so Tier 2 seed stalls surface Wheat before Carrot.
+- Kept the visual LLM-player loop running while visible Farm Guide or HUD guidance still offers an actionable next step, with support for deeper 80-step progression audits.
