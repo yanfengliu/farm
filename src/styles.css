@@ -622,6 +622,38 @@ body.panel-resizing .panel-resizer::before {
   line-height: 1.25;
 }
 
+.inspect-details {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.inspect-detail {
+  display: grid;
+  gap: 3px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.014)),
+    rgba(0, 0, 0, 0.12);
+}
+
+.inspect-detail span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.inspect-detail strong {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
 .toolbar {
   display: grid;
   grid-template-columns: repeat(12, minmax(58px, min(6.5vw, 82px)));

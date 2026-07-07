@@ -48,3 +48,4 @@
 - 2026-07-07: Re-inspected the LLM/player harness action surface and enriched both reports with canvas/numeric controls, action hints, active states, shortcuts, and input values.
 - 2026-07-07: Added side-panel scroll state affordances after visual-loop Goals screenshots made dense lower panel content look clipped at the toolbar edge.
 - 2026-07-07: Added a dedicated scripted LLM Inspect-panel screenshot after a visible tile selection so playtest review can judge object details directly.
+- 2026-07-07: Expanded the Inspect panel from raw tile kind text into labeled object/worker detail rows after the new screenshot showed well inspection was too sparse.

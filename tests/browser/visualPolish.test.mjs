@@ -236,6 +236,27 @@ describe('visual polish', () => {
     }
   }, 15000);
 
+  test('inspect panel explains selected farm objects', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="inspect"]');
+      await page.locator('canvas').click({ position: { x: 390, y: 300 } });
+
+      await expect.poll(async () => (
+        page.locator('#panel-content').textContent()
+      )).toContain('Well');
+      const text = await page.locator('#panel-content').textContent();
+      expect(text).toContain('Water source');
+      expect(text).toContain('Workers refill here');
+      expect(text).toContain('Blocks movement');
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('crop mix sliders expose readable action labels', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const page = await context.newPage();

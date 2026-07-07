@@ -44,3 +44,4 @@
 - Enriched LLM playtest observations so scripted and visual reports list canvas, numeric inputs, action hints, active states, shortcuts, and current input values.
 - Added side-panel scroll affordances and bottom padding so dense Goals content reads as intentionally scrollable instead of clipped behind the toolbar.
 - Added a scripted LLM playtest screenshot for the Inspect panel after selecting a visible farm tile, exposing that surface to player-review loops.
+- Expanded Inspect panel details with labeled rows for wells, storage, plots, empty land, locked land, and workers.
