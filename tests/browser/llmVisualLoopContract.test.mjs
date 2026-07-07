@@ -209,6 +209,15 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('await page.locator(decision.action.selector).first().focus()');
   });
 
+  test('visual loop local heuristic exercises a focused resize keyboard action', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('resizedPanelWithKeyboard');
+    expect(source).toContain("findKeyboardControl(observation, 'ArrowLeft', '[data-panel-resizer]')");
+    expect(source).toContain('Focus the visible side-panel resize handle');
+    expect(source).toContain('selector: keyboardAction.selector');
+  });
+
   test('visual loop treats a pressed Plot shortcut as satisfying the Select Plot guide', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

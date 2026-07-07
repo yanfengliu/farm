@@ -410,6 +410,10 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     action.selector === 'canvas'
   ));
   const draggedCanvas = actionHistory.some((action) => action.kind === 'drag' && action.selector === 'canvas');
+  const resizedPanelWithKeyboard = actionHistory.some((action) => (
+    action.kind === 'press' &&
+    action.selector === '[data-panel-resizer]'
+  ));
   const scrolledPanelDown = actionHistory.some((action) => (
     action.kind === 'wheel' &&
     action.selector === '[data-player-scroll="side-panel"]' &&
@@ -456,6 +460,16 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
 
   if (canvasAction && !zoomedCamera) {
     return wheelDecision(canvasAction, 'Zoom the farm camera with the mouse wheel to verify readable play after changing scale.', -360);
+  }
+
+  const panelResizeKeyboardAction = findKeyboardControl(observation, 'ArrowLeft', '[data-panel-resizer]');
+  if (panelResizeKeyboardAction && !resizedPanelWithKeyboard) {
+    return pressDecision(
+      'ArrowLeft',
+      'Focus the visible side-panel resize handle and press ArrowLeft so the visual player covers keyboard resizing, not only mouse dragging.',
+      0,
+      panelResizeKeyboardAction,
+    );
   }
 
   const plotShortcutAction = findKeyboardAction(observation, '1');
@@ -602,13 +616,14 @@ function adjustDecision(action, rationale, value) {
   };
 }
 
-function pressDecision(key, rationale, durationMs = 0) {
+function pressDecision(key, rationale, durationMs = 0, keyboardAction = null) {
   return {
     rationale,
     action: {
       kind: 'press',
       key,
       durationMs,
+      ...(keyboardAction ? { selector: keyboardAction.selector, label: keyboardAction.label } : {}),
     },
     expectedResult: durationMs > 0
       ? `The held ${key} key should move the farm camera while ordinary player controls remain available.`
