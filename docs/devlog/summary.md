@@ -78,3 +78,4 @@
 - 2026-07-07: Guarded scripted and visual LLM playtest storage setup after an intermittent restricted-document storage error closed the browser during the surface tour.
 - 2026-07-07: Taught the visual LLM-player to obey goal-specific seed guide cards after a default run clicked Carrot while the visible guide asked for Wheat.
 - 2026-07-07: Raised the default visual LLM-player loop budget so post-tier Crop Mix restocking fits inside ordinary runs.
+- 2026-07-07: Muted disabled Inventory sell-button coin glyphs after a late-game visual screenshot made zero-count crop sale controls read too similarly to active sale buttons.

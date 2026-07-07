@@ -74,3 +74,4 @@
 - Guarded LLM playtest storage setup against restricted browser documents so scripted and visual harnesses do not throw before reaching the game origin.
 - Taught the visual LLM-player to follow goal-specific Farm Guide seed cards instead of falling back to the first generic seed button.
 - Raised the default visual LLM-player loop budget so first-tier Crop Mix restocking can complete without a capped actionable-guidance finding.
+- Muted disabled Inventory sell-button coin glyphs and cursor affordance so zero-count crop rows no longer look as clickable as active crop sale buttons.

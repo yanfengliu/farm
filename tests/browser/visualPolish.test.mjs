@@ -147,6 +147,56 @@ describe('visual polish', () => {
     }
   }, 15000);
 
+  test('disabled inventory sell controls mute their coin glyphs', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'disabled-sell-visual-state' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.inventory.crops = { carrot: 0, wheat: 3, tomato: 0 };
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('[data-sell="carrot"][data-amount="1"]');
+
+      const states = await page.evaluate(() => {
+        function buttonState(selector) {
+          const button = globalThis.document.querySelector(selector);
+          const icon = button?.querySelector('.button-icon');
+          const buttonStyle = button ? globalThis.getComputedStyle(button) : null;
+          const iconStyle = icon ? globalThis.getComputedStyle(icon) : null;
+          return {
+            disabled: button?.disabled ?? false,
+            cursor: buttonStyle?.cursor ?? '',
+            iconOpacity: Number.parseFloat(iconStyle?.opacity ?? '1'),
+          };
+        }
+
+        return {
+          disabled: buttonState('[data-sell="carrot"][data-amount="1"]'),
+          enabled: buttonState('[data-sell="wheat"][data-amount="1"]'),
+        };
+      });
+
+      expect(states.disabled.disabled).toBe(true);
+      expect(states.enabled.disabled).toBe(false);
+      expect(states.disabled.cursor).toBe('not-allowed');
+      expect(states.disabled.iconOpacity).toBeLessThan(0.55);
+      expect(states.enabled.iconOpacity).toBeGreaterThan(0.9);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('side panel tabs stay icon-led at default width', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const page = await context.newPage();
