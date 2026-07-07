@@ -446,6 +446,22 @@ describe('visual polish', () => {
       expect(metrics.every((item) => item.ariaLabel.length > 0)).toBe(true);
       expect(Math.max(...metrics.map((item) => item.visibleLabelWidth))).toBeLessThanOrEqual(1);
       expect(Math.max(...metrics.map((item) => item.buttonRight))).toBeLessThanOrEqual(1024);
+
+      await page.hover('[data-speed="4"]');
+      await expect.poll(async () => page.locator('[data-speed="4"]').evaluate((button) => (
+        Number.parseFloat(globalThis.getComputedStyle(button, '::after').opacity)
+      ))).toBeGreaterThan(0.9);
+      const tooltip = await page.locator('[data-speed="4"]').evaluate((button) => {
+        const style = globalThis.getComputedStyle(button, '::after');
+        return {
+          content: style.content,
+          pointerEvents: style.pointerEvents,
+          whiteSpace: style.whiteSpace,
+        };
+      });
+      expect(tooltip.content).toContain('4x speed');
+      expect(tooltip.pointerEvents).toBe('none');
+      expect(tooltip.whiteSpace).toBe('nowrap');
     } finally {
       await context.close();
     }

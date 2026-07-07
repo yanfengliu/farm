@@ -714,6 +714,7 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .tool-button {
+  position: relative;
   display: grid;
   min-width: 0;
   grid-template-columns: 19px minmax(0, 1fr);
@@ -728,6 +729,41 @@ body.panel-resizing .panel-resizer::before {
   min-height: 40px;
   border-radius: 5px;
   padding: 3px 4px;
+}
+
+.toolbar .tool-button::after {
+  content: attr(aria-label);
+  position: absolute;
+  z-index: 35;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  max-width: min(190px, 52vw);
+  padding: 5px 8px;
+  border: 1px solid var(--line-bright);
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.045)),
+    rgba(9, 8, 7, 0.97);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 2px);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition:
+    opacity 90ms ease,
+    transform 90ms ease;
+}
+
+.toolbar .tool-button:hover::after,
+.toolbar .tool-button:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .tool-button.active {

@@ -69,3 +69,4 @@
 - Added custom hover/focus labels for icon-only side-panel tabs and taught both LLM/player harnesses to exercise hover as a player-facing action.
 - Reused `civ-engine`'s visual playtest runner in the step-by-step LLM-player loop while keeping Farm-specific screenshot, control, provider, and report adapters.
 - Taught the visual LLM-player loop to stop natural late-game audits instead of endlessly selling tiny open-ended Tier 3 inventory trickles.
+- Added compact hover/focus labels above icon-only toolbar buttons so collapsed desktop controls remain understandable.

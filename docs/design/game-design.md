@@ -152,7 +152,7 @@ The UI chrome should feel elegant and desktop-first: black and white, semi-trans
 
 UI icons should use colorful, crisp pixel-art glyphs rather than generic line icons so the chrome still belongs to the top-down pixel farm without turning the surrounding panels green.
 
-HUD stats should read as compact chips, repeated inventory/upgrade rows should have subtle item surfaces, and side-panel tabs may use icon-only faces at the default width when accessible labels, titles, and compact hover/focus labels remain available. At smaller desktop-like widths, toolbar controls may hide text labels and keep icon-plus-key faces to avoid truncated labels.
+HUD stats should read as compact chips, repeated inventory/upgrade rows should have subtle item surfaces, and side-panel tabs may use icon-only faces at the default width when accessible labels, titles, and compact hover/focus labels remain available. At smaller desktop-like widths, toolbar controls may hide text labels and keep icon-plus-key faces to avoid truncated labels, but they should expose compact hover/focus labels above the toolbar.
 
 The current icon direction is informed by the generated concept sheet at `docs/design/assets/generated-ui-icon-concept.png`: icons should read as familiar objects such as a magnifier, fenced plot, bucket well, wooden crate, hill, shovel, backpack, flag, coins, crop, seed pouch, gift, and sliders.
 
