@@ -473,6 +473,37 @@ describe('visual polish', () => {
     }
   }, 15000);
 
+  test('terminal tier goals card explains open-ended tuning', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'terminal-tier-copy' }));
+    savedState.tier = {
+      level: 3,
+      label: 'Tomato Rows',
+      unlockedCrops: ['carrot', 'wheat', 'tomato'],
+      nextMilestone: 'Keep expanding the farm',
+    };
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="goals"]');
+      await page.waitForSelector('.tier-current-card');
+
+      const cardText = await page.locator('.tier-current-card').textContent();
+      const normalizedCardText = cardText?.toLowerCase() ?? '';
+      expect(cardText).toContain('All MVP crops are unlocked');
+      expect(normalizedCardText).toContain('tune crop mix');
+      expect(normalizedCardText).not.toContain('claim the next tier');
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('compact desktop toolbar avoids truncated labels', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
     const page = await context.newPage();

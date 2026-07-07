@@ -79,3 +79,4 @@
 - 2026-07-07: Taught the visual LLM-player to obey goal-specific seed guide cards after a default run clicked Carrot while the visible guide asked for Wheat.
 - 2026-07-07: Raised the default visual LLM-player loop budget so post-tier Crop Mix restocking fits inside ordinary runs.
 - 2026-07-07: Muted disabled Inventory sell-button coin glyphs after a late-game visual screenshot made zero-count crop sale controls read too similarly to active sale buttons.
+- 2026-07-07: Reworded the terminal Tomato Rows Goals card after visual replay showed it still promised a next tier claim.

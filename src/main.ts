@@ -1164,11 +1164,16 @@ function seedRow(state: FarmState, cropId: CropId): string {
 function tierUnlockRow(state: FarmState): string {
   const level = claimableTierLevel(state);
   if (!level) {
+    const terminalTier = FARM_TIER_LIST[FARM_TIER_LIST.length - 1];
+    const terminalCopy = 'All MVP crops are unlocked. Tune crop mix, expand land, and upgrade workers.';
+    const currentCopy = state.tier.level >= terminalTier.level
+      ? terminalCopy
+      : 'Complete the milestone, then claim the next tier here.';
     return `
       <section class="tier-current-card">
         <span class="banner-kicker">Current Tier</span>
         <strong>${state.tier.label}</strong>
-        <p class="small">Complete the milestone, then claim the next tier here.</p>
+        <p class="small">${currentCopy}</p>
       </section>
     `;
   }
