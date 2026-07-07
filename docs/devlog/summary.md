@@ -69,3 +69,4 @@
 - 2026-07-07: Re-inspected the LLM-player harnesses end to end, confirmed live DOM control coverage, added absolute screenshot file paths to provider/review packets, and synchronized DOM observation with rendered frames.
 - 2026-07-07: Added a Tomato Rows Crop Mix guide and taught the visual LLM-player loop to open Crop Mix and type into the Tomato percentage field after Tier 3 unlocks.
 - 2026-07-07: Improved visual-loop seed restocking from visible Inventory rows so later zero-stock crops such as Tomato are exercised instead of repeatedly buying stocked starter seeds.
+- 2026-07-07: Re-inspected the visual LLM-player loop under a 120-step progression run, made capped actionable guidance a finding, and retargeted plot clicks to open owned land bands visible in the screenshots.

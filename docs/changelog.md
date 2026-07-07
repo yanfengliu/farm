@@ -65,3 +65,4 @@
 - Added directly loadable screenshot file paths to LLM/player harness observations and prompts, and synchronized DOM observation with rendered frames so visual LLM providers and review packets can inspect the exact frame they are deciding from.
 - Added a Tomato Rows Crop Mix guide and taught the visual LLM-player loop to follow it and edit the Tomato numeric percentage field after Tier 3 unlocks.
 - Improved visual-loop seed restocking so visible Inventory zero-stock rows prefer later unlocked crops, and Crop Mix `No seeds stocked` readiness can bridge back to Inventory.
+- Re-inspected the step-by-step visual LLM-player harness, raised deeper runs to a 120-step cap, reported capped runs that still show actionable guidance, and retargeted local plot clicks to visible open owned land.

@@ -15,7 +15,7 @@ const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
 const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24, 1, 80);
+const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24, 1, 120);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
@@ -722,11 +722,16 @@ function recentlyUsedCanvas(actionHistory) {
 
 function nextPaintPosition(canvasClickCount) {
   const positions = [
-    { x: 410, y: 290 },
-    { x: 482, y: 290 },
-    { x: 410, y: 362 },
-    { x: 482, y: 362 },
-    { x: 554, y: 290 },
+    { x: 276, y: 230 },
+    { x: 326, y: 230 },
+    { x: 376, y: 230 },
+    { x: 426, y: 230 },
+    { x: 476, y: 230 },
+    { x: 276, y: 430 },
+    { x: 326, y: 430 },
+    { x: 376, y: 430 },
+    { x: 426, y: 430 },
+    { x: 476, y: 430 },
   ];
   return positions[canvasClickCount % positions.length];
 }
@@ -1104,6 +1109,19 @@ function evaluateVisualLoop(run) {
       title: 'A visual observation had no visible actions',
       evidence: observationsWithoutActions.map((step) => `step ${step.index}: ${step.observation.screenshot}`),
       recommendation: 'Ensure the playable screen exposes keyboard, button, or pointer actions after loading.',
+    });
+  }
+
+  if (
+    run.steps.length >= run.summary.maxSteps &&
+    hasActionableGuidance(run.finalObservation?.visibleText ?? '')
+  ) {
+    findings.push({
+      id: 'visual-loop-ended-with-guidance',
+      severity: 'medium',
+      title: 'The visual loop hit its step cap while guidance was still actionable',
+      evidence: [`maxSteps=${run.summary.maxSteps}`, run.finalObservation.visibleText],
+      recommendation: 'Raise the run budget or teach the local visual player to follow the final visible guidance before trusting a zero-finding run.',
     });
   }
 
