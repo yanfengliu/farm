@@ -144,7 +144,7 @@ describe('tutorial tips', () => {
       await page.goto(url, { waitUntil: 'networkidle' });
       await page.waitForSelector('.tutorial-tip[data-tutorial-tip="select-plot-tool"]');
 
-      await page.keyboard.press('2');
+      await page.keyboard.press('1');
       await page.waitForTimeout(750);
 
       const heldTip = await page.locator('.tutorial-tip').evaluate((tip) => ({
@@ -155,7 +155,7 @@ describe('tutorial tips', () => {
 
       expect(heldTip.id).toBe('select-plot-tool');
       expect(heldTip.title).toBe('Select Plot');
-      expect(heldTip.text).toContain('Press 2 or click Plot');
+      expect(heldTip.text).toContain('Press 1 or click Plot');
     } finally {
       await context.close();
     }

@@ -1009,7 +1009,7 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         icon: 'plot',
         title: 'Select Plot',
         body: 'You have seeds, but no empty plots. Select Plot first.',
-        action: 'Press 2 or click Plot in the toolbar.',
+        action: 'Press 1 or click Plot in the toolbar.',
         why: 'Workers need empty plot tiles before they can carry seeds and plant crops.',
         targetSelector: '[data-tool="plot"]',
       };
