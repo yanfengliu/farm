@@ -76,6 +76,36 @@ describe('LLM playtest evaluator', () => {
     expect(markdown).toContain('Open Goals panel');
   });
 
+  test('renders action hints and control state in visible observations', () => {
+    const run = {
+      ...baseRun,
+      scenarios: [
+        {
+          ...baseRun.scenarios[0],
+          observation: {
+            screenshot: 'crop-mix.png',
+            visibleText: 'Crop Mix 100% allocated',
+            availableActions: [
+              {
+                label: 'Set Wheat crop mix percentage',
+                selector: '[data-mix-number="wheat"]',
+                actionHint: 'adjust',
+                state: { value: '40', min: '0', max: '100', active: false },
+              },
+            ],
+            playerActionsSincePrevious: [],
+          },
+        },
+      ],
+    };
+
+    const markdown = renderPlaytestMarkdown(run, []);
+
+    expect(markdown).toContain('[data-mix-number="wheat"]');
+    expect(markdown).toContain('adjust');
+    expect(markdown).toContain('"value":"40"');
+  });
+
   test('converts findings into improvement annotations anchored to scenario evidence', () => {
     const findings = evaluatePlaytest(baseRun);
     const annotations = buildAnnotations(baseRun, findings);

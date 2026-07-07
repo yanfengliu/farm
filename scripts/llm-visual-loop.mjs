@@ -10,6 +10,7 @@ const outputDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop');
 const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
+const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], canvas';
 const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 20, 1, 40);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
@@ -113,17 +114,19 @@ async function captureVisualObservation(page, stepIndex, label) {
   const screenshotName = `${String(stepIndex).padStart(2, '0')}-${label}.png`;
   await page.screenshot({ path: path.join(screenshotDir, screenshotName), fullPage: false });
 
-  return page.evaluate(({ observationIndex, observationLabel, screenshotPath }) => {
+  return page.evaluate(({ observationIndex, observationLabel, screenshotPath, playerActionSelector }) => {
     const visibleText = compactText(document.body.innerText ?? '');
-    const availableActions = Array.from(document.querySelectorAll('button, input[type="range"], input[type="number"], [role="button"], [role="separator"], canvas'))
+    const availableActions = Array.from(document.querySelectorAll(playerActionSelector))
       .filter((element) => isVisible(element) && !element.disabled)
       .slice(0, 60)
       .map((element) => ({
         label: actionLabelFor(element),
         selector: playerSelectorFor(element),
         tagName: element.tagName.toLowerCase(),
+        type: element.getAttribute('type') || undefined,
         role: element.getAttribute('role') || undefined,
         actionHint: actionHintFor(element),
+        state: controlStateFor(element),
         bounds: roundedBounds(element.getBoundingClientRect()),
       }));
 
@@ -150,6 +153,24 @@ async function captureVisualObservation(page, stepIndex, label) {
       if (element.matches('input[type="range"]')) return 'adjust';
       if (element.matches('input[type="number"]')) return 'adjust';
       return 'click';
+    }
+
+    function controlStateFor(element) {
+      const state = {};
+      state.active = element.classList.contains('active');
+      const shortcut = element.querySelector?.('.key')?.textContent?.trim();
+      if (shortcut) state.shortcut = shortcut;
+      const ariaPressed = element.getAttribute('aria-pressed');
+      if (ariaPressed !== null) state.pressed = ariaPressed;
+      const ariaExpanded = element.getAttribute('aria-expanded');
+      if (ariaExpanded !== null) state.expanded = ariaExpanded;
+      if (element instanceof HTMLInputElement) {
+        state.value = element.value;
+        if (element.min !== '') state.min = element.min;
+        if (element.max !== '') state.max = element.max;
+        if (element.step !== '') state.step = element.step;
+      }
+      return state;
     }
 
     function actionLabelFor(element) {
@@ -202,6 +223,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     observationIndex: stepIndex,
     observationLabel: label,
     screenshotPath: path.join('steps', screenshotName).replaceAll('\\', '/'),
+    playerActionSelector: PLAYER_ACTION_SELECTOR,
   });
 }
 
@@ -416,7 +438,7 @@ async function chooseWithExternalProvider(command, payload) {
         y: 'optional y coordinate relative to the clicked element',
         deltaX: 'optional horizontal drag distance in pixels',
         deltaY: 'optional vertical drag or wheel distance in pixels',
-        value: 'optional adjustment target from 0 to 100 for range controls',
+        value: 'optional adjustment target from 0 to 100 for range or number controls',
         key: 'required for press',
         durationMs: 'optional hold duration for press',
         ms: 'optional for wait',
@@ -693,7 +715,7 @@ function renderVisualLoopMarkdown(run) {
     lines.push('');
     lines.push('Available actions:');
     for (const action of step.observation.availableActions.slice(0, 18)) {
-      lines.push(`- ${action.label || action.selector} | ${action.selector} | ${action.actionHint} | ${JSON.stringify(action.bounds)}`);
+      lines.push(`- ${action.label || action.selector} | ${action.selector} | ${action.actionHint}${formatActionState(action.state)} | ${JSON.stringify(action.bounds)}`);
     }
     lines.push('');
   }
@@ -707,6 +729,10 @@ function renderVisualLoopMarkdown(run) {
   }
 
   return `${lines.join('\n')}\n`;
+}
+
+function formatActionState(state) {
+  return state ? ` | state ${JSON.stringify(state)}` : '';
 }
 
 function renderVisualLoopHtml(run) {
@@ -775,8 +801,11 @@ function renderVisualLoopHtml(run) {
         frameMeta.textContent = item.observation.label + ' / ' + item.observation.screenshot;
         decision.textContent = JSON.stringify({ decision: item.decision, execution: item.execution }, null, 2);
         visibleText.textContent = item.observation.visibleText;
-        actions.innerHTML = item.observation.availableActions.map((action) => '<li><strong>' + escapeHtml(action.label || action.selector) + '</strong><br /><span class="meta">' + escapeHtml(action.selector) + ' / ' + action.actionHint + '</span></li>').join('');
+        actions.innerHTML = item.observation.availableActions.map((action) => '<li><strong>' + escapeHtml(action.label || action.selector) + '</strong><br /><span class="meta">' + escapeHtml(action.selector) + ' / ' + action.actionHint + escapeHtml(formatActionState(action.state)) + '</span></li>').join('');
         [...strip.children].forEach((button, i) => button.classList.toggle('active', i === index));
+      }
+      function formatActionState(state) {
+        return state ? ' / state ' + JSON.stringify(state) : '';
       }
       function escapeHtml(value) {
         return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));

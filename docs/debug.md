@@ -24,7 +24,7 @@ The browser bundle imports `civ-engine` through `src/game/simulation/civEngine.t
 - `output/playwright/llm-playtest/latest.replay.md`
 - `output/playwright/llm-playtest/latest.annotations.json`
 
-The browser portion of the harness controls the game through visible player actions and records the visible text, available controls, and actions taken for each screenshot. Debug APIs are read afterward for metrics, and the Node-side replay bundle remains available for deterministic investigation.
+The browser portion of the harness controls the game through visible player actions and records the visible text, available controls, current control state, and actions taken for each screenshot. Debug APIs are read afterward for metrics, and the Node-side replay bundle remains available for deterministic investigation.
 
 Use `FARM_PLAYTEST_URL=http://127.0.0.1:5175/` when a Farm dev server is already running and the browser portion should attach to that visible local instance.
 
@@ -39,7 +39,7 @@ Use `npm run playtest:llm:replay` to reopen the saved bundle with `SessionReplay
 - `output/playwright/llm-visual-loop/latest.html`
 - `output/playwright/llm-visual-loop/steps/`
 
-The visual loop does not rely on browser debug APIs for decisions. Each step stores the screenshot path, visible text, available controls, the decision rationale, the player action executed, and any execution error. Use `latest.html` when debugging why an LLM or heuristic chose an action; use `latest.json` when comparing selectors, bounds, canvas coordinates, or prompt payloads.
+The visual loop does not rely on browser debug APIs for decisions. Each decision step stores the screenshot path, visible text, available controls, player-visible control state, the decision rationale, the player action executed, and any execution error. It captures one screenshot per decision step or intentional wait rather than every animation frame. Use `latest.html` when debugging why an LLM or heuristic chose an action; use `latest.json` when comparing selectors, bounds, canvas coordinates, current input values, active controls, or prompt payloads.
 
 If `FARM_LLM_VISUAL_LOOP_COMMAND` is set, the command receives the same observation packet over stdin and must return a decision JSON object. This makes external model-driven playtests debuggable with the same replay artifacts as local heuristic runs.
 

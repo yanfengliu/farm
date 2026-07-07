@@ -10,6 +10,7 @@ const outputDir = path.join(cwd, 'output', 'playwright', 'llm-playtest');
 const screenshotDir = path.join(outputDir, 'screenshots');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
+const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], canvas';
 
 await fs.rm(outputDir, { recursive: true, force: true });
 await fs.mkdir(screenshotDir, { recursive: true });
@@ -274,7 +275,7 @@ async function captureScenario(page, id, label) {
   await page.screenshot({ path: path.join(screenshotDir, screenshotName), fullPage: false });
   const actionsSincePrevious = consumeScenarioActions();
 
-  return page.evaluate(({ scenarioId, scenarioLabel, screenshotPath, playerActionsSincePrevious }) => {
+  return page.evaluate(({ scenarioId, scenarioLabel, screenshotPath, playerActionsSincePrevious, playerActionSelector }) => {
     const state = window.__farmDebug.getState();
     const text = window.render_game_to_text();
     const tiles = Object.values(state.tiles);
@@ -295,12 +296,17 @@ async function captureScenario(page, id, label) {
     const duplicateWorkerTargetCount = activePlotTargets.length - new Set(activePlotTargets).size;
     const claimableMatch = text.match(/claimableTier=(\d+)/);
     const visibleText = compactText(document.body.innerText ?? '');
-    const availableActions = Array.from(document.querySelectorAll('button, input[type="range"], [role="separator"]'))
+    const availableActions = Array.from(document.querySelectorAll(playerActionSelector))
       .filter((element) => isVisible(element) && !element.disabled)
       .slice(0, 40)
       .map((element) => ({
         label: element.getAttribute('aria-label') || element.getAttribute('title') || compactText(element.textContent ?? ''),
         selector: playerSelectorFor(element),
+        tagName: element.tagName.toLowerCase(),
+        type: element.getAttribute('type') || undefined,
+        role: element.getAttribute('role') || undefined,
+        actionHint: actionHintFor(element),
+        state: controlStateFor(element),
         bounds: roundedBounds(element.getBoundingClientRect()),
       }));
 
@@ -345,6 +351,32 @@ async function captureScenario(page, id, label) {
       return value.replace(/\s+/g, ' ').trim().slice(0, 2200);
     }
 
+    function actionHintFor(element) {
+      if (element.matches('canvas')) return 'click-canvas-coordinate';
+      if (element.matches('[role="separator"]')) return 'drag-resize';
+      if (element.matches('input[type="range"]')) return 'adjust';
+      if (element.matches('input[type="number"]')) return 'adjust';
+      return 'click';
+    }
+
+    function controlStateFor(element) {
+      const state = {};
+      state.active = element.classList.contains('active');
+      const shortcut = element.querySelector?.('.key')?.textContent?.trim();
+      if (shortcut) state.shortcut = shortcut;
+      const ariaPressed = element.getAttribute('aria-pressed');
+      if (ariaPressed !== null) state.pressed = ariaPressed;
+      const ariaExpanded = element.getAttribute('aria-expanded');
+      if (ariaExpanded !== null) state.expanded = ariaExpanded;
+      if (element instanceof HTMLInputElement) {
+        state.value = element.value;
+        if (element.min !== '') state.min = element.min;
+        if (element.max !== '') state.max = element.max;
+        if (element.step !== '') state.step = element.step;
+      }
+      return state;
+    }
+
     function isVisible(element) {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
@@ -382,6 +414,7 @@ async function captureScenario(page, id, label) {
     scenarioLabel: label,
     screenshotPath: path.join('screenshots', screenshotName).replaceAll('\\', '/'),
     playerActionsSincePrevious: actionsSincePrevious,
+    playerActionSelector: PLAYER_ACTION_SELECTOR,
   });
 }
 

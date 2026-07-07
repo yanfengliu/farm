@@ -113,4 +113,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('[data-mix-number="wheat"]');
     expect(source).toContain('locator.fill(String(decision.action.value))');
   });
+
+  test('visual observations include player-visible control state', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('state: controlStateFor(element)');
+    expect(source).toContain('function controlStateFor(element)');
+    expect(source).toContain('state.value = element.value');
+    expect(source).toContain("state.active = element.classList.contains('active')");
+    expect(source).toContain('formatActionState(action.state)');
+  });
 });

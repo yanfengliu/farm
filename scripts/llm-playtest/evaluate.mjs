@@ -231,7 +231,7 @@ export function renderPlaytestMarkdown(run, findings) {
       if ((scenario.observation.availableActions ?? []).length > 0) {
         lines.push('  - availableActions:');
         for (const action of scenario.observation.availableActions.slice(0, 16)) {
-          lines.push(`    - ${action.label || 'Unlabeled action'}: \`${action.selector}\``);
+          lines.push(`    - ${formatAvailableAction(action)}`);
         }
       }
     }
@@ -243,6 +243,13 @@ export function renderPlaytestMarkdown(run, findings) {
   }
 
   return `${lines.join('\n')}\n`;
+}
+
+function formatAvailableAction(action) {
+  const label = action.label || 'Unlabeled action';
+  const hint = action.actionHint ? ` | ${action.actionHint}` : '';
+  const state = action.state ? ` | state ${JSON.stringify(action.state)}` : '';
+  return `${label}: \`${action.selector}\`${hint}${state}`;
 }
 
 function truncate(value, maxLength) {

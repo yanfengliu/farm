@@ -68,4 +68,14 @@ describe('LLM playtest harness player contract', () => {
     expect(source).not.toContain('CSS.escape(dataAttribute.value)');
     expect(source).toContain('escapeAttributeValue(dataAttribute.value)');
   });
+
+  test('scenario observations list every player-facing action surface', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    expect(source).toContain('button, input[type="range"], input[type="number"], [role="button"], [role="separator"], canvas');
+    expect(source).toContain('actionHint: actionHintFor(element)');
+    expect(source).toContain('state: controlStateFor(element)');
+    expect(source).toContain("if (element.matches('canvas')) return 'click-canvas-coordinate'");
+    expect(source).toContain("if (element.matches('input[type=\"number\"]')) return 'adjust'");
+  });
 });
