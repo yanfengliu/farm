@@ -40,10 +40,10 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('escapeAttributeValue(dataAttribute.value)');
   });
 
-  test('visual loop has enough default budget to reach the first tier claim', async () => {
+  test('visual loop has enough default budget to scroll the panel and adjust crop mix after the first tier claim', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 20');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24');
   });
 
   test('visual loop recognizes both seed guidance and buy-seed controls', async () => {
@@ -122,5 +122,29 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('state.value = element.value');
     expect(source).toContain("state.active = element.classList.contains('active')");
     expect(source).toContain('formatActionState(action.state)');
+  });
+
+  test('visual observations describe only text visible to the player', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).not.toContain('document.body.innerText');
+    expect(source).toContain('visibleTextForPlayer()');
+    expect(source).toContain('NodeFilter.SHOW_TEXT');
+    expect(source).toContain('isRectVisibleToPlayer');
+  });
+
+  test('visual loop exposes scrollable side-panel content as a wheel target', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('[data-player-scroll]');
+    expect(source).toContain("if (element.matches('[data-player-scroll]')) return 'scroll'");
+    expect(source).toContain('state.canScrollDown');
+    expect(source).toContain('Scroll the side panel');
+  });
+
+  test('visual loop does not count panel wheel scrolling as camera zoom coverage', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toMatch(/const zoomedCamera = actionHistory\.some\(\(action\) => \(\s*action\.kind === 'wheel' &&\s*action\.selector === 'canvas'/s);
   });
 });

@@ -10,8 +10,8 @@ const outputDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop');
 const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
-const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], canvas';
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 20, 1, 40);
+const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
+const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24, 1, 40);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
@@ -115,7 +115,7 @@ async function captureVisualObservation(page, stepIndex, label) {
   await page.screenshot({ path: path.join(screenshotDir, screenshotName), fullPage: false });
 
   return page.evaluate(({ observationIndex, observationLabel, screenshotPath, playerActionSelector }) => {
-    const visibleText = compactText(document.body.innerText ?? '');
+    const visibleText = visibleTextForPlayer();
     const availableActions = Array.from(document.querySelectorAll(playerActionSelector))
       .filter((element) => isVisible(element) && !element.disabled)
       .slice(0, 60)
@@ -148,6 +148,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     }
 
     function actionHintFor(element) {
+      if (element.matches('[data-player-scroll]')) return 'scroll';
       if (element.matches('canvas')) return 'click-canvas-coordinate';
       if (element.matches('[role="separator"]')) return 'drag-resize';
       if (element.matches('input[type="range"]')) return 'adjust';
@@ -170,6 +171,14 @@ async function captureVisualObservation(page, stepIndex, label) {
         if (element.max !== '') state.max = element.max;
         if (element.step !== '') state.step = element.step;
       }
+      if (element instanceof HTMLElement && element.matches('[data-player-scroll]')) {
+        const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight);
+        state.scrollTop = Math.round(element.scrollTop);
+        state.clientHeight = Math.round(element.clientHeight);
+        state.scrollHeight = Math.round(element.scrollHeight);
+        state.canScrollUp = element.scrollTop > 1;
+        state.canScrollDown = element.scrollTop < maxScrollTop - 1;
+      }
       return state;
     }
 
@@ -186,10 +195,84 @@ async function captureVisualObservation(page, stepIndex, label) {
       return value.replace(/\s+/g, ' ').trim().slice(0, 2400);
     }
 
+    function visibleTextForPlayer() {
+      const fragments = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          if (!node.textContent?.trim()) return NodeFilter.FILTER_REJECT;
+          const parent = node.parentElement;
+          if (!parent || !isTextContainerVisible(parent)) return NodeFilter.FILTER_REJECT;
+
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          const visible = Array.from(range.getClientRects()).some((rect) => isRectVisibleToPlayer(rect, parent));
+          return visible ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        },
+      });
+
+      while (fragments.length < 180) {
+        const node = walker.nextNode();
+        if (!node) break;
+        fragments.push(node.textContent ?? '');
+      }
+
+      return compactText(fragments.join(' '));
+    }
+
+    function isTextContainerVisible(element) {
+      if (element.closest('[hidden], [aria-hidden="true"]')) return false;
+      const style = getComputedStyle(element);
+      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    }
+
     function isVisible(element) {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.visibility !== 'hidden' &&
+        style.display !== 'none' &&
+        style.opacity !== '0' &&
+        isRectVisibleToPlayer(rect, element)
+      );
+    }
+
+    function isRectVisibleToPlayer(rect, element) {
+      const clip = visibleClipFor(element);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.right > clip.left &&
+        rect.left < clip.right &&
+        rect.bottom > clip.top &&
+        rect.top < clip.bottom
+      );
+    }
+
+    function visibleClipFor(element) {
+      let clip = {
+        left: 0,
+        top: 0,
+        right: window.innerWidth,
+        bottom: window.innerHeight,
+      };
+
+      for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        const clips = /(auto|scroll|hidden|clip)/.test(`${style.overflow}${style.overflowX}${style.overflowY}`);
+        if (clips) {
+          const rect = ancestor.getBoundingClientRect();
+          clip = {
+            left: Math.max(clip.left, rect.left),
+            top: Math.max(clip.top, rect.top),
+            right: Math.min(clip.right, rect.right),
+            bottom: Math.min(clip.bottom, rect.bottom),
+          };
+        }
+      }
+
+      return clip;
     }
 
     function roundedBounds(rect) {
@@ -242,13 +325,27 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const waitCount = actionHistory.filter((action) => action.kind === 'wait').length;
   const canvasClickCount = actionHistory.filter((action) => action.kind === 'click' && action.selector === 'canvas').length;
   const pannedCamera = actionHistory.some((action) => action.kind === 'press' && action.key === 'ArrowRight');
-  const zoomedCamera = actionHistory.some((action) => action.kind === 'wheel');
+  const zoomedCamera = actionHistory.some((action) => (
+    action.kind === 'wheel' &&
+    action.selector === 'canvas'
+  ));
+  const scrolledPanelDown = actionHistory.some((action) => (
+    action.kind === 'wheel' &&
+    action.selector === '[data-player-scroll="side-panel"]' &&
+    action.deltaY > 0
+  ));
+  const scrolledPanelUp = actionHistory.some((action) => (
+    action.kind === 'wheel' &&
+    action.selector === '[data-player-scroll="side-panel"]' &&
+    action.deltaY < 0
+  ));
   const claimedTier = actionHistory.some((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]');
   const waitsAfterClaim = claimedTier
     ? actionHistory.slice(actionHistory.findIndex((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]') + 1)
       .filter((action) => action.kind === 'wait').length
     : 0;
   const canvasAction = findAction(observation, 'canvas');
+  const panelScrollAction = findAction(observation, '[data-player-scroll="side-panel"]');
 
   const claimAction = findAction(observation, '[data-command="claim-tier"]');
   if (claimAction) {
@@ -293,6 +390,14 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const upgradeAction = findUpgradeAction(observation);
   if (upgradeAction && !clickedSelectors.has(upgradeAction.selector) && /Tool Upgrades|Worker Boots/i.test(observation.visibleText)) {
     return clickDecision(upgradeAction, 'Buy the visible worker upgrade so the playtest exercises progression beyond selling and tier claims.');
+  }
+
+  if (panelScrollAction?.state?.canScrollDown && !scrolledPanelDown && /Inventory|Tier|Crop Mix|Inspect/i.test(observation.visibleText)) {
+    return wheelDecision(panelScrollAction, 'Scroll the side panel down with the mouse wheel so the LLM sees lower panel content only after a player-like scroll.', 420);
+  }
+
+  if (panelScrollAction?.state?.canScrollUp && scrolledPanelDown && !scrolledPanelUp) {
+    return wheelDecision(panelScrollAction, 'Scroll the side panel back up so primary controls remain reachable for the next player decision.', -420);
   }
 
   const sellAllAction = findAction(observation, '[data-command="sell-all"]');
@@ -404,7 +509,9 @@ function wheelDecision(action, rationale, deltaY) {
       label: action.label,
       deltaY,
     },
-    expectedResult: 'The farm camera should zoom while the HUD, toolbar, and side panel stay readable.',
+    expectedResult: action.actionHint === 'scroll'
+      ? 'The side panel should scroll while its content remains readable and clipped to the screenshot.'
+      : 'The farm camera should zoom while the HUD, toolbar, and side panel stay readable.',
   };
 }
 

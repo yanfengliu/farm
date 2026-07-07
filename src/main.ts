@@ -223,7 +223,14 @@ app.innerHTML = `
           <button data-panel="inspect" title="Inspect" aria-label="Inspect">${buttonContent('inspect', 'Inspect')}</button>
           <button class="panel-toggle" data-command="toggle-panel" title="Collapse panel" aria-label="Collapse panel">${iconSvg('redo')}</button>
         </div>
-        <div class="panel-content" id="panel-content"></div>
+        <div
+          class="panel-content"
+          id="panel-content"
+          data-player-scroll="side-panel"
+          role="region"
+          aria-label="Side panel content"
+          tabindex="0"
+        ></div>
       </aside>
     </main>
     <footer class="toolbar" id="toolbar"></footer>

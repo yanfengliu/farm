@@ -72,11 +72,13 @@ describe('LLM playtest harness player contract', () => {
   test('scenario observations list every player-facing action surface', async () => {
     const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
 
-    expect(source).toContain('button, input[type="range"], input[type="number"], [role="button"], [role="separator"], canvas');
+    expect(source).toContain('button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas');
     expect(source).toContain('actionHint: actionHintFor(element)');
     expect(source).toContain('state: controlStateFor(element)');
     expect(source).toContain("if (element.matches('canvas')) return 'click-canvas-coordinate'");
     expect(source).toContain("if (element.matches('input[type=\"number\"]')) return 'adjust'");
+    expect(source).toContain("if (element.matches('[data-player-scroll]')) return 'scroll'");
+    expect(source).toContain('state.canScrollDown');
   });
 
   test('scripted tour captures the Inspect panel after selecting a visible tile', async () => {
@@ -88,5 +90,22 @@ describe('LLM playtest harness player contract', () => {
     expect(inspectClick).toBeGreaterThan(-1);
     expect(inspectCapture).toBeGreaterThan(inspectClick);
     expect(returnToGoals).toBeGreaterThan(inspectCapture);
+  });
+
+  test('scripted tour scrolls panel content through the same wheel input a player uses', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    expect(source).toContain('playerWheelSelector');
+    expect(source).toContain('[data-player-scroll="side-panel"]');
+    expect(source).toContain('Scroll the visible side panel content');
+  });
+
+  test('scripted scenario text observations come from viewport-visible text only', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    expect(source).not.toContain('document.body.innerText');
+    expect(source).toContain('visibleTextForPlayer()');
+    expect(source).toContain('NodeFilter.SHOW_TEXT');
+    expect(source).toContain('isRectVisibleToPlayer');
   });
 });

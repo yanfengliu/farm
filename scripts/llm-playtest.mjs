@@ -10,7 +10,7 @@ const outputDir = path.join(cwd, 'output', 'playwright', 'llm-playtest');
 const screenshotDir = path.join(outputDir, 'screenshots');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
-const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], canvas';
+const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
 
 await fs.rm(outputDir, { recursive: true, force: true });
 await fs.mkdir(screenshotDir, { recursive: true });
@@ -142,6 +142,10 @@ try {
 async function runPlayerSurfaceTour(page) {
   await playerClick(page, '[data-panel="inventory"]', 'Open Inventory panel');
   await playerClick(page, '[data-panel="goals"]', 'Open Goals panel');
+  await playerWheelSelector(page, '[data-player-scroll="side-panel"]', 420, 'Scroll the visible side panel content down');
+  await playerWait(page, 150, 'Let the scrolled side panel settle');
+  scenarios.push(await captureScenario(page, 'side-panel-scrolled', 'Side panel after visible wheel scrolling'));
+  await playerWheelSelector(page, '[data-player-scroll="side-panel"]', -420, 'Scroll the visible side panel content back up');
   await playerClick(page, '[data-panel="mix"]', 'Open Crop Mix panel');
   await playerClick(page, '[data-panel="inspect"]', 'Open Inspect panel');
   await playerDragResize(page, '[data-panel-resizer]', -88, 0, 'Drag the visible side-panel resize handle wider');
@@ -249,6 +253,16 @@ async function playerWheelCanvas(page, deltaY, label) {
   playerActions.push({ kind: 'wheel', label, selector: 'canvas', deltaY });
 }
 
+async function playerWheelSelector(page, selector, deltaY, label) {
+  const locator = page.locator(selector).first();
+  await locator.waitFor({ state: 'visible', timeout: 5000 });
+  const box = await locator.boundingBox();
+  if (!box) throw new Error(`Cannot wheel ${selector}; no visible bounds`);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, deltaY);
+  playerActions.push({ kind: 'wheel', label, selector, deltaY });
+}
+
 async function playerWait(page, ms, label) {
   await page.waitForTimeout(ms);
   playerActions.push({ kind: 'wait', label, ms });
@@ -297,7 +311,7 @@ async function captureScenario(page, id, label) {
       .map((worker) => `${worker.task.target.x},${worker.task.target.y}`);
     const duplicateWorkerTargetCount = activePlotTargets.length - new Set(activePlotTargets).size;
     const claimableMatch = text.match(/claimableTier=(\d+)/);
-    const visibleText = compactText(document.body.innerText ?? '');
+    const visibleText = visibleTextForPlayer();
     const availableActions = Array.from(document.querySelectorAll(playerActionSelector))
       .filter((element) => isVisible(element) && !element.disabled)
       .slice(0, 40)
@@ -353,7 +367,38 @@ async function captureScenario(page, id, label) {
       return value.replace(/\s+/g, ' ').trim().slice(0, 2200);
     }
 
+    function visibleTextForPlayer() {
+      const fragments = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          if (!node.textContent?.trim()) return NodeFilter.FILTER_REJECT;
+          const parent = node.parentElement;
+          if (!parent || !isTextContainerVisible(parent)) return NodeFilter.FILTER_REJECT;
+
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          const visible = Array.from(range.getClientRects()).some((rect) => isRectVisibleToPlayer(rect, parent));
+          return visible ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        },
+      });
+
+      while (fragments.length < 180) {
+        const node = walker.nextNode();
+        if (!node) break;
+        fragments.push(node.textContent ?? '');
+      }
+
+      return compactText(fragments.join(' '));
+    }
+
+    function isTextContainerVisible(element) {
+      if (element.closest('[hidden], [aria-hidden="true"]')) return false;
+      const style = getComputedStyle(element);
+      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    }
+
     function actionHintFor(element) {
+      if (element.matches('[data-player-scroll]')) return 'scroll';
       if (element.matches('canvas')) return 'click-canvas-coordinate';
       if (element.matches('[role="separator"]')) return 'drag-resize';
       if (element.matches('input[type="range"]')) return 'adjust';
@@ -376,13 +421,65 @@ async function captureScenario(page, id, label) {
         if (element.max !== '') state.max = element.max;
         if (element.step !== '') state.step = element.step;
       }
+      if (element instanceof HTMLElement && element.matches('[data-player-scroll]')) {
+        const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight);
+        state.scrollTop = Math.round(element.scrollTop);
+        state.clientHeight = Math.round(element.clientHeight);
+        state.scrollHeight = Math.round(element.scrollHeight);
+        state.canScrollUp = element.scrollTop > 1;
+        state.canScrollDown = element.scrollTop < maxScrollTop - 1;
+      }
       return state;
     }
 
     function isVisible(element) {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.visibility !== 'hidden' &&
+        style.display !== 'none' &&
+        style.opacity !== '0' &&
+        isRectVisibleToPlayer(rect, element)
+      );
+    }
+
+    function isRectVisibleToPlayer(rect, element) {
+      const clip = visibleClipFor(element);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.right > clip.left &&
+        rect.left < clip.right &&
+        rect.bottom > clip.top &&
+        rect.top < clip.bottom
+      );
+    }
+
+    function visibleClipFor(element) {
+      let clip = {
+        left: 0,
+        top: 0,
+        right: window.innerWidth,
+        bottom: window.innerHeight,
+      };
+
+      for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        const clips = /(auto|scroll|hidden|clip)/.test(`${style.overflow}${style.overflowX}${style.overflowY}`);
+        if (clips) {
+          const rect = ancestor.getBoundingClientRect();
+          clip = {
+            left: Math.max(clip.left, rect.left),
+            top: Math.max(clip.top, rect.top),
+            right: Math.min(clip.right, rect.right),
+            bottom: Math.min(clip.bottom, rect.bottom),
+          };
+        }
+      }
+
+      return clip;
     }
 
     function roundedBounds(rect) {

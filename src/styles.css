@@ -330,6 +330,11 @@ body.panel-resizing .panel-resizer::before {
   scrollbar-color: rgba(255, 255, 255, 0.34) rgba(255, 255, 255, 0.08);
 }
 
+.panel-content:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.52);
+  outline-offset: -3px;
+}
+
 .panel-content::-webkit-scrollbar {
   width: 8px;
 }
