@@ -33,6 +33,20 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('screenshot');
   });
 
+  test('visual loop reuses civ-engine visual playtest runner contracts', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain("from 'civ-engine'");
+    expect(source).toContain('runVisualPlaytestLoop');
+    expect(source).toContain('buildVisualPlaytestPrompt');
+    expect(source).toContain('const visualPlaytestHost');
+    expect(source).toContain('const visualPlaytestAgent');
+    expect(source).toContain('toVisualPlaytestObservation');
+    expect(source).toContain('farmDecisionToVisualAction');
+    expect(source).toContain('visualActionToFarmDecision');
+    expect(source).toContain('visualLoopResult');
+  });
+
   test('visual loop observations give LLM providers a directly loadable screenshot file', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
@@ -77,6 +91,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('run.steps.length >= run.summary.maxSteps');
     expect(source).toContain('hasActionableGuidance(run.finalObservation?.visibleText');
     expect(source).toContain('visual-loop-ended-with-guidance');
+  });
+
+  test('visual loop reports civ-engine runner failures as findings', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('visual-loop-engine-stop');
+    expect(source).toContain('civ-engine visual playtest runner stopped with');
+    expect(source).toContain('run.summary.visualLoop && !run.summary.visualLoop.ok');
   });
 
   test('visual loop recognizes both seed guidance and buy-seed controls', async () => {
@@ -168,12 +190,14 @@ describe('LLM visual loop harness contract', () => {
   test('visual loop can execute every visible action hint it offers to an LLM player', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('click, drag, adjust, wheel, press, wait, viewport, or stop');
-    expect(source).toContain("kind: 'click | drag | adjust | wheel | press | wait | viewport | stop'");
-    expect(source).toContain("['click', 'drag', 'adjust', 'wheel', 'press', 'wait', 'viewport', 'stop']");
+    expect(source).toContain('click, hover, drag, adjust, wheel, press, wait, viewport, or stop');
+    expect(source).toContain("kind: 'click | hover | drag | adjust | wheel | press | wait | viewport | stop'");
+    expect(source).toContain("['click', 'hover', 'drag', 'adjust', 'wheel', 'press', 'wait', 'viewport', 'stop']");
     expect(source).toContain("decision.action.kind === 'drag'");
+    expect(source).toContain("decision.action.kind === 'hover'");
     expect(source).toContain("decision.action.kind === 'adjust'");
     expect(source).toContain("decision.action.kind === 'wheel'");
+    expect(source).toContain('await page.locator(decision.action.selector).first().hover');
     expect(source).toContain('page.mouse.down()');
     expect(source).toContain('page.mouse.up()');
     expect(source).toContain('page.mouse.wheel(0, decision.action.deltaY)');
@@ -316,6 +340,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('selector: keyboardAction.selector');
   });
 
+  test('visual loop local heuristic hovers an icon-only panel tab', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('hoveredPanelTab');
+    expect(source).toContain('hoverDecision(');
+    expect(source).toContain('Hover the icon-only Inventory panel tab');
+  });
+
   test('visual loop treats a pressed Plot shortcut as satisfying the Select Plot guide', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
@@ -341,6 +373,15 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('claimedTier && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)');
     expect(source).toContain('waitCount >= 7 && !hasActionableGuidance(observation.visibleText)');
     expect(source).toContain('FARM GUIDE Paint Empty Land');
+  });
+
+  test('visual loop does not endlessly sell trivial late-game inventory at the step cap', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('function shouldSellVisibleCrops');
+    expect(source).toContain('openEndedTier');
+    expect(source).toContain('storagePressure');
+    expect(source).toContain('coins < 50');
   });
 
   test('visual loop waits after recent player actions before stopping', async () => {

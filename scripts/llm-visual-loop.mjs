@@ -4,6 +4,10 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
+  buildVisualPlaytestPrompt,
+  runVisualPlaytestLoop,
+} from 'civ-engine';
+import {
   hasVisibleSellableCrops,
   preferredVisibleZeroSeedCrop,
   visibleSeedStock,
@@ -60,38 +64,96 @@ try {
     url,
     mode: 'step-by-step-visual-loop',
     decisionProvider: providerCommand ? 'external-command' : 'local-heuristic',
-    actionBoundary: 'Each decision receives screenshot path, visible text, visible controls, and keyboard controls; execution is limited to click, drag, adjust, wheel, listed-keyboard press, wait, viewport, or stop.',
+    actionBoundary: 'Each decision receives screenshot path, visible text, visible controls, and keyboard controls; execution is limited to click, hover, drag, adjust, wheel, listed-keyboard press, wait, viewport, or stop.',
     summary: {
       consoleErrors,
       pageErrors,
       maxSteps,
       defaultWaitMs,
+      visualLoop: null,
     },
     steps: [],
     finalObservation: null,
     findings: [],
   };
 
-  for (let stepIndex = 0; stepIndex < maxSteps; stepIndex += 1) {
-    const observation = await captureVisualObservation(page, stepIndex, `step-${stepIndex}`);
-    const decision = await chooseVisualLoopAction({
-      observation,
-      history: run.steps,
-      defaultWaitMs,
-      providerCommand,
-    });
-    const execution = await executePlayerDecision(page, decision);
+  const observationsByStep = new Map();
+  const visualPlaytestHost = {
+    async observe({ step }) {
+      const observation = await captureVisualObservation(page, step, `step-${step}`);
+      observationsByStep.set(step, observation);
+      return toVisualPlaytestObservation(observation);
+    },
+    async performAction(action, context) {
+      const observation = observationsByStep.get(context.step);
+      const decision = visualActionToFarmDecision(action);
+      const execution = await executePlayerDecision(page, decision);
+      run.steps.push({
+        index: context.step,
+        observation,
+        decision,
+        engineAction: action,
+        execution,
+      });
+      if (execution.ok && settleMs > 0) await page.waitForTimeout(settleMs);
+      return farmExecutionResultToVisualActionResult(action, execution, decision);
+    },
+  };
 
-    run.steps.push({
-      index: stepIndex,
-      observation,
-      decision,
-      execution,
-    });
+  const visualPlaytestAgent = {
+    async decide(input) {
+      const observation = observationsByStep.get(input.step);
+      const prompt = buildVisualPlaytestPrompt({
+        objective: 'Play Farm like a real desktop player and find player-facing pain points.',
+        observation: input.observation,
+        mode: input.mode,
+        maxActions: 1,
+      });
+      const decision = await chooseVisualLoopAction({
+        observation: {
+          ...observation,
+          prompt: `${prompt}\n\nFarm action schema and full visible action packet:\n\n${observation.prompt}`,
+        },
+        history: run.steps,
+        defaultWaitMs,
+        providerCommand,
+      });
+      const action = farmDecisionToVisualAction(decision);
+      if (decision.action.kind === 'stop') {
+        run.steps.push({
+          index: input.step,
+          observation,
+          decision,
+          engineAction: action,
+          execution: {
+            ok: true,
+            startedAt: new Date().toISOString(),
+            completedAt: new Date().toISOString(),
+          },
+        });
+      }
+      return {
+        rationale: decision.rationale,
+        action,
+        stopReason: decision.action.kind === 'stop' ? decision.rationale : undefined,
+      };
+    },
+  };
 
-    if (!execution.ok || decision.action.kind === 'stop') break;
-    if (settleMs > 0) await page.waitForTimeout(settleMs);
-  }
+  const visualLoopResult = await runVisualPlaytestLoop({
+    host: visualPlaytestHost,
+    agent: visualPlaytestAgent,
+    maxSteps,
+    promptMode: 'playerBlind',
+  });
+  run.summary.visualLoop = {
+    ok: visualLoopResult.ok,
+    stopReason: visualLoopResult.stopReason,
+    stepsRun: visualLoopResult.stepsRun,
+    traceEntries: visualLoopResult.trace.length,
+    engineFindings: visualLoopResult.findings.length,
+    error: visualLoopResult.error,
+  };
 
   run.finalObservation = await captureVisualObservation(page, run.steps.length, 'final');
   run.findings = evaluateVisualLoop(run);
@@ -142,6 +204,11 @@ async function captureVisualObservation(page, stepIndex, label) {
       label: observationLabel,
       screenshot: screenshotPath,
       screenshotFile,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        deviceScaleFactor: window.devicePixelRatio,
+      },
       visibleText,
       availableActions,
       keyboardActions,
@@ -151,7 +218,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     function buildDecisionPrompt(observation) {
       return [
         'You are playtesting a desktop idle farming game as a real player.',
-        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click and canvas drag actions may include x/y coordinates relative to the chosen element. Press actions must use a listed keyboard control; include its selector when the control says it requires focus.',
+        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, hover, drag, adjust, wheel, press, wait, viewport, or stop. Click and canvas drag actions may include x/y coordinates relative to the chosen element. Press actions must use a listed keyboard control; include its selector when the control says it requires focus.',
         `Screenshot file to inspect: ${observation.screenshotFile}`,
         JSON.stringify(observation, null, 2),
       ].join('\n\n');
@@ -453,6 +520,263 @@ async function captureVisualObservation(page, stepIndex, label) {
   return observation;
 }
 
+function toVisualPlaytestObservation(observation) {
+  return {
+    screenshot: {
+      path: observation.screenshotFile,
+      mime: 'image/png',
+      width: observation.viewport?.width,
+      height: observation.viewport?.height,
+      alt: `${observation.label} screenshot`,
+    },
+    visibleText: observation.visibleText ? [observation.visibleText] : [],
+    controls: [
+      ...observation.availableActions.map((action) => ({
+        id: action.selector,
+        label: action.label || action.selector,
+        target: action.selector,
+        actionKinds: visualActionKindsFor(action),
+        bounds: action.bounds,
+        enabled: true,
+        description: `${action.actionHint}${formatActionState(action.state)}`,
+      })),
+      ...(observation.keyboardActions ?? []).map((action) => ({
+        id: `key:${action.key}:${action.selector ?? ''}`,
+        label: action.label,
+        target: action.selector ?? action.key,
+        actionKinds: ['key'],
+        enabled: true,
+        description: formatKeyboardAction(action),
+      })),
+    ],
+    state: [
+      {
+        label: 'Farm visual action packet',
+        audience: 'reviewer',
+        summary: `${observation.availableActions.length} visible controls, ${observation.keyboardActions?.length ?? 0} keyboard controls`,
+        value: {
+          availableActions: observation.availableActions,
+          keyboardActions: observation.keyboardActions ?? [],
+        },
+      },
+    ],
+    metadata: {
+      index: observation.index,
+      label: observation.label,
+      screenshot: observation.screenshot,
+    },
+  };
+}
+
+function visualActionKindsFor(action) {
+  if (action.actionHint === 'scroll') return ['wheel'];
+  if (action.actionHint === 'click-or-drag-canvas-coordinate') return ['click', 'drag', 'wheel'];
+  if (action.actionHint === 'drag-resize') return ['drag', 'key'];
+  if (action.type === 'number') return ['type', 'key'];
+  if (action.type === 'range') return ['click', 'key'];
+  return ['click', 'hover'];
+}
+
+function farmDecisionToVisualAction(decision) {
+  const action = decision.action;
+  const common = {
+    label: action.label,
+    reason: decision.rationale,
+    farmDecision: decision,
+  };
+  if (action.kind === 'click') {
+    return {
+      kind: 'click',
+      target: action.selector,
+      point: Number.isFinite(action.x) && Number.isFinite(action.y)
+        ? { x: action.x, y: action.y }
+        : undefined,
+      ...common,
+    };
+  }
+  if (action.kind === 'hover') {
+    return {
+      kind: 'hover',
+      target: action.selector,
+      ...common,
+    };
+  }
+  if (action.kind === 'drag') {
+    return {
+      kind: 'drag',
+      target: action.selector,
+      from: { x: action.x, y: action.y },
+      to: { x: action.x + action.deltaX, y: action.y + action.deltaY },
+      ...common,
+    };
+  }
+  if (action.kind === 'adjust') {
+    return {
+      kind: 'type',
+      target: action.selector,
+      text: String(action.value),
+      ...common,
+    };
+  }
+  if (action.kind === 'wheel') {
+    return {
+      kind: 'wheel',
+      target: action.selector,
+      deltaY: action.deltaY,
+      ...common,
+    };
+  }
+  if (action.kind === 'press') {
+    return {
+      kind: 'key',
+      key: action.key,
+      target: action.selector,
+      durationMs: action.durationMs,
+      requiresFocus: action.requiresFocus,
+      ...common,
+    };
+  }
+  if (action.kind === 'wait') {
+    return {
+      kind: 'wait',
+      durationMs: action.ms,
+      ...common,
+    };
+  }
+  if (action.kind === 'viewport') {
+    return {
+      kind: 'viewport',
+      viewport: {
+        width: action.width,
+        height: action.height,
+      },
+      ...common,
+    };
+  }
+  return {
+    kind: 'stop',
+    reason: decision.rationale,
+    ...common,
+  };
+}
+
+function visualActionToFarmDecision(action) {
+  if (action.farmDecision) return action.farmDecision;
+  const target = action.target;
+  const base = {
+    rationale: action.reason || 'civ-engine visual action selected by the playtest agent.',
+    expectedResult: 'The next screenshot should show the result of this player-facing action.',
+  };
+  if (action.kind === 'click') {
+    return {
+      ...base,
+      action: {
+        kind: 'click',
+        selector: target,
+        label: action.label,
+        ...(action.point ? { x: action.point.x, y: action.point.y } : {}),
+      },
+    };
+  }
+  if (action.kind === 'hover') {
+    return {
+      ...base,
+      action: {
+        kind: 'hover',
+        selector: target,
+        label: action.label,
+      },
+    };
+  }
+  if (action.kind === 'drag') {
+    return {
+      ...base,
+      action: {
+        kind: 'drag',
+        selector: target,
+        label: action.label,
+        x: action.from.x,
+        y: action.from.y,
+        deltaX: action.to.x - action.from.x,
+        deltaY: action.to.y - action.from.y,
+      },
+    };
+  }
+  if (action.kind === 'type') {
+    return {
+      ...base,
+      action: {
+        kind: 'adjust',
+        selector: target,
+        label: action.label,
+        value: Number(action.text),
+      },
+    };
+  }
+  if (action.kind === 'wheel') {
+    return {
+      ...base,
+      action: {
+        kind: 'wheel',
+        selector: target,
+        label: action.label,
+        deltaY: action.deltaY ?? 0,
+      },
+    };
+  }
+  if (action.kind === 'key') {
+    return {
+      ...base,
+      action: {
+        kind: 'press',
+        key: action.key,
+        selector: target,
+        label: action.label,
+        durationMs: action.durationMs ?? 0,
+        requiresFocus: Boolean(action.requiresFocus),
+      },
+    };
+  }
+  if (action.kind === 'wait') {
+    return {
+      ...base,
+      action: {
+        kind: 'wait',
+        ms: action.durationMs ?? defaultWaitMs,
+      },
+    };
+  }
+  if (action.kind === 'viewport') {
+    return {
+      ...base,
+      action: {
+        kind: 'viewport',
+        width: action.viewport.width,
+        height: action.viewport.height,
+      },
+    };
+  }
+  return {
+    ...base,
+    action: { kind: 'stop' },
+  };
+}
+
+function farmExecutionResultToVisualActionResult(action, execution, decision) {
+  return {
+    ok: execution.ok,
+    action,
+    message: execution.ok ? decision.expectedResult : execution.error,
+    ...(execution.error ? {
+      error: {
+        name: 'FarmPlayerActionError',
+        message: execution.error,
+        stack: null,
+      },
+    } : {}),
+  };
+}
+
 async function chooseVisualLoopAction({ observation, history, defaultWaitMs, providerCommand }) {
   if (providerCommand) {
     const decision = await chooseWithExternalProvider(providerCommand, { observation, history });
@@ -472,6 +796,10 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const zoomedCamera = actionHistory.some((action) => (
     action.kind === 'wheel' &&
     action.selector === 'canvas'
+  ));
+  const hoveredPanelTab = actionHistory.some((action) => (
+    action.kind === 'hover' &&
+    action.selector === '[data-panel="inventory"]'
   ));
   const draggedCanvas = actionHistory.some((action) => action.kind === 'drag' && action.selector === 'canvas');
   const resizedPanelWithKeyboard = actionHistory.some((action) => (
@@ -531,6 +859,13 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
 
   if (canvasAction && !zoomedCamera) {
     return wheelDecision(canvasAction, 'Zoom the farm camera with the mouse wheel to verify readable play after changing scale.', -360);
+  }
+
+  if (inventoryAction && !hoveredPanelTab) {
+    return hoverDecision(
+      inventoryAction,
+      'Hover the icon-only Inventory panel tab so the player can read its label before relying on the icon.',
+    );
   }
 
   const panelResizeKeyboardAction = findKeyboardControl(observation, 'ArrowLeft', '[data-panel-resizer]');
@@ -629,7 +964,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   }
 
   const sellAllAction = findAction(observation, '[data-command="sell-all"]');
-  if (sellAllAction && hasVisibleSellableCrops(observation.visibleText)) {
+  if (sellAllAction && hasVisibleSellableCrops(observation.visibleText) && shouldSellVisibleCrops(observation.visibleText)) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
   }
 
@@ -695,6 +1030,33 @@ function hasActionableGuidance(visibleText) {
   return /FARM GUIDE (Open Goals|Buy Seeds|Claim|Tune Crop Mix|Add Tomatoes To Mix|Open Inventory|Sell Crops|Select Plot|Paint Empty Land)|Restock seeds|Paint plots on empty land|Tier \d+ ready/i.test(visibleText);
 }
 
+function shouldSellVisibleCrops(visibleText) {
+  const openEndedTier = /Tier 3 Tomato Rows|Keep expanding the farm/i.test(visibleText);
+  const storage = visibleStorage(visibleText);
+  const storagePressure = storage ? storage.used >= Math.max(10, Math.floor(storage.capacity * 0.8)) : false;
+  const coins = visibleCoins(visibleText);
+  return (
+    /FARM GUIDE (Open Inventory|Sell Crops)|Storage is almost full/i.test(visibleText) ||
+    storagePressure ||
+    coins < 50 ||
+    !openEndedTier
+  );
+}
+
+function visibleCoins(visibleText) {
+  const match = visibleText.match(/Coins\s+(\d+)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function visibleStorage(visibleText) {
+  const match = visibleText.match(/Storage\s+(\d+)\/(\d+)/i);
+  if (!match) return null;
+  return {
+    used: Number(match[1]),
+    capacity: Number(match[2]),
+  };
+}
+
 function visibleTierReady(visibleText) {
   return /Tier \d+ ready/i.test(visibleText);
 }
@@ -746,6 +1108,18 @@ function clickDecision(action, rationale, position) {
       ...position,
     },
     expectedResult: `The visible control "${action.label}" should respond and the next screenshot should reflect the state change.`,
+  };
+}
+
+function hoverDecision(action, rationale) {
+  return {
+    rationale,
+    action: {
+      kind: 'hover',
+      selector: action.selector,
+      label: action.label,
+    },
+    expectedResult: `Hovering "${action.label}" should reveal any player-visible tooltip or hover state without changing farm state.`,
   };
 }
 
@@ -864,8 +1238,8 @@ async function chooseWithExternalProvider(command, payload) {
     schema: {
       rationale: 'short explanation',
       action: {
-        kind: 'click | drag | adjust | wheel | press | wait | viewport | stop',
-        selector: 'required for click, drag, adjust, and wheel; optional for press unless the listed keyboard control requires focus',
+        kind: 'click | hover | drag | adjust | wheel | press | wait | viewport | stop',
+        selector: 'required for click, hover, drag, adjust, and wheel; optional for press unless the listed keyboard control requires focus',
         x: 'optional x coordinate relative to the clicked or dragged element',
         y: 'optional y coordinate relative to the clicked or dragged element',
         deltaX: 'optional horizontal drag distance in pixels',
@@ -928,7 +1302,7 @@ function normalizeDecision(decision, observation, provider) {
   if (!decision || typeof decision !== 'object') return fallback;
 
   const action = decision.action && typeof decision.action === 'object' ? decision.action : {};
-  const kind = ['click', 'drag', 'adjust', 'wheel', 'press', 'wait', 'viewport', 'stop'].includes(action.kind) ? action.kind : 'wait';
+  const kind = ['click', 'hover', 'drag', 'adjust', 'wheel', 'press', 'wait', 'viewport', 'stop'].includes(action.kind) ? action.kind : 'wait';
   const normalized = {
     rationale: String(decision.rationale || fallback.rationale),
     action: { kind },
@@ -945,6 +1319,11 @@ function normalizeDecision(decision, observation, provider) {
       normalized.action.x = boundedNumber(action.x, Math.round(visibleAction.bounds.width / 2), 0, visibleAction.bounds.width);
       normalized.action.y = boundedNumber(action.y, Math.round(visibleAction.bounds.height / 2), 0, visibleAction.bounds.height);
     }
+  } else if (kind === 'hover') {
+    const visibleAction = observation.availableActions.find((candidate) => candidate.selector === action.selector);
+    if (!visibleAction) return fallback;
+    normalized.action.selector = visibleAction.selector;
+    normalized.action.label = visibleAction.label;
   } else if (kind === 'drag') {
     const visibleAction = observation.availableActions.find((candidate) => candidate.selector === action.selector);
     if (!visibleAction) return fallback;
@@ -995,6 +1374,8 @@ async function executePlayerDecision(page, decision) {
         clickOptions.position = { x: decision.action.x, y: decision.action.y };
       }
       await page.locator(decision.action.selector).first().click(clickOptions);
+    } else if (decision.action.kind === 'hover') {
+      await page.locator(decision.action.selector).first().hover({ timeout: 5000 });
     } else if (decision.action.kind === 'drag') {
       const locator = page.locator(decision.action.selector).first();
       await locator.waitFor({ state: 'visible', timeout: 5000 });
@@ -1073,6 +1454,16 @@ function evaluateVisualLoop(run) {
       title: 'Browser errors occurred during the visual loop',
       evidence: [...run.summary.consoleErrors, ...run.summary.pageErrors].slice(0, 5),
       recommendation: 'Fix the page or console error before trusting playtest findings.',
+    });
+  }
+
+  if (run.summary.visualLoop && !run.summary.visualLoop.ok) {
+    findings.push({
+      id: 'visual-loop-engine-stop',
+      severity: 'high',
+      title: `civ-engine visual playtest runner stopped with ${run.summary.visualLoop.stopReason}`,
+      evidence: [run.summary.visualLoop.error ?? run.summary.visualLoop],
+      recommendation: 'Fix the visual-loop host, action adapter, or decision provider before trusting playtest findings.',
     });
   }
 

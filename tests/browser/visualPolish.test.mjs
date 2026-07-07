@@ -175,6 +175,38 @@ describe('visual polish', () => {
     }
   }, 15000);
 
+  test('icon-only panel tabs expose readable hover labels', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.panel-tabs button[data-panel]');
+
+      await page.hover('[data-panel="inventory"]');
+
+      await expect.poll(async () => page.locator('[data-panel="inventory"]').evaluate((button) => (
+        Number.parseFloat(globalThis.getComputedStyle(button, '::after').opacity)
+      ))).toBeGreaterThan(0.9);
+
+      const tooltip = await page.locator('[data-panel="inventory"]').evaluate((button) => {
+        const style = globalThis.getComputedStyle(button, '::after');
+        return {
+          content: style.content,
+          opacity: Number.parseFloat(style.opacity),
+          pointerEvents: style.pointerEvents,
+          whiteSpace: style.whiteSpace,
+        };
+      });
+
+      expect(tooltip.content).toContain('Inventory');
+      expect(tooltip.pointerEvents).toBe('none');
+      expect(tooltip.whiteSpace).toBe('nowrap');
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('overflowing side panels advertise scrollable content', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const page = await context.newPage();

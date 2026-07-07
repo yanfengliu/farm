@@ -141,6 +141,7 @@ try {
 
 async function runPlayerSurfaceTour(page) {
   await playerClick(page, '[data-panel="inventory"]', 'Open Inventory panel');
+  await playerHoverSelector(page, '[data-panel="inventory"]', 'Hover the icon-only Inventory panel tab');
   await playerClick(page, '[data-panel="goals"]', 'Open Goals panel');
   await playerWheelSelector(page, '[data-player-scroll="side-panel"]', 420, 'Scroll the visible side panel content down');
   await playerWait(page, 150, 'Let the scrolled side panel settle');
@@ -186,6 +187,11 @@ async function runPlayerSurfaceTour(page) {
 async function playerClick(page, selector, label) {
   await page.locator(selector).first().click();
   playerActions.push({ kind: 'click', label, selector });
+}
+
+async function playerHoverSelector(page, selector, label) {
+  await page.locator(selector).first().hover();
+  playerActions.push({ kind: 'hover', label, selector });
 }
 
 async function playerCanvasClick(page, x, y, label) {

@@ -70,3 +70,6 @@
 - 2026-07-07: Added a Tomato Rows Crop Mix guide and taught the visual LLM-player loop to open Crop Mix and type into the Tomato percentage field after Tier 3 unlocks.
 - 2026-07-07: Improved visual-loop seed restocking from visible Inventory rows so later zero-stock crops such as Tomato are exercised instead of repeatedly buying stocked starter seeds.
 - 2026-07-07: Re-inspected the visual LLM-player loop under a 120-step progression run, made capped actionable guidance a finding, and retargeted plot clicks to open owned land bands visible in the screenshots.
+- 2026-07-07: Added visible hover/focus labels for icon-only side-panel tabs and extended the LLM/player harnesses with a hover action so pointer-only affordances are playtested.
+- 2026-07-07: Reused `civ-engine`'s visual playtest runner for the step-by-step LLM-player loop, with Farm-specific adapters preserving screenshot capture, player controls, local heuristics, provider prompts, and report artifacts.
+- 2026-07-07: Tightened the visual LLM-player late-game heuristic so open-ended Tier 3 audits do not run to the cap by repeatedly selling tiny non-urgent harvest trickles.

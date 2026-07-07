@@ -286,11 +286,47 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .panel-tabs button {
+  position: relative;
   min-width: 0;
   min-height: 28px;
   border-radius: 4px;
   font-size: 12px;
   padding: 3px 5px;
+}
+
+.panel-tabs button[data-panel]::after {
+  content: attr(aria-label);
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  right: calc(100% + 6px);
+  max-width: min(180px, 46vw);
+  padding: 4px 7px;
+  border: 1px solid var(--line-bright);
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+    rgba(9, 8, 7, 0.96);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-2px, -50%);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition:
+    opacity 90ms ease,
+    transform 90ms ease;
+}
+
+.panel-tabs button[data-panel]:hover::after,
+.panel-tabs button[data-panel]:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
 }
 
 .panel-tabs button[data-panel] .button-text {

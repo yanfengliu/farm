@@ -18,6 +18,7 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('playerCanvasClick');
     expect(source).toContain('playerCanvasDrag');
     expect(source).toContain('playerDragResize');
+    expect(source).toContain('playerHoverSelector');
     expect(source).toContain('playerPress(');
     expect(source).toContain('playerPressSelector');
     expect(source).toContain('playerFillSelector');
@@ -27,6 +28,7 @@ describe('LLM playtest harness player contract', () => {
 
     for (const selector of [
       '[data-panel="inventory"]',
+      'Hover the icon-only Inventory panel tab',
       '[data-panel="goals"]',
       '[data-panel="mix"]',
       '[data-panel="inspect"]',
