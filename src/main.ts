@@ -908,7 +908,7 @@ function tutorialTipPriority(tip: TutorialTip): number {
   if (tip.id === 'buy-needed-seeds' || tip.id === 'open-goals-for-seeds') return 80;
   if (tip.id === 'select-plot-tool' || tip.id === 'paint-empty-land') return 70;
   if (tip.id === 'sell-first-crop' || tip.id === 'open-inventory-for-selling') return 60;
-  if (tip.id === 'open-mix-panel') return 50;
+  if (tip.id === 'open-mix-panel' || tip.id === 'open-mix-for-tomatoes') return 50;
   return 0;
 }
 
@@ -1092,6 +1092,18 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
       body: 'Mix is a target. Farmers still use carrot seeds if wheat seeds run out.',
       action: 'Open Crop Mix and adjust the crop sliders.',
       why: 'Crop mix tells workers which seeds to prefer as you unlock more crops.',
+      targetSelector: '[data-panel="mix"]',
+    };
+  }
+
+  if (state.tier.unlockedCrops.includes('tomato') && activePanel !== 'mix' && !isTutorialSeen('open-mix-for-tomatoes')) {
+    return {
+      id: 'open-mix-for-tomatoes',
+      icon: 'tomato',
+      title: 'Add Tomatoes To Mix',
+      body: 'Tomatoes are unlocked. Crop Mix already gives them a starter share.',
+      action: 'Open Crop Mix and check the Tomato percentage.',
+      why: 'A tomato share tells workers to plant the new crop when tomato seeds and empty plots are ready.',
       targetSelector: '[data-panel="mix"]',
     };
   }
@@ -1785,8 +1797,14 @@ document.addEventListener('click', (event) => {
   const panel = target.closest<HTMLElement>('[data-panel]')?.dataset.panel as Panel | undefined;
   if (panel) {
     activePanel = panel;
-    if (panel === 'mix' && getFarmSnapshot(farmGame).tier.unlockedCrops.length > 1 && !isTutorialSeen('open-mix-panel')) {
-      markTutorialSeen('open-mix-panel');
+    if (panel === 'mix') {
+      const state = getFarmSnapshot(farmGame);
+      if (state.tier.unlockedCrops.length > 1 && !isTutorialSeen('open-mix-panel')) {
+        markTutorialSeen('open-mix-panel');
+      }
+      if (state.tier.unlockedCrops.includes('tomato') && !isTutorialSeen('open-mix-for-tomatoes')) {
+        markTutorialSeen('open-mix-for-tomatoes');
+      }
     }
   }
 

@@ -63,3 +63,4 @@
 - Taught visible Inventory seed restocking to prefer the active milestone crop when its seed row is empty.
 - Taught the visual LLM-player loop to reopen Goals from visible tier-ready HUD prompts even after earlier Goals visits.
 - Added directly loadable screenshot file paths to LLM/player harness observations and prompts, and synchronized DOM observation with rendered frames so visual LLM providers and review packets can inspect the exact frame they are deciding from.
+- Added a Tomato Rows Crop Mix guide and taught the visual LLM-player loop to follow it and edit the Tomato numeric percentage field after Tier 3 unlocks.

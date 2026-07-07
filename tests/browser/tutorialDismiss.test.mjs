@@ -415,6 +415,51 @@ describe('tutorial tips', () => {
     }
   }, 15000);
 
+  test('tomato unlock nudges players back to crop mix after the wheat mix guide was seen', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'tomato-mix-guide' }));
+    savedState.tier = {
+      level: 3,
+      label: 'Tomato Rows',
+      unlockedCrops: ['carrot', 'wheat', 'tomato'],
+      nextMilestone: 'Keep expanding the farm',
+    };
+    savedState.cropMix = { carrot: 0.6, wheat: 0.25, tomato: 0.15 };
+    savedState.inventory.crops = { carrot: 0, wheat: 0, tomato: 0 };
+    savedState.inventory.seeds = { carrot: 1, wheat: 1, tomato: 4 };
+    const emptyLand = Object.values(savedState.tiles).find((tile) => tile.kind === 'empty');
+    if (emptyLand) {
+      emptyLand.kind = 'plot';
+      emptyLand.plot = null;
+    }
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+      globalThis.localStorage.setItem('farm-tutorial-seen-v1', JSON.stringify({
+        'open-mix-panel': true,
+      }));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="open-mix-for-tomatoes"]');
+
+      const tip = await page.locator('.tutorial-tip').evaluate((element) => ({
+        title: element.querySelector('.tutorial-title')?.textContent?.trim() ?? '',
+        summary: element.querySelector('.tutorial-summary')?.textContent?.trim() ?? '',
+        action: element.querySelector('.tutorial-detail p')?.textContent?.trim() ?? '',
+      }));
+
+      expect(tip.title).toBe('Add Tomatoes To Mix');
+      expect(tip.summary).toMatch(/Tomatoes are unlocked/i);
+      expect(tip.action).toMatch(/Crop Mix/i);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('canvas tutorial tip stays above the toolbar instead of offscreen', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'canvas-tip-bounds' }));
     savedState.inventory.seeds = { carrot: 5, wheat: 0, tomato: 0 };

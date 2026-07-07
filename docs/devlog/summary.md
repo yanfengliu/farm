@@ -67,3 +67,4 @@
 - 2026-07-07: Made visible Inventory restock choices prefer the active milestone crop after the visual loop showed Wheat progress but kept buying Carrot first.
 - 2026-07-07: Let visible tier-ready HUD prompts reopen Goals after the visual loop otherwise waited in Inventory when Tomato Rows was ready to claim.
 - 2026-07-07: Re-inspected the LLM-player harnesses end to end, confirmed live DOM control coverage, added absolute screenshot file paths to provider/review packets, and synchronized DOM observation with rendered frames.
+- 2026-07-07: Added a Tomato Rows Crop Mix guide and taught the visual LLM-player loop to open Crop Mix and type into the Tomato percentage field after Tier 3 unlocks.

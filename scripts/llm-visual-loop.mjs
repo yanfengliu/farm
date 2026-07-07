@@ -582,6 +582,21 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
       40,
     );
   }
+  const tomatoNumberAction = findAction(observation, '[data-mix-number="tomato"]');
+  const adjustedTomatoNumber = actionHistory.some((action) => (
+    action.kind === 'adjust' && action.selector === '[data-mix-number="tomato"]'
+  ));
+  if (
+    tomatoNumberAction &&
+    !adjustedTomatoNumber &&
+    /Tomato|Tomatoes are unlocked|allocated across unlocked crops/i.test(observation.visibleText)
+  ) {
+    return adjustDecision(
+      tomatoNumberAction,
+      'Type a direct Tomato crop mix percentage so the visual loop covers the newly unlocked crop control.',
+      25,
+    );
+  }
 
   const upgradeAction = findUpgradeAction(observation);
   if (upgradeAction && !clickedSelectors.has(upgradeAction.selector) && /Tool Upgrades|Worker Boots/i.test(observation.visibleText)) {
@@ -660,7 +675,7 @@ function hasVisibleZeroSeedRestock(visibleText) {
 }
 
 function hasActionableGuidance(visibleText) {
-  return /FARM GUIDE (Open Goals|Buy Seeds|Claim|Tune Crop Mix|Open Inventory|Sell Crops|Select Plot|Paint Empty Land)|Restock seeds|Paint plots on empty land|Tier \d+ ready/i.test(visibleText);
+  return /FARM GUIDE (Open Goals|Buy Seeds|Claim|Tune Crop Mix|Add Tomatoes To Mix|Open Inventory|Sell Crops|Select Plot|Paint Empty Land)|Restock seeds|Paint plots on empty land|Tier \d+ ready/i.test(visibleText);
 }
 
 function visibleTierReady(visibleText) {
@@ -672,7 +687,7 @@ function tutorialActionFromText(observation) {
   if (/NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(text)) return findAction(observation, '[data-tool="plot"]');
   if (/NEXT CLICK Open Inventory|FARM GUIDE Open Inventory/i.test(text)) return findAction(observation, '[data-panel="inventory"]');
   if (/NEXT CLICK Open Goals|FARM GUIDE Open Goals/i.test(text)) return findAction(observation, '[data-panel="goals"]');
-  if (/NEXT CLICK Tune Crop Mix|FARM GUIDE Tune Crop Mix/i.test(text)) return findAction(observation, '[data-panel="mix"]');
+  if (/NEXT CLICK Tune Crop Mix|FARM GUIDE Tune Crop Mix|FARM GUIDE Add Tomatoes To Mix/i.test(text)) return findAction(observation, '[data-panel="mix"]');
   if (/NEXT CLICK Buy seeds|FARM GUIDE Buy Seeds/i.test(text)) return findSeedAction(observation);
   if (/NEXT CLICK Claim|FARM GUIDE Claim/i.test(text)) return findAction(observation, '[data-command="claim-tier"]');
   return null;

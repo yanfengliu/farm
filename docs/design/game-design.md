@@ -64,6 +64,8 @@ If workers are idle because empty plots have no desired unlocked seeds and the p
 
 Crop mix is a target ratio, not a hard queue. If carrot is 75% and wheat is 25%, but only carrot seeds are available, workers should still plant carrots rather than waiting for wheat seeds. If workers have seeds but no empty plots, the HUD should explain that more plots are needed.
 
+When a new crop unlocks after the player has already seen the first Crop Mix guide, Farm Guide should briefly point back to Crop Mix for that crop. For example, Tomato Rows should nudge the player to inspect and adjust the Tomato percentage instead of assuming the earlier Wheat-era guide covered every future crop.
+
 Tools are global upgrades. They improve worker speed, crop handling, or farm efficiency without creating physical tool items. The first playable upgrades are worker boots, which increase movement speed, and watering cans, which keep crops watered longer.
 
 ## Logistics

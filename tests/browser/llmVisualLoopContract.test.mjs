@@ -108,7 +108,16 @@ describe('LLM visual loop harness contract', () => {
 
     expect(source).toContain('NEXT CLICK Tune Crop Mix');
     expect(source).toContain('FARM GUIDE Tune Crop Mix');
+    expect(source).toContain('FARM GUIDE Add Tomatoes To Mix');
     expect(source).toContain("findAction(observation, '[data-panel=\"mix\"]')");
+  });
+
+  test('visual loop adjusts the tomato numeric crop mix once tomatoes unlock', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain("findAction(observation, '[data-mix-number=\"tomato\"]')");
+    expect(source).toContain("action.selector === '[data-mix-number=\"tomato\"]'");
+    expect(source).toContain('Type a direct Tomato crop mix percentage');
   });
 
   test('visual loop reopens Goals when visible HUD copy says a tier is ready', async () => {
