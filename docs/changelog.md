@@ -48,3 +48,4 @@
 - Made LLM/player harness observations stricter: visible text is clipped to what the screenshot/player can see, side-panel content can be wheeled as a player action without counting as camera zoom, and the default visual loop still reaches Crop Mix numeric adjustment.
 - Listed keyboard-only camera and pause controls in LLM/player observation packets and reports so press actions are as discoverable as visible DOM controls.
 - Fixed the visual-loop HTML replay viewer so screenshots stay visible in a fixed viewport while decision metadata scrolls.
+- Added visible toolbar shortcuts to LLM/player keyboard observations and taught the visual loop to use the Plot shortcut during first-run guidance.

@@ -158,6 +158,35 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain("alternateKeys: ['D']");
   });
 
+  test('visual loop observations enumerate visible toolbar keyboard shortcuts', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('toolbarShortcutKeyboardActions');
+    expect(source).toContain("document.querySelectorAll('.toolbar .tool-button')");
+    expect(source).toContain('shortcutKeyboardLabelFor');
+    expect(source).toContain('selector: playerSelectorFor(button)');
+    expect(source).toContain("if (button.matches('[data-tool]')) return `Select ${label} tool`");
+    expect(source).toContain("if (button.matches('[data-speed]')) return `Set ${label}`");
+  });
+
+  test('visual loop can choose visible toolbar shortcuts as press actions', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('findKeyboardAction(observation,');
+    expect(source).toContain("findKeyboardAction(observation, '1')");
+    expect(source).toContain("pressDecision('1'");
+  });
+
+  test('visual loop treats a pressed Plot shortcut as satisfying the Select Plot guide', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('selectedPlotFromShortcut');
+    expect(source).toContain('canvasClickedAfterPlotShortcut');
+    expect(source).toContain('The Plot shortcut already selected the tool');
+    expect(source).toContain('FARM GUIDE Select Plot');
+    expect(source).toContain('TOOL Plot');
+  });
+
   test('visual loop replay viewer keeps screenshots in the viewport while metadata scrolls', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

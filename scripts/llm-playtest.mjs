@@ -399,8 +399,43 @@ async function captureScenario(page, id, label) {
         { label: 'Pan camera right', key: 'ArrowRight', alternateKeys: ['D'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
         { label: 'Pan camera up', key: 'ArrowUp', alternateKeys: ['W'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
         { label: 'Pan camera down', key: 'ArrowDown', alternateKeys: ['S'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
-        { label: 'Pause or resume', key: 'Space', alternateKeys: [], actionHint: 'press', state: { canHold: false } },
+        ...toolbarShortcutKeyboardActions(),
       ];
+    }
+
+    function toolbarShortcutKeyboardActions() {
+      return Array.from(document.querySelectorAll('.toolbar .tool-button'))
+        .filter((button) => isVisible(button))
+        .map((button) => {
+          const shortcut = button.querySelector?.('.key')?.textContent?.trim();
+          if (!shortcut) return null;
+          const label = (
+            button.getAttribute('aria-label') ||
+            button.getAttribute('title') ||
+            compactText(button.textContent ?? '')
+          );
+          return {
+            label: shortcutKeyboardLabelFor(button, label),
+            key: shortcut,
+            alternateKeys: [],
+            actionHint: 'press',
+            selector: playerSelectorFor(button),
+            state: {
+              ...controlStateFor(button),
+              canHold: false,
+            },
+          };
+        })
+        .filter(Boolean);
+    }
+
+    function shortcutKeyboardLabelFor(button, label) {
+      if (button.matches('[data-tool]')) return `Select ${label} tool`;
+      if (button.matches('[data-command="undo"]')) return 'Undo';
+      if (button.matches('[data-command="redo"]')) return 'Redo';
+      if (button.matches('[data-command="pause"]')) return label;
+      if (button.matches('[data-speed]')) return `Set ${label}`;
+      return label;
     }
 
     function isTextContainerVisible(element) {

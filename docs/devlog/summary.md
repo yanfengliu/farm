@@ -52,3 +52,4 @@
 - 2026-07-07: Tightened the LLM/player harness so visible text is viewport/scroll clipped, side-panel wheel actions do not count as camera zoom, and default visual loops still reach Crop Mix numeric adjustment.
 - 2026-07-07: Exposed Arrow/WASD camera panning and Space pause/resume as keyboard actions in LLM/player observation packets and reports.
 - 2026-07-07: Fixed the visual-loop HTML replay viewer so screenshot frames stay visible while long metadata scrolls.
+- 2026-07-07: Re-audited the player-control surface and added visible toolbar shortcuts to LLM/player keyboard observations, with the visual loop pressing the Plot shortcut from the guide path.

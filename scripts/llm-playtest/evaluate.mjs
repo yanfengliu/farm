@@ -260,8 +260,9 @@ function formatAvailableAction(action) {
 
 function formatKeyboardAction(action) {
   const alternates = action.alternateKeys?.length ? ` | alternate keys ${action.alternateKeys.join(', ')}` : '';
+  const selector = action.selector ? ` | ${action.selector}` : '';
   const state = action.state ? ` | state ${JSON.stringify(action.state)}` : '';
-  return `${action.label}: \`${action.key}\`${alternates} | ${action.actionHint}${state}`;
+  return `${action.label}: \`${action.key}\`${alternates}${selector} | ${action.actionHint}${state}`;
 }
 
 function truncate(value, maxLength) {

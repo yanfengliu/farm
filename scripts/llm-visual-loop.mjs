@@ -155,8 +155,39 @@ async function captureVisualObservation(page, stepIndex, label) {
         { label: 'Pan camera right', key: 'ArrowRight', alternateKeys: ['D'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
         { label: 'Pan camera up', key: 'ArrowUp', alternateKeys: ['W'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
         { label: 'Pan camera down', key: 'ArrowDown', alternateKeys: ['S'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
-        { label: 'Pause or resume', key: 'Space', alternateKeys: [], actionHint: 'press', state: { canHold: false } },
+        ...toolbarShortcutKeyboardActions(),
       ];
+    }
+
+    function toolbarShortcutKeyboardActions() {
+      return Array.from(document.querySelectorAll('.toolbar .tool-button'))
+        .filter((button) => isVisible(button))
+        .map((button) => {
+          const shortcut = button.querySelector?.('.key')?.textContent?.trim();
+          if (!shortcut) return null;
+          const label = actionLabelFor(button);
+          return {
+            label: shortcutKeyboardLabelFor(button, label),
+            key: shortcut,
+            alternateKeys: [],
+            actionHint: 'press',
+            selector: playerSelectorFor(button),
+            state: {
+              ...controlStateFor(button),
+              canHold: false,
+            },
+          };
+        })
+        .filter(Boolean);
+    }
+
+    function shortcutKeyboardLabelFor(button, label) {
+      if (button.matches('[data-tool]')) return `Select ${label} tool`;
+      if (button.matches('[data-command="undo"]')) return 'Undo';
+      if (button.matches('[data-command="redo"]')) return 'Redo';
+      if (button.matches('[data-command="pause"]')) return label;
+      if (button.matches('[data-speed]')) return `Set ${label}`;
+      return label;
     }
 
     function actionHintFor(element) {
@@ -351,6 +382,11 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     action.selector === '[data-player-scroll="side-panel"]' &&
     action.deltaY < 0
   ));
+  const plotShortcutIndex = actionHistory.findIndex((action) => action.kind === 'press' && action.key === '1');
+  const pressedPlotShortcut = plotShortcutIndex >= 0;
+  const canvasClickedAfterPlotShortcut = plotShortcutIndex >= 0 && actionHistory
+    .slice(plotShortcutIndex + 1)
+    .some((action) => action.kind === 'click' && action.selector === 'canvas');
   const claimedTier = actionHistory.some((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]');
   const waitsAfterClaim = claimedTier
     ? actionHistory.slice(actionHistory.findIndex((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]') + 1)
@@ -358,6 +394,8 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     : 0;
   const canvasAction = findAction(observation, 'canvas');
   const panelScrollAction = findAction(observation, '[data-player-scroll="side-panel"]');
+  const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
+  const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
 
   const claimAction = findAction(observation, '[data-command="claim-tier"]');
   if (claimAction) {
@@ -382,7 +420,27 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return wheelDecision(canvasAction, 'Zoom the farm camera with the mouse wheel to verify readable play after changing scale.', -360);
   }
 
-  const tutorialAction = tutorialActionFromText(observation);
+  const plotShortcutAction = findKeyboardAction(observation, '1');
+  if (plotShortcutAction && !pressedPlotShortcut && selectedPlotGuideVisible) {
+    return pressDecision('1', 'Use the visible Plot keyboard shortcut so the LLM-player loop can exercise toolbar hotkeys, not only mouse clicks.');
+  }
+
+  if (
+    selectedPlotFromShortcut &&
+    canvasAction &&
+    !canvasClickedAfterPlotShortcut &&
+    selectedPlotGuideVisible
+  ) {
+    return clickDecision(
+      canvasAction,
+      'The Plot shortcut already selected the tool, so continue by clicking the farm canvas instead of re-clicking the toolbar.',
+      { x: 410, y: 290 },
+    );
+  }
+
+  const tutorialAction = selectedPlotFromShortcut && canvasClickedAfterPlotShortcut && selectedPlotGuideVisible
+    ? null
+    : tutorialActionFromText(observation);
   if (tutorialAction && !recentlyClicked(actionHistory, tutorialAction.selector)) {
     return clickDecision(tutorialAction, `Follow the visible tutorial prompt: ${tutorialAction.label}.`);
   }
@@ -417,7 +475,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
   }
 
-  if (canvasAction && canvasClickCount < 2 && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {
+  if (canvasAction && canvasClickCount < 2 && !selectedPlotGuideVisible && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {
     return clickDecision(
       canvasAction,
       'The selected plot tool needs a field click, so click an open farm tile visible on the canvas.',
@@ -529,6 +587,10 @@ function wheelDecision(action, rationale, deltaY) {
 
 function findAction(observation, selector) {
   return observation.availableActions.find((action) => action.selector === selector || action.selector.startsWith(selector));
+}
+
+function findKeyboardAction(observation, key) {
+  return observation.keyboardActions?.find((action) => action.key === key || action.alternateKeys?.includes(key));
 }
 
 function findSeedAction(observation) {
@@ -862,7 +924,8 @@ function formatActionState(state) {
 
 function formatKeyboardAction(action) {
   const alternates = action.alternateKeys?.length ? ` | alternate keys ${action.alternateKeys.join(', ')}` : '';
-  return `${action.label} | ${action.key}${alternates} | ${action.actionHint}${formatActionState(action.state)}`;
+  const selector = action.selector ? ` | ${action.selector}` : '';
+  return `${action.label} | ${action.key}${alternates}${selector} | ${action.actionHint}${formatActionState(action.state)}`;
 }
 
 function renderVisualLoopHtml(run) {
@@ -935,7 +998,7 @@ function renderVisualLoopHtml(run) {
         decision.textContent = JSON.stringify({ decision: item.decision, execution: item.execution }, null, 2);
         visibleText.textContent = item.observation.visibleText;
         actions.innerHTML = item.observation.availableActions.map((action) => '<li><strong>' + escapeHtml(action.label || action.selector) + '</strong><br /><span class="meta">' + escapeHtml(action.selector) + ' / ' + action.actionHint + escapeHtml(formatActionState(action.state)) + '</span></li>').join('');
-        keyboardActions.innerHTML = (item.observation.keyboardActions || []).map((action) => '<li><strong>' + escapeHtml(action.label) + '</strong><br /><span class="meta">' + escapeHtml(action.key) + escapeHtml(action.alternateKeys?.length ? ' / ' + action.alternateKeys.join(', ') : '') + ' / ' + escapeHtml(action.actionHint + formatActionState(action.state)) + '</span></li>').join('');
+        keyboardActions.innerHTML = (item.observation.keyboardActions || []).map((action) => '<li><strong>' + escapeHtml(action.label) + '</strong><br /><span class="meta">' + escapeHtml(action.key) + escapeHtml(action.alternateKeys?.length ? ' / ' + action.alternateKeys.join(', ') : '') + escapeHtml(action.selector ? ' / ' + action.selector : '') + ' / ' + escapeHtml(action.actionHint + formatActionState(action.state)) + '</span></li>').join('');
         [...strip.children].forEach((button, i) => button.classList.toggle('active', i === index));
       }
       function formatActionState(state) {

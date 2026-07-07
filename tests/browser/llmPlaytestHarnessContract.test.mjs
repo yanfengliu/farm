@@ -118,4 +118,15 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain("key: 'ArrowRight'");
     expect(source).toContain("alternateKeys: ['D']");
   });
+
+  test('scripted observations enumerate visible toolbar keyboard shortcuts', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    expect(source).toContain('toolbarShortcutKeyboardActions');
+    expect(source).toContain("document.querySelectorAll('.toolbar .tool-button')");
+    expect(source).toContain('shortcutKeyboardLabelFor');
+    expect(source).toContain('selector: playerSelectorFor(button)');
+    expect(source).toContain("if (button.matches('[data-tool]')) return `Select ${label} tool`");
+    expect(source).toContain("if (button.matches('[data-speed]')) return `Set ${label}`");
+  });
 });
