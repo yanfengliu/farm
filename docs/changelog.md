@@ -71,3 +71,6 @@
 - Taught the visual LLM-player loop to stop natural late-game audits instead of endlessly selling tiny open-ended Tier 3 inventory trickles.
 - Added compact hover/focus labels above icon-only toolbar buttons so collapsed desktop controls remain understandable.
 - Made Inventory seed-restock Farm Guide cards name and target the active milestone crop when its seed row is buyable.
+- Guarded LLM playtest storage setup against restricted browser documents so scripted and visual harnesses do not throw before reaching the game origin.
+- Taught the visual LLM-player to follow goal-specific Farm Guide seed cards instead of falling back to the first generic seed button.
+- Raised the default visual LLM-player loop budget so first-tier Crop Mix restocking can complete without a capped actionable-guidance finding.

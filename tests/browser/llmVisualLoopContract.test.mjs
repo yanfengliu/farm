@@ -78,11 +78,11 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('escapeAttributeValue(dataAttribute.value)');
   });
 
-  test('visual loop has enough default budget to scroll the panel and adjust crop mix after the first tier claim', async () => {
+  test('visual loop has enough default budget to restock after the first tier crop mix pass', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24');
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24, 1, 120)');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 32');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 32, 1, 120)');
   });
 
   test('visual loop flags a capped run when the final screenshot still has actionable guidance', async () => {
@@ -99,6 +99,18 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('visual-loop-engine-stop');
     expect(source).toContain('civ-engine visual playtest runner stopped with');
     expect(source).toContain('run.summary.visualLoop && !run.summary.visualLoop.ok');
+  });
+
+  test('visual loop storage setup tolerates restricted browser documents', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+    const initScript = source.slice(
+      source.indexOf('await context.addInitScript(() => {'),
+      source.indexOf('  });', source.indexOf('await context.addInitScript(() => {')) + '  });'.length,
+    );
+
+    expect(initScript).toContain('try {');
+    expect(initScript).toContain('catch');
+    expect(initScript).toContain('Storage access can be denied');
   });
 
   test('visual loop recognizes both seed guidance and buy-seed controls', async () => {
@@ -131,6 +143,17 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('visibleMilestoneCrop(observation.visibleText)');
     expect(source).toContain('findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`)');
     expect(source).toContain('const seedAction = findSeedActionForVisibleNeed(observation);');
+  });
+
+  test('visual loop follows goal-specific Farm Guide seed cards', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+    const tutorialStart = source.indexOf('function tutorialActionFromText(observation)');
+    const tutorialEnd = source.indexOf('function recentlyClicked', tutorialStart);
+    const tutorialSource = source.slice(tutorialStart, tutorialEnd);
+
+    expect(tutorialSource).toContain('FARM GUIDE Buy Seeds');
+    expect(tutorialSource).toContain('return findSeedActionForVisibleNeed(observation);');
+    expect(tutorialSource).not.toContain('return findSeedAction(observation);');
   });
 
   test('visual loop follows the crop mix tutorial prompt', async () => {

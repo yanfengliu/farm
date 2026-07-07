@@ -37,10 +37,14 @@ try {
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   await context.addInitScript(() => {
-    const cleanBootKey = 'farm-playtest-storage-cleared';
-    if (sessionStorage.getItem(cleanBootKey)) return;
-    localStorage.clear();
-    sessionStorage.setItem(cleanBootKey, 'true');
+    try {
+      const cleanBootKey = 'farm-playtest-storage-cleared';
+      if (sessionStorage.getItem(cleanBootKey)) return;
+      localStorage.clear();
+      sessionStorage.setItem(cleanBootKey, 'true');
+    } catch {
+      // Storage access can be denied for restricted pre-navigation documents; this reruns on the game origin.
+    }
   });
   const page = await context.newPage();
 

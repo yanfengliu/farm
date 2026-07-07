@@ -67,6 +67,18 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('sessionStorage.setItem');
   });
 
+  test('clean-boot storage setup tolerates restricted browser documents', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+    const initScript = source.slice(
+      source.indexOf('await context.addInitScript(() => {'),
+      source.indexOf('  });', source.indexOf('await context.addInitScript(() => {')) + '  });'.length,
+    );
+
+    expect(initScript).toContain('try {');
+    expect(initScript).toContain('catch');
+    expect(initScript).toContain('Storage access can be denied');
+  });
+
   test('scenario action selectors preserve readable data attribute values', async () => {
     const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
 

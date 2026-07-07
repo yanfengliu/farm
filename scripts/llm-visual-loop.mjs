@@ -19,7 +19,7 @@ const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
 const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 24, 1, 120);
+const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 32, 1, 120);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
@@ -46,7 +46,11 @@ try {
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   await context.addInitScript(() => {
-    localStorage.clear();
+    try {
+      localStorage.clear();
+    } catch {
+      // Storage access can be denied for restricted pre-navigation documents; this reruns on the game origin.
+    }
   });
   const page = await context.newPage();
 
@@ -1067,7 +1071,7 @@ function tutorialActionFromText(observation) {
   if (/NEXT CLICK Open Inventory|FARM GUIDE Open Inventory/i.test(text)) return findAction(observation, '[data-panel="inventory"]');
   if (/NEXT CLICK Open Goals|FARM GUIDE Open Goals/i.test(text)) return findAction(observation, '[data-panel="goals"]');
   if (/NEXT CLICK Tune Crop Mix|FARM GUIDE Tune Crop Mix|FARM GUIDE Add Tomatoes To Mix/i.test(text)) return findAction(observation, '[data-panel="mix"]');
-  if (/NEXT CLICK Buy seeds|FARM GUIDE Buy Seeds/i.test(text)) return findSeedAction(observation);
+  if (/NEXT CLICK Buy seeds|FARM GUIDE Buy Seeds/i.test(text)) return findSeedActionForVisibleNeed(observation);
   if (/NEXT CLICK Claim|FARM GUIDE Claim/i.test(text)) return findAction(observation, '[data-command="claim-tier"]');
   return null;
 }

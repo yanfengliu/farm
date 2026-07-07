@@ -75,3 +75,6 @@
 - 2026-07-07: Tightened the visual LLM-player late-game heuristic so open-ended Tier 3 audits do not run to the cap by repeatedly selling tiny non-urgent harvest trickles.
 - 2026-07-07: Added hover/focus labels above compact icon-only toolbar buttons so smaller desktop layouts keep speed/tool controls understandable without widening the toolbar.
 - 2026-07-07: Made Inventory seed-restock Farm Guide cards name and target the active milestone crop when its seed row is buyable.
+- 2026-07-07: Guarded scripted and visual LLM playtest storage setup after an intermittent restricted-document storage error closed the browser during the surface tour.
+- 2026-07-07: Taught the visual LLM-player to obey goal-specific seed guide cards after a default run clicked Carrot while the visible guide asked for Wheat.
+- 2026-07-07: Raised the default visual LLM-player loop budget so post-tier Crop Mix restocking fits inside ordinary runs.
