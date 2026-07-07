@@ -125,6 +125,7 @@ The layout uses a canvas playfield with a bottom toolbar and collapsible side pa
 - Storage usage
 - Worker count
 - Current tier or next milestone
+- Milestone progress counts for harvest goals
 - Selected tool
 - Speed and pause state
 - Alerts

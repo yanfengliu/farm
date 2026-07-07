@@ -82,6 +82,44 @@ describe('visual polish', () => {
     }
   }, 15000);
 
+  test('hud and goals show milestone progress counts', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'milestone-progress-copy' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.stats.lifetimeHarvested.wheat = 7;
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.hud-alert');
+
+      const hudObjective = await page.locator('.hud-alert').textContent();
+      expect(hudObjective).toContain('Harvest 7/20 wheat');
+
+      await page.click('[data-panel="goals"]');
+      await expect.poll(async () => page.locator('#panel-content h2').first().textContent()).toContain('Tier');
+      const goalsMilestone = await page.evaluate(() => {
+        const nextHeading = Array.from(globalThis.document.querySelectorAll('#panel-content h3'))
+          .find((heading) => heading.textContent?.trim() === 'Next milestone');
+        return nextHeading?.nextElementSibling?.textContent?.trim() ?? '';
+      });
+
+      expect(goalsMilestone).toBe('Harvest 7/20 wheat');
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('inventory rows have visible item surfaces without overflowing', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const page = await context.newPage();

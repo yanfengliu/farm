@@ -39,3 +39,4 @@
 - 2026-07-06: Added seed stock, planted counts, and readiness states to Crop Mix rows after the visual LLM loop exposed that percentages alone did not explain planting blockers.
 - 2026-07-06: Fixed stale Crop Mix guidance so opening the panel under another active guide prevents a later redundant Tune Crop Mix card.
 - 2026-07-06: Labeled locked seed purchases as Locked in Inventory after fresh-start screenshots showed disabled Wheat/Tomato seed prices lacked context.
+- 2026-07-06: Added current/target harvest counts to HUD and Goals milestone text so waiting and worker progress are visible.

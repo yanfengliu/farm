@@ -35,3 +35,4 @@
 - Added seed stock, planted counts, and readiness states to Crop Mix rows so percentage targets explain whether each crop can actually be planted.
 - Treated opening Crop Mix as satisfying the Crop Mix guide step, preventing stale Tune Crop Mix cards after the player already used that panel.
 - Labeled locked seed purchases as Locked so disabled Wheat/Tomato seed buttons do not look like unexplained price buttons on a fresh farm.
+- Added current/target harvest counts to HUD and Goals milestone copy so players can see progress toward carrot and wheat tiers.

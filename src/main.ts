@@ -702,6 +702,7 @@ function commandForTool(tool: Tool, x: number, y: number): FarmCommand | null {
 function renderHud(): void {
   const state = getFarmSnapshot(farmGame);
   const storage = `${storedCropCount(state)}/${state.inventory.cropCapacity}`;
+  const milestone = milestoneProgressText(state);
   const markup = `
     <div><strong>Coins</strong><span>${state.coins}</span></div>
     <div><strong>Storage</strong><span>${storage}</span></div>
@@ -709,7 +710,7 @@ function renderHud(): void {
     <div><strong>Tier</strong><span>${state.tier.level} ${state.tier.label}</span></div>
     <div><strong>Tool</strong><span>${labelForTool(selectedTool)}</span></div>
     <div><strong>Speed</strong><span>${paused ? 'Paused' : `${speed}x`}</span></div>
-    <div class="hud-alert">${state.alerts[0] ?? state.tier.nextMilestone}</div>
+    <div class="hud-alert">${state.alerts[0] ?? milestone}</div>
   `;
   if (markup !== lastHudMarkup) {
     hud.innerHTML = markup;
@@ -777,7 +778,7 @@ function renderPanel(): void {
       <h2>Tier ${state.tier.level}</h2>
       <p>${state.tier.label}</p>
       <h3>Next milestone</h3>
-      <p>${state.tier.nextMilestone}</p>
+      <p>${milestoneProgressText(state)}</p>
       ${tierUnlockRow(state)}
       ${seedGuidanceRow(state)}
       <h3>Tool Upgrades</h3>
@@ -1257,6 +1258,16 @@ function storedCropCount(state: FarmState): number {
   return Object.values(state.inventory.crops).reduce((sum, count) => sum + count, 0);
 }
 
+function milestoneProgressText(state: FarmState): string {
+  if (state.tier.level === 1) {
+    return `Harvest ${Math.min(state.stats.lifetimeHarvested.carrot, 10)}/10 carrots`;
+  }
+  if (state.tier.level === 2) {
+    return `Harvest ${Math.min(state.stats.lifetimeHarvested.wheat, 20)}/20 wheat`;
+  }
+  return state.tier.nextMilestone;
+}
+
 function plantedCropCount(state: FarmState, cropId: CropId): number {
   return Object.values(state.tiles).filter((tile) => tile.kind === 'plot' && tile.plot?.cropId === cropId).length;
 }
@@ -1266,6 +1277,17 @@ function emptyPlotCount(state: FarmState): number {
 }
 
 function panelStateSignature(state: FarmState): string {
+  if (activePanel === 'goals') {
+    return [
+      activePanel,
+      state.coins,
+      state.tier.level,
+      milestoneProgressText(state),
+      claimableTierLevel(state) ?? 0,
+      ...UPGRADE_IDS.map((upgradeId) => `${upgradeId}:${state.upgrades[upgradeId]}`),
+      ...CROP_IDS.map((cropId) => `${cropId}:${state.stats.lifetimePlanted[cropId]}:${state.stats.lifetimeHarvested[cropId]}`),
+    ].join('|');
+  }
   if (activePanel === 'mix') {
     return [
       activePanel,
