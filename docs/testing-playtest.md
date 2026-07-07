@@ -106,7 +106,7 @@ The replay bundle is a deterministic debugging aid. It can use the simulation di
 - Drag the side-panel resize handle and reload to confirm the width preference restores.
 - Select 2x or 4x speed and reload to confirm the speed preference restores.
 - Confirm HUD and Goals milestone text includes current progress counts, such as `Harvest 3/20 wheat`.
-- Confirm Farm Guide cards point at the next action, use a consistent Do/Why format, remain readable when guidance changes, and do not cover side-panel controls.
+- Confirm Farm Guide cards point at the next action, use a consistent Do/Why format, remain readable when guidance changes, prioritize visible tier claims over lower-priority sell guidance, and do not cover side-panel controls.
 - Confirm locked seed purchase controls say Locked instead of showing normal prices.
 - Confirm Crop Mix rows show seed stock, planted counts, and readiness states without overflowing the side panel.
 - Reload and confirm localStorage autosave restores the farm.

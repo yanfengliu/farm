@@ -129,7 +129,7 @@ The layout uses a canvas playfield with a bottom toolbar and collapsible side pa
 - Selected tool
 - Speed and pause state
 - Alerts
-- First-time contextual Farm Guide cards that point at the next relevant click when a process becomes needed. Each card uses the same readable format with a short summary, a "Do" step, and a "Why" explanation, and should remain visible long enough to read when guidance changes.
+- First-time contextual Farm Guide cards that point at the next relevant click when a process becomes needed. Each card uses the same readable format with a short summary, a "Do" step, and a "Why" explanation, and should remain visible long enough to read when guidance changes. Tier-claim guidance may interrupt lower-priority sell or planning guidance when the reward is visible.
 
 Side panels provide:
 

@@ -244,6 +244,44 @@ describe('tutorial tips', () => {
     }
   }, 20000);
 
+  test('visible tier claim guidance preempts held sell guidance in Goals', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'claim-tip-priority' }));
+    const readyPlot = Object.values(savedState.tiles).find((tile) => tile.kind === 'plot');
+    if (readyPlot?.kind === 'plot') {
+      readyPlot.plot = { cropId: 'carrot', growth: savedState.crops.carrot.growTicks, water: 100 };
+    }
+    savedState.inventory.crops = { carrot: 1, wheat: 0, tomato: 0 };
+    savedState.stats.lifetimeHarvested.carrot = 9;
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+      globalThis.localStorage.setItem('farm-tutorial-seen-v1', JSON.stringify({ 'sell-first-crop': true }));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="goals"]');
+      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="open-inventory-for-selling"]');
+
+      await page.evaluate(() => globalThis.advanceTime(60000));
+      await page.waitForSelector('[data-command="claim-tier"]');
+      await page.waitForTimeout(500);
+
+      const tip = await page.locator('.tutorial-tip').evaluate((element) => ({
+        id: element.getAttribute('data-tutorial-tip'),
+        title: element.querySelector('.tutorial-title')?.textContent?.trim() ?? '',
+      }));
+
+      expect(tip.id).toBe('claim-tier');
+      expect(tip.title).toBe('Claim Tier 2');
+    } finally {
+      await context.close();
+    }
+  }, 20000);
+
   test('crop mix tutorial tip stays inside the viewport', async () => {
     const game = createFarmGame({ seed: 'mix-tip-bounds' });
     for (let i = 0; i < 5000; i += 1) {

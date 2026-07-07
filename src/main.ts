@@ -826,6 +826,7 @@ function renderTutorialTip(): void {
   const shouldHoldCurrent = Boolean(
     activeTutorialTip &&
     activeTutorialTip.id !== candidate?.id &&
+    !tutorialTipCanPreempt(activeTutorialTip, candidate) &&
     now - activeTutorialTipShownAt < TUTORIAL_MIN_VISIBLE_MS,
   );
   const tip = shouldHoldCurrent ? activeTutorialTip : candidate;
@@ -874,6 +875,20 @@ function renderTutorialTip(): void {
     lastTutorialMarkup = markup;
   }
   keepTutorialTipInView();
+}
+
+function tutorialTipCanPreempt(current: TutorialTip, candidate: TutorialTip | null): boolean {
+  return Boolean(candidate && tutorialTipPriority(candidate) > tutorialTipPriority(current));
+}
+
+function tutorialTipPriority(tip: TutorialTip): number {
+  if (tip.id === 'claim-tier') return 100;
+  if (tip.id === 'open-goals-for-claim') return 90;
+  if (tip.id === 'buy-needed-seeds' || tip.id === 'open-goals-for-seeds') return 80;
+  if (tip.id === 'select-plot-tool' || tip.id === 'paint-empty-land') return 70;
+  if (tip.id === 'sell-first-crop' || tip.id === 'open-inventory-for-selling') return 60;
+  if (tip.id === 'open-mix-panel') return 50;
+  return 0;
 }
 
 function tutorialTipPosition(target: HTMLElement): { left: number; top: number; placement: TutorialTipPlacement } {

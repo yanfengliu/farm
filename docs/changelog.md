@@ -37,3 +37,4 @@
 - Labeled locked seed purchases as Locked so disabled Wheat/Tomato seed buttons do not look like unexplained price buttons on a fresh farm.
 - Added current/target harvest counts to HUD and Goals milestone copy so players can see progress toward carrot and wheat tiers.
 - Moved Farm dev and playtest defaults to the 5175 localhost lane, with `FARM_PLAYTEST_URL` support for attaching harnesses to an already-running server.
+- Let visible tier-claim Farm Guide cards preempt held sell guidance so reward moments do not point players away from the Goals panel.
