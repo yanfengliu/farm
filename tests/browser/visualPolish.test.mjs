@@ -348,6 +348,49 @@ describe('visual polish', () => {
     }
   }, 15000);
 
+  test('goals seed guidance prioritizes the active milestone crop', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'milestone-seed-guidance' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.cropMix = { carrot: 0.6, wheat: 0.4, tomato: 0 };
+    savedState.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0 };
+    savedState.coins = 20;
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="goals"]');
+      await page.waitForSelector('.seed-guidance');
+
+      const actions = await page.evaluate(() => (
+        Array.from(globalThis.document.querySelectorAll('[data-seed-guidance-action]'))
+          .map((button) => ({
+            cropId: button.getAttribute('data-seed-guidance-action'),
+            label: button.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            left: button.getBoundingClientRect().left,
+          }))
+      ));
+      const tipAction = await page.locator('[data-tutorial-tip="buy-needed-seeds"] .tutorial-detail p').first().textContent();
+
+      expect(actions.map((action) => action.cropId)).toEqual(['wheat', 'carrot']);
+      expect(actions[0]?.label).toMatch(/Wheat goal 2c/i);
+      expect(actions[0]?.left).toBeLessThan(actions[1]?.left ?? Number.POSITIVE_INFINITY);
+      expect(tipAction).toMatch(/Wheat goal seed/i);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('compact desktop toolbar avoids truncated labels', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
     const page = await context.newPage();

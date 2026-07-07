@@ -997,13 +997,16 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
 
   const alerts = state.alerts.join(' ');
   if (alerts.includes('Restock seeds')) {
+    const goalCrop = milestoneCropId(state);
     if ((activePanel === 'inventory' || activePanel === 'goals') && !isTutorialSeen('buy-needed-seeds')) {
       return {
         id: 'buy-needed-seeds',
         icon: 'seed',
         title: 'Buy Seeds',
         body: 'Farmers plant seeds automatically once empty plots are available.',
-        action: 'Buy a seed packet for any desired crop with zero seeds.',
+        action: activePanel === 'goals' && goalCrop
+          ? `Buy the ${CROPS[goalCrop].label} goal seed button first.`
+          : 'Buy a seed packet for any desired crop with zero seeds.',
         why: 'Workers cannot plant without seeds, even when plots and water are ready.',
         targetSelector: activePanel === 'inventory'
           ? '[data-buy-seeds]:not([disabled])'
@@ -1170,11 +1173,16 @@ function seedGuidanceRow(state: FarmState): string {
   const hasSeedAlert = state.alerts.some((alert) => alert.includes('Restock seeds'));
   if (!hasSeedAlert) return '';
 
+  const milestoneCrop = milestoneCropId(state);
   const buyableCrops = state.tier.unlockedCrops.filter((cropId) => (
     state.cropMix[cropId] > 0 &&
     state.inventory.seeds[cropId] === 0 &&
     state.coins >= CROPS[cropId].seedPrice
-  ));
+  )).sort((a, b) => {
+    if (a === milestoneCrop) return -1;
+    if (b === milestoneCrop) return 1;
+    return 0;
+  });
   if (buyableCrops.length === 0) return '';
 
   return `
@@ -1185,14 +1193,28 @@ function seedGuidanceRow(state: FarmState): string {
         <p class="small">Empty plots are ready, but farmers have no seeds to plant.</p>
       </div>
       <div class="seed-actions">
-        ${buyableCrops.map((cropId) => `
-          <button data-buy-seeds="${cropId}" data-seed-guidance-action="${cropId}" title="Buy ${CROPS[cropId].label} seeds" aria-label="Buy ${CROPS[cropId].label} seeds">
-            ${buttonContent(cropIcon(cropId), `${CROPS[cropId].label} ${CROPS[cropId].seedPrice}c`)}
+        ${buyableCrops.map((cropId) => {
+          const isMilestoneCrop = cropId === milestoneCrop;
+          const label = isMilestoneCrop
+            ? `${CROPS[cropId].label} goal ${CROPS[cropId].seedPrice}c`
+            : `${CROPS[cropId].label} ${CROPS[cropId].seedPrice}c`;
+          const actionLabel = isMilestoneCrop
+            ? `Buy ${CROPS[cropId].label} seeds for current milestone`
+            : `Buy ${CROPS[cropId].label} seeds`;
+          return `
+          <button data-buy-seeds="${cropId}" data-seed-guidance-action="${cropId}" title="${actionLabel}" aria-label="${actionLabel}">
+            ${buttonContent(cropIcon(cropId), label)}
           </button>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </section>
   `;
+}
+
+function milestoneCropId(state: FarmState): CropId | null {
+  const milestone = state.tier.nextMilestone.toLowerCase();
+  return CROP_IDS.find((cropId) => milestone.includes(cropId)) ?? null;
 }
 
 function upgradeRow(state: FarmState, upgradeId: UpgradeId): string {

@@ -136,7 +136,7 @@ Side panels provide:
 - Inventory and manual selling, with locked seed purchases labeled clearly until their crop tier is unlocked.
 - Crop mix percentages, with per-crop seed stock and planting readiness so players understand when a target crop is blocked by locked tiers, missing seeds, or lack of empty plots.
 - Tier/milestone details and manual tier claiming.
-- Contextual seed-restock guidance when workers are waiting for buyable seeds.
+- Contextual seed-restock guidance when workers are waiting for buyable seeds. If one buyable seed crop matches the active milestone, that restock action should appear first and identify itself as the goal crop.
 - Upgrades and unlocks.
 - Inspect details for the selected tile, worker, plot, well, or storage bin.
 

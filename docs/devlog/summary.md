@@ -58,3 +58,4 @@
 - 2026-07-07: Extended the default visual LLM-player heuristic to exercise the focused side-panel resize keyboard path, not only list it.
 - 2026-07-07: Removed contradictory Inventory-specific seed-stall HUD copy after the visual loop showed Goals guidance as the direct restock path.
 - 2026-07-07: Re-audited the LLM/player harness visibility model so observations include all hit-test-reachable controls, ignore occluded text/actions, and expose number-input arrow controls.
+- 2026-07-07: Prioritized active milestone crops in Goals seed-restock guidance after the visual loop spent Tier 2 coins on Carrot before Wheat.
