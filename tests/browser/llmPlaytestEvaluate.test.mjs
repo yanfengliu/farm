@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { readFile } from 'node:fs/promises';
 import {
   buildAnnotations,
   evaluatePlaytest,
@@ -104,6 +105,12 @@ describe('LLM playtest evaluator', () => {
     expect(markdown).toContain('[data-mix-number="wheat"]');
     expect(markdown).toContain('adjust');
     expect(markdown).toContain('"value":"40"');
+  });
+
+  test('renders every available player action in the Markdown review packet', async () => {
+    const source = await readFile('scripts/llm-playtest/evaluate.mjs', 'utf8');
+
+    expect(source).not.toContain('scenario.observation.availableActions.slice');
   });
 
   test('renders keyboard controls in visible observations', () => {

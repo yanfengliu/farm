@@ -56,3 +56,5 @@
 - 2026-07-07: Added canvas drag-paint coverage to the LLM/player harness so drag tools can be exercised from visible screenshot coordinates.
 - 2026-07-07: Re-inspected keyboard parity in the LLM/player harness, constrained visual-loop press decisions to listed controls, and exposed focus-required resizer/range key actions.
 - 2026-07-07: Extended the default visual LLM-player heuristic to exercise the focused side-panel resize keyboard path, not only list it.
+- 2026-07-07: Removed contradictory Inventory-specific seed-stall HUD copy after the visual loop showed Goals guidance as the direct restock path.
+- 2026-07-07: Re-audited the LLM/player harness visibility model so observations include all hit-test-reachable controls, ignore occluded text/actions, and expose number-input arrow controls.

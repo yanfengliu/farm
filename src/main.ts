@@ -996,7 +996,7 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
   }
 
   const alerts = state.alerts.join(' ');
-  if (alerts.includes('Buy seeds')) {
+  if (alerts.includes('Restock seeds')) {
     if ((activePanel === 'inventory' || activePanel === 'goals') && !isTutorialSeen('buy-needed-seeds')) {
       return {
         id: 'buy-needed-seeds',
@@ -1167,7 +1167,7 @@ function tierUnlockRow(state: FarmState): string {
 }
 
 function seedGuidanceRow(state: FarmState): string {
-  const hasSeedAlert = state.alerts.some((alert) => alert.includes('Buy seeds'));
+  const hasSeedAlert = state.alerts.some((alert) => alert.includes('Restock seeds'));
   if (!hasSeedAlert) return '';
 
   const buyableCrops = state.tier.unlockedCrops.filter((cropId) => (

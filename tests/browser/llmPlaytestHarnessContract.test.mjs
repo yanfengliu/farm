@@ -84,6 +84,16 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('state.canScrollDown');
   });
 
+  test('scenario observations enumerate all reachable player actions without a fixed cap', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    expect(source).not.toContain('.slice(0, 60)');
+    expect(source).not.toContain('.slice(0, 40)');
+    expect(source).not.toContain('scenario.observation.availableActions.slice');
+    expect(source).toContain('isReachableToPlayer(element)');
+    expect(source).toContain('elementFromPoint');
+  });
+
   test('scripted tour captures the Inspect panel after selecting a visible tile', async () => {
     const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
     const inspectClick = source.indexOf('Inspect a visible farm tile through the canvas');
@@ -101,6 +111,13 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('playerWheelSelector');
     expect(source).toContain('[data-player-scroll="side-panel"]');
     expect(source).toContain('Scroll the visible side panel content');
+  });
+
+  test('scripted seed guidance metric tracks neutral restock copy', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    expect(source).toContain("includes('Restock seeds')");
+    expect(source).not.toContain("includes('Buy seeds')");
   });
 
   test('scripted scenario text observations come from viewport-visible text only', async () => {
@@ -138,8 +155,10 @@ describe('LLM playtest harness player contract', () => {
 
     expect(source).toContain('focusedControlKeyboardActions');
     expect(source).toContain("document.querySelector('[data-panel-resizer]')");
+    expect(source).toContain('input[type="range"], input[type="number"]');
     expect(source).toContain('Resize side panel wider');
     expect(source).toContain('Increase range value');
+    expect(source).toContain('Increase number value');
     expect(source).toContain('requiresFocus: true');
   });
 });

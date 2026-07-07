@@ -133,7 +133,9 @@ describe('farm simulation', () => {
     const game = createFarmGame({ seed: 'seed-guidance', state: stalled });
     advanceFarm(game, 1);
 
-    expect(getFarmSnapshot(game).alerts.join(' ')).toContain('Buy seeds');
+    const alertText = getFarmSnapshot(game).alerts.join(' ');
+    expect(alertText).toContain('Restock seeds');
+    expect(alertText).not.toContain('Inventory');
   });
 
   test('alerts the player when workers have seeds but no empty plots', () => {

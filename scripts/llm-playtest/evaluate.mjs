@@ -230,7 +230,7 @@ export function renderPlaytestMarkdown(run, findings) {
       }
       if ((scenario.observation.availableActions ?? []).length > 0) {
         lines.push('  - availableActions:');
-        for (const action of scenario.observation.availableActions.slice(0, 16)) {
+        for (const action of scenario.observation.availableActions) {
           lines.push(`    - ${formatAvailableAction(action)}`);
         }
       }

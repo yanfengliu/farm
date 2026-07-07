@@ -136,6 +136,16 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('formatActionState(action.state)');
   });
 
+  test('visual observations enumerate all reachable player actions without a fixed cap', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).not.toContain('.slice(0, 60)');
+    expect(source).not.toContain('.slice(0, 40)');
+    expect(source).not.toContain('step.observation.availableActions.slice');
+    expect(source).toContain('isReachableToPlayer(element)');
+    expect(source).toContain('elementFromPoint');
+  });
+
   test('visual observations describe only text visible to the player', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
@@ -203,8 +213,10 @@ describe('LLM visual loop harness contract', () => {
 
     expect(source).toContain('focusedControlKeyboardActions');
     expect(source).toContain("document.querySelector('[data-panel-resizer]')");
+    expect(source).toContain('input[type="range"], input[type="number"]');
     expect(source).toContain('Resize side panel wider');
     expect(source).toContain('Increase range value');
+    expect(source).toContain('Increase number value');
     expect(source).toContain('requiresFocus: true');
     expect(source).toContain('await page.locator(decision.action.selector).first().focus()');
   });

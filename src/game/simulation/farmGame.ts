@@ -726,7 +726,7 @@ function updateSeedGuidanceAlerts(state: FarmState): void {
   if (availableSeeds > 0) return;
   if (!desiredCrops.some((cropId) => state.coins >= CROPS[cropId].seedPrice)) return;
 
-  state.alerts.push('Buy seeds in Inventory to keep farmers planting.');
+  state.alerts.push('Restock seeds to keep farmers planting.');
 }
 
 function updatePlantingSpaceAlerts(state: FarmState): void {

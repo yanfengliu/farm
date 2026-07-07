@@ -117,8 +117,7 @@ async function captureVisualObservation(page, stepIndex, label) {
   return page.evaluate(({ observationIndex, observationLabel, screenshotPath, playerActionSelector }) => {
     const visibleText = visibleTextForPlayer();
     const availableActions = Array.from(document.querySelectorAll(playerActionSelector))
-      .filter((element) => isVisible(element) && !element.disabled)
-      .slice(0, 60)
+      .filter((element) => isVisible(element) && isReachableToPlayer(element) && !element.disabled)
       .map((element) => ({
         label: actionLabelFor(element),
         selector: playerSelectorFor(element),
@@ -162,7 +161,7 @@ async function captureVisualObservation(page, stepIndex, label) {
 
     function toolbarShortcutKeyboardActions() {
       return Array.from(document.querySelectorAll('.toolbar .tool-button'))
-        .filter((button) => isVisible(button))
+        .filter((button) => isVisible(button) && isReachableToPlayer(button))
         .map((button) => {
           const shortcut = button.querySelector?.('.key')?.textContent?.trim();
           if (!shortcut) return null;
@@ -194,7 +193,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     function focusedControlKeyboardActions() {
       const actions = [];
       const resizer = document.querySelector('[data-panel-resizer]');
-      if (resizer && isVisible(resizer)) {
+      if (resizer && isVisible(resizer) && isReachableToPlayer(resizer)) {
         const selector = playerSelectorFor(resizer);
         const state = {
           ...controlStateFor(resizer),
@@ -209,15 +208,22 @@ async function captureVisualObservation(page, stepIndex, label) {
         );
       }
 
-      for (const range of document.querySelectorAll('input[type="range"]')) {
-        if (!isVisible(range) || range.disabled) continue;
-        const selector = playerSelectorFor(range);
-        const label = actionLabelFor(range);
+      for (const input of document.querySelectorAll('input[type="range"], input[type="number"]')) {
+        if (!isVisible(input) || !isReachableToPlayer(input) || input.disabled) continue;
+        const selector = playerSelectorFor(input);
+        const label = actionLabelFor(input);
         const state = {
-          ...controlStateFor(range),
+          ...controlStateFor(input),
           canHold: false,
           requiresFocus: true,
         };
+        if (input instanceof HTMLInputElement && input.type === 'number') {
+          actions.push(
+            { label: `Decrease number value: ${label}`, key: 'ArrowDown', alternateKeys: [], actionHint: 'press', selector, state },
+            { label: `Increase number value: ${label}`, key: 'ArrowUp', alternateKeys: [], actionHint: 'press', selector, state },
+          );
+          continue;
+        }
         actions.push(
           { label: `Decrease range value: ${label}`, key: 'ArrowLeft', alternateKeys: [], actionHint: 'press', selector, state },
           { label: `Increase range value: ${label}`, key: 'ArrowRight', alternateKeys: [], actionHint: 'press', selector, state },
@@ -285,7 +291,9 @@ async function captureVisualObservation(page, stepIndex, label) {
 
           const range = document.createRange();
           range.selectNodeContents(node);
-          const visible = Array.from(range.getClientRects()).some((rect) => isRectVisibleToPlayer(rect, parent));
+          const visible = Array.from(range.getClientRects()).some((rect) => (
+            isRectVisibleToPlayer(rect, parent) && isTextReachableToPlayer(rect, parent)
+          ));
           return visible ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
         },
       });
@@ -328,6 +336,45 @@ async function captureVisualObservation(page, stepIndex, label) {
         rect.bottom > clip.top &&
         rect.top < clip.bottom
       );
+    }
+
+    function isReachableToPlayer(element) {
+      const rect = element.getBoundingClientRect();
+      return hitTestPoints(rect, element).some((point) => {
+        const topElement = document.elementFromPoint(point.x, point.y);
+        return Boolean(topElement && (topElement === element || element.contains(topElement)));
+      });
+    }
+
+    function isTextReachableToPlayer(rect, parent) {
+      return hitTestPoints(rect, parent).some((point) => {
+        const topElement = document.elementFromPoint(point.x, point.y);
+        return Boolean(topElement && (topElement === parent || parent.contains(topElement)));
+      });
+    }
+
+    function hitTestPoints(rect, element) {
+      const clip = visibleClipFor(element);
+      const left = Math.max(rect.left, clip.left);
+      const right = Math.min(rect.right, clip.right);
+      const top = Math.max(rect.top, clip.top);
+      const bottom = Math.min(rect.bottom, clip.bottom);
+      if (right <= left || bottom <= top) return [];
+
+      const insetX = Math.min(4, Math.max(0, (right - left) / 3));
+      const insetY = Math.min(4, Math.max(0, (bottom - top) / 3));
+      return [
+        { x: (left + right) / 2, y: (top + bottom) / 2 },
+        { x: left + insetX, y: top + insetY },
+        { x: right - insetX, y: top + insetY },
+        { x: left + insetX, y: bottom - insetY },
+        { x: right - insetX, y: bottom - insetY },
+      ].filter((point) => (
+        point.x >= 0 &&
+        point.x < window.innerWidth &&
+        point.y >= 0 &&
+        point.y < window.innerHeight
+      ));
     }
 
     function visibleClipFor(element) {
@@ -995,7 +1042,7 @@ function renderVisualLoopMarkdown(run) {
     lines.push(`Execution: ${step.execution.ok ? 'ok' : `failed - ${step.execution.error}`}`);
     lines.push('');
     lines.push('Available actions:');
-    for (const action of step.observation.availableActions.slice(0, 18)) {
+    for (const action of step.observation.availableActions) {
       lines.push(`- ${action.label || action.selector} | ${action.selector} | ${action.actionHint}${formatActionState(action.state)} | ${JSON.stringify(action.bounds)}`);
     }
     if ((step.observation.keyboardActions ?? []).length > 0) {

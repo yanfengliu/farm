@@ -330,8 +330,7 @@ async function captureScenario(page, id, label) {
     const claimableMatch = text.match(/claimableTier=(\d+)/);
     const visibleText = visibleTextForPlayer();
     const availableActions = Array.from(document.querySelectorAll(playerActionSelector))
-      .filter((element) => isVisible(element) && !element.disabled)
-      .slice(0, 40)
+      .filter((element) => isVisible(element) && isReachableToPlayer(element) && !element.disabled)
       .map((element) => ({
         label: element.getAttribute('aria-label') || element.getAttribute('title') || compactText(element.textContent ?? ''),
         selector: playerSelectorFor(element),
@@ -375,9 +374,9 @@ async function captureScenario(page, id, label) {
         idleWorkers: state.workers.filter((worker) => worker.task.kind === 'idle').length,
         availableUnlockedSeeds: unlockedCrops.reduce((sum, cropId) => sum + state.inventory.seeds[cropId], 0),
         canBuyUnlockedSeeds: unlockedCrops.some((cropId) => state.coins >= state.crops[cropId].seedPrice),
-        hasSeedGuidance: (document.body.textContent ?? '').includes('Buy seeds'),
+        hasSeedGuidance: (document.body.textContent ?? '').includes('Restock seeds'),
         seedGuidanceActionCount: Array.from(document.querySelectorAll('[data-seed-guidance-action], [data-buy-seeds]:not([disabled])'))
-          .filter((element) => isVisible(element) && !element.disabled)
+          .filter((element) => isVisible(element) && isReachableToPlayer(element) && !element.disabled)
           .length,
       },
     };
@@ -396,7 +395,9 @@ async function captureScenario(page, id, label) {
 
           const range = document.createRange();
           range.selectNodeContents(node);
-          const visible = Array.from(range.getClientRects()).some((rect) => isRectVisibleToPlayer(rect, parent));
+          const visible = Array.from(range.getClientRects()).some((rect) => (
+            isRectVisibleToPlayer(rect, parent) && isTextReachableToPlayer(rect, parent)
+          ));
           return visible ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
         },
       });
@@ -423,7 +424,7 @@ async function captureScenario(page, id, label) {
 
     function toolbarShortcutKeyboardActions() {
       return Array.from(document.querySelectorAll('.toolbar .tool-button'))
-        .filter((button) => isVisible(button))
+        .filter((button) => isVisible(button) && isReachableToPlayer(button))
         .map((button) => {
           const shortcut = button.querySelector?.('.key')?.textContent?.trim();
           if (!shortcut) return null;
@@ -459,7 +460,7 @@ async function captureScenario(page, id, label) {
     function focusedControlKeyboardActions() {
       const actions = [];
       const resizer = document.querySelector('[data-panel-resizer]');
-      if (resizer && isVisible(resizer)) {
+      if (resizer && isVisible(resizer) && isReachableToPlayer(resizer)) {
         const selector = playerSelectorFor(resizer);
         const state = {
           ...controlStateFor(resizer),
@@ -474,15 +475,22 @@ async function captureScenario(page, id, label) {
         );
       }
 
-      for (const range of document.querySelectorAll('input[type="range"]')) {
-        if (!isVisible(range) || range.disabled) continue;
-        const selector = playerSelectorFor(range);
-        const label = actionLabelFor(range);
+      for (const input of document.querySelectorAll('input[type="range"], input[type="number"]')) {
+        if (!isVisible(input) || !isReachableToPlayer(input) || input.disabled) continue;
+        const selector = playerSelectorFor(input);
+        const label = actionLabelFor(input);
         const state = {
-          ...controlStateFor(range),
+          ...controlStateFor(input),
           canHold: false,
           requiresFocus: true,
         };
+        if (input instanceof HTMLInputElement && input.type === 'number') {
+          actions.push(
+            { label: `Decrease number value: ${label}`, key: 'ArrowDown', alternateKeys: [], actionHint: 'press', selector, state },
+            { label: `Increase number value: ${label}`, key: 'ArrowUp', alternateKeys: [], actionHint: 'press', selector, state },
+          );
+          continue;
+        }
         actions.push(
           { label: `Decrease range value: ${label}`, key: 'ArrowLeft', alternateKeys: [], actionHint: 'press', selector, state },
           { label: `Increase range value: ${label}`, key: 'ArrowRight', alternateKeys: [], actionHint: 'press', selector, state },
@@ -565,6 +573,45 @@ async function captureScenario(page, id, label) {
         rect.bottom > clip.top &&
         rect.top < clip.bottom
       );
+    }
+
+    function isReachableToPlayer(element) {
+      const rect = element.getBoundingClientRect();
+      return hitTestPoints(rect, element).some((point) => {
+        const topElement = document.elementFromPoint(point.x, point.y);
+        return Boolean(topElement && (topElement === element || element.contains(topElement)));
+      });
+    }
+
+    function isTextReachableToPlayer(rect, parent) {
+      return hitTestPoints(rect, parent).some((point) => {
+        const topElement = document.elementFromPoint(point.x, point.y);
+        return Boolean(topElement && (topElement === parent || parent.contains(topElement)));
+      });
+    }
+
+    function hitTestPoints(rect, element) {
+      const clip = visibleClipFor(element);
+      const left = Math.max(rect.left, clip.left);
+      const right = Math.min(rect.right, clip.right);
+      const top = Math.max(rect.top, clip.top);
+      const bottom = Math.min(rect.bottom, clip.bottom);
+      if (right <= left || bottom <= top) return [];
+
+      const insetX = Math.min(4, Math.max(0, (right - left) / 3));
+      const insetY = Math.min(4, Math.max(0, (bottom - top) / 3));
+      return [
+        { x: (left + right) / 2, y: (top + bottom) / 2 },
+        { x: left + insetX, y: top + insetY },
+        { x: right - insetX, y: top + insetY },
+        { x: left + insetX, y: bottom - insetY },
+        { x: right - insetX, y: bottom - insetY },
+      ].filter((point) => (
+        point.x >= 0 &&
+        point.x < window.innerWidth &&
+        point.y >= 0 &&
+        point.y < window.innerHeight
+      ));
     }
 
     function visibleClipFor(element) {

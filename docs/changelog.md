@@ -52,3 +52,5 @@
 - Added canvas drag-paint coverage to the scripted LLM surface tour and visual-loop drag decisions with screenshot-relative start coordinates.
 - Tightened visual-loop key presses to listed player keyboard controls and exposed selector-focused resizer/range key actions in LLM/player observations.
 - Taught the default visual LLM loop to actually focus the side-panel resize handle and use its keyboard resize control.
+- Changed the seed-stall HUD alert to neutral "Restock seeds" copy so it no longer contradicts Goals-based restock guidance.
+- Re-audited LLM/player harness visibility so observations list all hit-test-reachable controls, filter out occluded text/actions, and expose number-input arrow controls.
