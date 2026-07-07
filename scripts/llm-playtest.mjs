@@ -8,6 +8,8 @@ import { buildAnnotations, evaluatePlaytest, renderPlaytestMarkdown } from './ll
 const cwd = process.cwd();
 const outputDir = path.join(cwd, 'output', 'playwright', 'llm-playtest');
 const screenshotDir = path.join(outputDir, 'screenshots');
+const preferredFarmUrl = 'http://127.0.0.1:5175/';
+const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
 
 await fs.rm(outputDir, { recursive: true, force: true });
 await fs.mkdir(screenshotDir, { recursive: true });
@@ -16,7 +18,7 @@ const server = await createServer({
   root: cwd,
   configFile: false,
   logLevel: 'error',
-  server: { host: '127.0.0.1', port: 0 },
+  server: { host: '127.0.0.1', port: 5175, strictPort: false },
 });
 
 const consoleErrors = [];
@@ -27,8 +29,10 @@ let scenarioActionCursor = 0;
 let browser;
 
 try {
-  await server.listen();
-  const url = server.resolvedUrls?.local?.[0] ?? 'http://127.0.0.1:5173/';
+  if (!configuredPlaytestUrl) {
+    await server.listen();
+  }
+  const url = configuredPlaytestUrl || server.resolvedUrls?.local?.[0] || preferredFarmUrl;
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   await context.addInitScript(() => {

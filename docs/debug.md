@@ -26,6 +26,8 @@ The browser bundle imports `civ-engine` through `src/game/simulation/civEngine.t
 
 The browser portion of the harness controls the game through visible player actions and records the visible text, available controls, and actions taken for each screenshot. Debug APIs are read afterward for metrics, and the Node-side replay bundle remains available for deterministic investigation.
 
+Use `FARM_PLAYTEST_URL=http://127.0.0.1:5175/` when a Farm dev server is already running and the browser portion should attach to that visible local instance.
+
 Use `npm run playtest:llm:replay` to reopen the saved bundle with `SessionReplayer`, run `selfCheck()`, and sample marker ticks without rerunning the browser harness.
 
 ## LLM Visual Loop Debugging
@@ -40,6 +42,8 @@ Use `npm run playtest:llm:replay` to reopen the saved bundle with `SessionReplay
 The visual loop does not rely on browser debug APIs for decisions. Each step stores the screenshot path, visible text, available controls, the decision rationale, the player action executed, and any execution error. Use `latest.html` when debugging why an LLM or heuristic chose an action; use `latest.json` when comparing selectors, bounds, canvas coordinates, or prompt payloads.
 
 If `FARM_LLM_VISUAL_LOOP_COMMAND` is set, the command receives the same observation packet over stdin and must return a decision JSON object. This makes external model-driven playtests debuggable with the same replay artifacts as local heuristic runs.
+
+Use `FARM_PLAYTEST_URL=http://127.0.0.1:5175/` to run the visual loop against the same local Farm server you are inspecting manually.
 
 ## Debugging Discipline
 

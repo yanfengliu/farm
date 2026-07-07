@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 5173",
+    "dev": "vite --host 127.0.0.1 --port 5175 --strictPort",
     "playtest:llm": "node scripts/llm-playtest.mjs",
     "playtest:llm:visual-loop": "node scripts/llm-visual-loop.mjs",
     "playtest:llm:replay": "node scripts/llm-playtest-replay.mjs",

@@ -17,7 +17,7 @@ describe('pixel icons', () => {
       server: { host: '127.0.0.1', port: 0 },
     });
     await server.listen();
-    url = server.resolvedUrls?.local?.[0] ?? 'http://127.0.0.1:5173/';
+    url = server.resolvedUrls?.local?.[0] ?? 'http://127.0.0.1:5175/';
     browser = await chromium.launch({ headless: true });
   });
 

@@ -8,6 +8,8 @@ import { hasVisibleSellableCrops } from './llm-visual-loop/visible-state.mjs';
 const cwd = process.cwd();
 const outputDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop');
 const screenshotDir = path.join(outputDir, 'steps');
+const preferredFarmUrl = 'http://127.0.0.1:5175/';
+const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
 const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 20, 1, 40);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
@@ -16,20 +18,22 @@ const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
 await fs.rm(outputDir, { recursive: true, force: true });
 await fs.mkdir(screenshotDir, { recursive: true });
 
-const server = await createServer({
-  root: cwd,
-  configFile: false,
-  logLevel: 'error',
-  server: { host: '127.0.0.1', port: 0 },
-});
-
 const consoleErrors = [];
 const pageErrors = [];
+let server;
 let browser;
 
 try {
-  await server.listen();
-  const url = server.resolvedUrls?.local?.[0] ?? 'http://127.0.0.1:5173/';
+  if (!configuredPlaytestUrl) {
+    server = await createServer({
+      root: cwd,
+      configFile: false,
+      logLevel: 'error',
+      server: { host: '127.0.0.1', port: 5175, strictPort: false },
+    });
+    await server.listen();
+  }
+  const url = configuredPlaytestUrl || server?.resolvedUrls?.local?.[0] || preferredFarmUrl;
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   await context.addInitScript(() => {
@@ -102,7 +106,7 @@ try {
   }, null, 2));
 } finally {
   if (browser) await browser.close();
-  await server.close();
+  if (server) await server.close();
 }
 
 async function captureVisualObservation(page, stepIndex, label) {

@@ -8,6 +8,18 @@ describe('LLM visual loop harness contract', () => {
     expect(packageJson.scripts['playtest:llm:visual-loop']).toBe('node scripts/llm-visual-loop.mjs');
   });
 
+  test('farm dev and playtest defaults avoid the AoE localhost port', async () => {
+    const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+    const scriptedPlaytest = await readFile('scripts/llm-playtest.mjs', 'utf8');
+    const visualLoop = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(packageJson.scripts.dev).toContain('--port 5175');
+    expect(packageJson.scripts.dev).toContain('--strictPort');
+    expect(scriptedPlaytest).toContain('FARM_PLAYTEST_URL');
+    expect(visualLoop).toContain('FARM_PLAYTEST_URL');
+    expect(`${packageJson.scripts.dev}\n${scriptedPlaytest}\n${visualLoop}`).not.toContain('5173');
+  });
+
   test('visual loop observes screenshots and executes only player-facing actions', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

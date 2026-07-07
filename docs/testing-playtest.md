@@ -12,6 +12,8 @@ Simulation tests should verify user-visible mechanics: worker autonomy, crop gro
 
 ## Browser Playtest
 
+Use `npm run dev` for the user-facing local server. Farm reserves `http://127.0.0.1:5175/` so it does not collide with other local games.
+
 Browser tests should start the dev server, open the playable first screen, and inspect:
 
 - `window.render_game_to_text()`
@@ -30,7 +32,7 @@ Run the LLM-oriented browser harness with:
 npm run playtest:llm
 ```
 
-The harness starts Vite on a local port, drives browser scenarios through visible player controls, captures screenshots and structured debug state, records a civ-engine replay bundle, and writes:
+The harness starts Vite on Farm's preferred local port, drives browser scenarios through visible player controls, captures screenshots and structured debug state, records a civ-engine replay bundle, and writes:
 
 - `output/playwright/llm-playtest/latest.md`
 - `output/playwright/llm-playtest/latest.json`
@@ -42,7 +44,7 @@ The harness starts Vite on a local port, drives browser scenarios through visibl
 
 Use the Markdown report as the review packet for an LLM-player loop: inspect the screenshots, visible text, available actions, player action log, structured findings, and annotations, choose the highest-impact player-facing improvement, implement it, then rerun the harness.
 
-Browser scenario control should stay player-like. The harness may read debug APIs after screenshots for metrics, but browser scenario actions should use visible inputs such as button clicks, keyboard shortcuts, pointer moves, waits, and viewport changes rather than `window.advanceTime()` or direct simulation commands.
+Browser scenario control should stay player-like. The harness may read debug APIs after screenshots for metrics, but browser scenario actions should use visible inputs such as button clicks, keyboard shortcuts, pointer moves, waits, and viewport changes rather than `window.advanceTime()` or direct simulation commands. To point the harness at an already-running Farm server, set `FARM_PLAYTEST_URL` to `http://127.0.0.1:5175/`.
 
 The default scripted scenario should exercise the full player surface before declaring the game healthy: panel tabs, toolbar tools, canvas tile clicks, side-panel drag/collapse, pause and speed controls, undo/redo, crop-mix range inputs, selling, viewport resize, and a normal page reload that proves localStorage autosave restores the progressed farm. The harness should clear localStorage only for the initial clean boot; reload checks must preserve the saved state.
 
@@ -52,7 +54,7 @@ For step-by-step visual playtesting, run:
 npm run playtest:llm:visual-loop
 ```
 
-This starts the browser, captures a screenshot, extracts visible text and visible controls, asks a decision provider for one player action, executes only that player-facing action, and repeats. The default provider is a deterministic local heuristic so the command works without API keys. To plug in a real LLM or another agent, set `FARM_LLM_VISUAL_LOOP_COMMAND` to a command that reads the observation JSON from stdin and returns a decision JSON object with `rationale`, `action`, and `expectedResult`.
+This starts the browser, captures a screenshot, extracts visible text and visible controls, asks a decision provider for one player action, executes only that player-facing action, and repeats. The default provider is a deterministic local heuristic so the command works without API keys. To reuse the visible 5175 server instead of starting a temporary Vite server, set `FARM_PLAYTEST_URL`. To plug in a real LLM or another agent, set `FARM_LLM_VISUAL_LOOP_COMMAND` to a command that reads the observation JSON from stdin and returns a decision JSON object with `rationale`, `action`, and `expectedResult`.
 
 Visual loop action kinds are `click`, `drag`, `adjust`, `wheel`, `press`, `wait`, `viewport`, and `stop`. Click actions may include `x`/`y` coordinates relative to the clicked element, which lets an LLM choose canvas locations from the screenshot. Drag actions move the mouse from the center of a visible control by a bounded pixel delta, wheel actions move the mouse over a visible target before scrolling, adjust actions click a visible range input at a bounded 0-100 target, and press actions may include a bounded `durationMs` hold for camera panning. Tune local runs with `FARM_VISUAL_LOOP_STEPS`, `FARM_VISUAL_LOOP_WAIT_MS`, and `FARM_VISUAL_LOOP_SETTLE_MS`.
 
