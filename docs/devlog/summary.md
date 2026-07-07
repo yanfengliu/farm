@@ -74,3 +74,4 @@
 - 2026-07-07: Reused `civ-engine`'s visual playtest runner for the step-by-step LLM-player loop, with Farm-specific adapters preserving screenshot capture, player controls, local heuristics, provider prompts, and report artifacts.
 - 2026-07-07: Tightened the visual LLM-player late-game heuristic so open-ended Tier 3 audits do not run to the cap by repeatedly selling tiny non-urgent harvest trickles.
 - 2026-07-07: Added hover/focus labels above compact icon-only toolbar buttons so smaller desktop layouts keep speed/tool controls understandable without widening the toolbar.
+- 2026-07-07: Made Inventory seed-restock Farm Guide cards name and target the active milestone crop when its seed row is buyable.

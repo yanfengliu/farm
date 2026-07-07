@@ -998,18 +998,22 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
   const alerts = state.alerts.join(' ');
   if (alerts.includes('Restock seeds')) {
     const goalCrop = milestoneCropId(state);
+    const buyableGoalCrop = goalCrop && seedBuyTargetAvailable(state, goalCrop) ? goalCrop : null;
+    const goalSeedAction = buyableGoalCrop
+      ? `Buy the ${CROPS[buyableGoalCrop].label} goal seed button first.`
+      : null;
     if ((activePanel === 'inventory' || activePanel === 'goals') && !isTutorialSeen('buy-needed-seeds')) {
       return {
         id: 'buy-needed-seeds',
         icon: 'seed',
         title: 'Buy Seeds',
         body: 'Farmers plant seeds automatically once empty plots are available.',
-        action: activePanel === 'goals' && goalCrop
-          ? `Buy the ${CROPS[goalCrop].label} goal seed button first.`
+        action: goalSeedAction
+          ? goalSeedAction
           : 'Buy a seed packet for any desired crop with zero seeds.',
         why: 'Workers cannot plant without seeds, even when plots and water are ready.',
         targetSelector: activePanel === 'inventory'
-          ? '[data-buy-seeds]:not([disabled])'
+          ? (buyableGoalCrop ? `[data-buy-seeds="${buyableGoalCrop}"]:not([disabled])` : '[data-buy-seeds]:not([disabled])')
           : '[data-seed-guidance-action]',
       };
     }
@@ -1234,6 +1238,13 @@ function seedGuidanceRow(state: FarmState): string {
 function milestoneCropId(state: FarmState): CropId | null {
   const milestone = state.tier.nextMilestone.toLowerCase();
   return CROP_IDS.find((cropId) => milestone.includes(cropId)) ?? null;
+}
+
+function seedBuyTargetAvailable(state: FarmState, cropId: CropId): boolean {
+  return state.tier.unlockedCrops.includes(cropId) &&
+    state.cropMix[cropId] > 0 &&
+    state.inventory.seeds[cropId] === 0 &&
+    state.coins >= CROPS[cropId].seedPrice;
 }
 
 function upgradeRow(state: FarmState, upgradeId: UpgradeId): string {

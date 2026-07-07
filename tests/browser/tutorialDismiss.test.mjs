@@ -83,6 +83,40 @@ describe('tutorial tips', () => {
     }
   }, 15000);
 
+  test('inventory seed shortage tip names the active milestone crop first', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'inventory-milestone-seed-tip' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.cropMix = { carrot: 0.6, wheat: 0.4, tomato: 0 };
+    savedState.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0 };
+    savedState.coins = 20;
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="buy-needed-seeds"]');
+
+      const tipText = await page.locator('.tutorial-tip').innerText();
+      const wheatTarget = await page.locator('[data-buy-seeds="wheat"]:not([disabled])').first().boundingBox();
+
+      expect(wheatTarget).not.toBeNull();
+      expect(tipText).toContain('Buy Seeds');
+      expect(tipText).toMatch(/Buy the Wheat goal seed button first/i);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('tutorial tips use a consistent readable guidance format', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'guidance-format-seed' }));
     savedState.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0 };
@@ -117,7 +151,7 @@ describe('tutorial tips', () => {
       expect(format.sectionLabels).toEqual(['Do', 'Why']);
       expect(format.detailCount).toBe(2);
       expect(format.minHeight).toBeGreaterThanOrEqual(150);
-      expect(format.text).toContain('Buy a seed packet');
+      expect(format.text).toMatch(/Buy (the Carrot goal seed button first|a seed packet)/i);
       expect(format.text).toContain('Workers cannot plant without seeds');
     } finally {
       await context.close();

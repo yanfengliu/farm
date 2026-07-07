@@ -70,3 +70,4 @@
 - Reused `civ-engine`'s visual playtest runner in the step-by-step LLM-player loop while keeping Farm-specific screenshot, control, provider, and report adapters.
 - Taught the visual LLM-player loop to stop natural late-game audits instead of endlessly selling tiny open-ended Tier 3 inventory trickles.
 - Added compact hover/focus labels above icon-only toolbar buttons so collapsed desktop controls remain understandable.
+- Made Inventory seed-restock Farm Guide cards name and target the active milestone crop when its seed row is buyable.
