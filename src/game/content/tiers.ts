@@ -32,7 +32,7 @@ export const FARM_TIERS: Record<TierLevel, FarmTierDefinition> = {
     level: 3,
     label: 'Tomato Rows',
     unlockedCrops: ['carrot', 'wheat', 'tomato'],
-    nextMilestone: 'Keep expanding the farm',
+    nextMilestone: 'Tune mix, expand land, upgrade workers',
     reward: 'Open-ended farm tuning.',
     rewardDetails: ['All MVP crops available', 'Tune crop mix freely', 'Keep expanding land', 'Optimize the farm loop'],
   },

@@ -2,6 +2,7 @@ import { chromium } from '@playwright/test';
 import process from 'node:process';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createServer } from 'vite';
+import { FARM_TIERS } from '../../src/game/content/tiers';
 import { createFarmGame, getFarmSnapshot } from '../../src/game/simulation/farmGame';
 
 let server;
@@ -475,12 +476,7 @@ describe('visual polish', () => {
 
   test('terminal tier goals card explains open-ended tuning', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'terminal-tier-copy' }));
-    savedState.tier = {
-      level: 3,
-      label: 'Tomato Rows',
-      unlockedCrops: ['carrot', 'wheat', 'tomato'],
-      nextMilestone: 'Keep expanding the farm',
-    };
+    savedState.tier = FARM_TIERS[3];
 
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     await context.addInitScript((state) => {
@@ -491,11 +487,16 @@ describe('visual polish', () => {
 
     try {
       await page.goto(url, { waitUntil: 'networkidle' });
+      const hudObjective = await page.locator('.hud-alert').textContent();
+      expect(hudObjective).toContain('Tune mix, expand land, upgrade workers');
+
       await page.click('[data-panel="goals"]');
       await page.waitForSelector('.tier-current-card');
 
+      const panelText = await page.locator('#panel-content').textContent();
       const cardText = await page.locator('.tier-current-card').textContent();
       const normalizedCardText = cardText?.toLowerCase() ?? '';
+      expect(panelText).toContain('Tune mix, expand land, upgrade workers');
       expect(cardText).toContain('All MVP crops are unlocked');
       expect(normalizedCardText).toContain('tune crop mix');
       expect(normalizedCardText).not.toContain('claim the next tier');
