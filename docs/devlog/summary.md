@@ -64,3 +64,4 @@
 - 2026-07-07: Taught the visual LLM-player loop to use visible zero-seed Inventory buy buttons before stopping, matching what a player can infer from the panel.
 - 2026-07-07: Required the visual LLM-player loop to observe a watch frame after recent player actions before stopping, preventing post-action guidance from being missed.
 - 2026-07-07: Removed fixed visible-text caps from scripted and visual LLM/player observations so the harness sees the full viewport-visible text.
+- 2026-07-07: Made visible Inventory restock choices prefer the active milestone crop after the visual loop showed Wheat progress but kept buying Carrot first.

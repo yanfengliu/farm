@@ -70,6 +70,15 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('Visible Inventory seed rows show zero stock, so buy seeds before ending the run.');
   });
 
+  test('visual loop prefers the active milestone crop when restocking visible inventory rows', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('function findSeedActionForVisibleNeed(observation)');
+    expect(source).toContain('visibleMilestoneCrop(observation.visibleText)');
+    expect(source).toContain('findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`)');
+    expect(source).toContain('const seedAction = findSeedActionForVisibleNeed(observation);');
+  });
+
   test('visual loop follows the crop mix tutorial prompt', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

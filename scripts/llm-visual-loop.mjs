@@ -497,7 +497,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(claimAction, 'A visible tier reward is ready, so claim it before watching the farm continue.');
   }
 
-  const seedAction = findSeedAction(observation);
+  const seedAction = findSeedActionForVisibleNeed(observation);
   if (seedAction && hasExplicitSeedGuidance(observation.visibleText)) {
     return clickDecision(seedAction, 'Workers need seeds and the visible guidance offers a direct seed-buying action.');
   }
@@ -780,6 +780,25 @@ function findSeedAction(observation) {
     findAction(observation, '[data-buy-seeds') ||
     observation.availableActions.find((action) => /buy .*seeds/i.test(action.label))
   );
+}
+
+function findSeedActionForVisibleNeed(observation) {
+  const milestoneCrop = visibleMilestoneCrop(observation.visibleText);
+  if (milestoneCrop && visibleSeedStock(observation.visibleText, milestoneCrop) === 0) {
+    return findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`) || findSeedAction(observation);
+  }
+  return findSeedAction(observation);
+}
+
+function visibleMilestoneCrop(visibleText) {
+  const match = visibleText.match(/Harvest\s+\d+\/\d+\s+(carrot|wheat|tomato)/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
+function visibleSeedStock(visibleText, cropId) {
+  const label = `${cropId[0].toUpperCase()}${cropId.slice(1)}`;
+  const match = visibleText.match(new RegExp(`${label} seeds:\\s*(\\d+)`, 'i'));
+  return match ? Number(match[1]) : null;
 }
 
 function findUpgradeAction(observation) {
