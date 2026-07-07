@@ -84,6 +84,23 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('state.canScrollDown');
   });
 
+  test('scenario observations expose directly loadable screenshot files and aligned DOM samples', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+    const captureStart = source.indexOf('async function captureScenario');
+    const captureEnd = source.indexOf('async function recordReplayBundle');
+    const captureSource = source.slice(captureStart, captureEnd);
+    const observationIndex = captureSource.indexOf('const scenario = await page.evaluate');
+    const screenshotIndex = captureSource.indexOf('await page.screenshot');
+
+    expect(source).toContain('const screenshotFile = path.join(screenshotDir, screenshotName)');
+    expect(source).toContain('screenshotFile: absoluteScreenshotFile');
+    expect(captureSource).toContain('requestAnimationFrame');
+    expect(observationIndex).toBeGreaterThan(-1);
+    expect(screenshotIndex).toBeGreaterThan(-1);
+    expect(observationIndex).toBeLessThan(screenshotIndex);
+    expect(captureSource).toContain('return scenario;');
+  });
+
   test('scenario observations enumerate all reachable player actions without a fixed cap', async () => {
     const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
 

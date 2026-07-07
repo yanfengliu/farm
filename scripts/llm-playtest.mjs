@@ -305,10 +305,13 @@ function consumeScenarioActions() {
 
 async function captureScenario(page, id, label) {
   const screenshotName = `${id}.png`;
-  await page.screenshot({ path: path.join(screenshotDir, screenshotName), fullPage: false });
+  const screenshotFile = path.join(screenshotDir, screenshotName);
+  const absoluteScreenshotFile = path.resolve(screenshotFile);
+  const screenshotPath = path.join('screenshots', screenshotName).replaceAll('\\', '/');
   const actionsSincePrevious = consumeScenarioActions();
 
-  return page.evaluate(({ scenarioId, scenarioLabel, screenshotPath, playerActionsSincePrevious, playerActionSelector }) => {
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
+  const scenario = await page.evaluate(({ scenarioId, scenarioLabel, screenshotPath, screenshotFile, playerActionsSincePrevious, playerActionSelector }) => {
     const state = window.__farmDebug.getState();
     const text = window.render_game_to_text();
     const tiles = Object.values(state.tiles);
@@ -347,9 +350,11 @@ async function captureScenario(page, id, label) {
       id: scenarioId,
       label: scenarioLabel,
       screenshot: screenshotPath,
+      screenshotFile,
       text,
       observation: {
         screenshot: screenshotPath,
+        screenshotFile,
         visibleText,
         availableActions,
         keyboardActions,
@@ -672,10 +677,13 @@ async function captureScenario(page, id, label) {
   }, {
     scenarioId: id,
     scenarioLabel: label,
-    screenshotPath: path.join('screenshots', screenshotName).replaceAll('\\', '/'),
+    screenshotPath,
+    screenshotFile: absoluteScreenshotFile,
     playerActionsSincePrevious: actionsSincePrevious,
     playerActionSelector: PLAYER_ACTION_SELECTOR,
   });
+  await page.screenshot({ path: screenshotFile, fullPage: false });
+  return scenario;
 }
 
 async function recordReplayBundle(server, annotations) {

@@ -112,9 +112,12 @@ try {
 
 async function captureVisualObservation(page, stepIndex, label) {
   const screenshotName = `${String(stepIndex).padStart(2, '0')}-${label}.png`;
-  await page.screenshot({ path: path.join(screenshotDir, screenshotName), fullPage: false });
+  const screenshotFile = path.join(screenshotDir, screenshotName);
+  const absoluteScreenshotFile = path.resolve(screenshotFile);
+  const screenshotPath = path.join('steps', screenshotName).replaceAll('\\', '/');
 
-  return page.evaluate(({ observationIndex, observationLabel, screenshotPath, playerActionSelector }) => {
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
+  const observation = await page.evaluate(({ observationIndex, observationLabel, screenshotPath, screenshotFile, playerActionSelector }) => {
     const visibleText = visibleTextForPlayer();
     const availableActions = Array.from(document.querySelectorAll(playerActionSelector))
       .filter((element) => isVisible(element) && isReachableToPlayer(element) && !element.disabled)
@@ -134,16 +137,18 @@ async function captureVisualObservation(page, stepIndex, label) {
       index: observationIndex,
       label: observationLabel,
       screenshot: screenshotPath,
+      screenshotFile,
       visibleText,
       availableActions,
       keyboardActions,
-      prompt: buildDecisionPrompt({ screenshotPath, visibleText, availableActions, keyboardActions }),
+      prompt: buildDecisionPrompt({ screenshotPath, screenshotFile, visibleText, availableActions, keyboardActions }),
     };
 
     function buildDecisionPrompt(observation) {
       return [
         'You are playtesting a desktop idle farming game as a real player.',
         'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click and canvas drag actions may include x/y coordinates relative to the chosen element. Press actions must use a listed keyboard control; include its selector when the control says it requires focus.',
+        `Screenshot file to inspect: ${observation.screenshotFile}`,
         JSON.stringify(observation, null, 2),
       ].join('\n\n');
     }
@@ -436,9 +441,12 @@ async function captureVisualObservation(page, stepIndex, label) {
   }, {
     observationIndex: stepIndex,
     observationLabel: label,
-    screenshotPath: path.join('steps', screenshotName).replaceAll('\\', '/'),
+    screenshotPath,
+    screenshotFile: absoluteScreenshotFile,
     playerActionSelector: PLAYER_ACTION_SELECTOR,
   });
+  await page.screenshot({ path: screenshotFile, fullPage: false });
+  return observation;
 }
 
 async function chooseVisualLoopAction({ observation, history, defaultWaitMs, providerCommand }) {
@@ -1109,6 +1117,7 @@ function renderVisualLoopMarkdown(run) {
     lines.push(`### Step ${step.index}`);
     lines.push('');
     lines.push(`Screenshot: ${step.observation.screenshot}`);
+    lines.push(`Screenshot file: ${step.observation.screenshotFile}`);
     lines.push(`Visible text: ${step.observation.visibleText}`);
     lines.push(`Decision: ${step.decision.action.kind} - ${step.decision.rationale}`);
     lines.push(`Expected result: ${step.decision.expectedResult}`);
@@ -1131,6 +1140,7 @@ function renderVisualLoopMarkdown(run) {
     lines.push('## Final Observation');
     lines.push('');
     lines.push(`Screenshot: ${run.finalObservation.screenshot}`);
+    lines.push(`Screenshot file: ${run.finalObservation.screenshotFile}`);
     lines.push(`Visible text: ${run.finalObservation.visibleText}`);
     lines.push('');
   }

@@ -33,6 +33,30 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('screenshot');
   });
 
+  test('visual loop observations give LLM providers a directly loadable screenshot file', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('const screenshotFile = path.join(screenshotDir, screenshotName)');
+    expect(source).toContain('screenshotFile: absoluteScreenshotFile');
+    expect(source).toContain('screenshotFile, visibleText, availableActions, keyboardActions');
+    expect(source).toContain('`Screenshot file to inspect: ${observation.screenshotFile}`');
+  });
+
+  test('visual loop samples DOM observation on a rendered frame before writing the screenshot', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+    const captureStart = source.indexOf('async function captureVisualObservation');
+    const captureEnd = source.indexOf('async function chooseVisualLoopAction');
+    const captureSource = source.slice(captureStart, captureEnd);
+    const observationIndex = captureSource.indexOf('const observation = await page.evaluate');
+    const screenshotIndex = captureSource.indexOf('await page.screenshot');
+
+    expect(captureSource).toContain('requestAnimationFrame');
+    expect(observationIndex).toBeGreaterThan(-1);
+    expect(screenshotIndex).toBeGreaterThan(-1);
+    expect(observationIndex).toBeLessThan(screenshotIndex);
+    expect(captureSource).toContain('return observation;');
+  });
+
   test('visual action selectors preserve readable data attribute values', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

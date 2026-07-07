@@ -55,8 +55,10 @@ describe('LLM playtest evaluator', () => {
       scenarios: [
         {
           ...baseRun.scenarios[0],
+          screenshotFile: 'C:/tmp/farm/tier-ready.png',
           observation: {
             screenshot: 'tier-ready.png',
+            screenshotFile: 'C:/tmp/farm/tier-ready.png',
             visibleText: 'Coins 25 Storage 9/15 Workers 1 Tier Ready Claim Rewards',
             availableActions: [
               { label: 'Claim Rewards', selector: '[data-command="claim-tier"]', bounds: { x: 900, y: 300, width: 120, height: 28 } },
@@ -72,6 +74,8 @@ describe('LLM playtest evaluator', () => {
     const markdown = renderPlaytestMarkdown(run, []);
 
     expect(markdown).toContain('Visible Observation');
+    expect(markdown).toContain('screenshotFile');
+    expect(markdown).toContain('C:/tmp/farm/tier-ready.png');
     expect(markdown).toContain('Claim Rewards');
     expect(markdown).toContain('[data-command="claim-tier"]');
     expect(markdown).toContain('Open Goals panel');

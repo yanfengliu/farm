@@ -216,9 +216,13 @@ export function renderPlaytestMarkdown(run, findings) {
     lines.push('');
     lines.push(`- id: \`${scenario.id}\``);
     if (scenario.screenshot) lines.push(`- screenshot: \`${scenario.screenshot}\``);
+    if (scenario.screenshotFile) lines.push(`- screenshotFile: \`${scenario.screenshotFile}\``);
     if (scenario.text) lines.push(`- text: \`${scenario.text}\``);
     if (scenario.observation) {
       lines.push('- Visible Observation:');
+      if (scenario.observation.screenshotFile) {
+        lines.push(`  - screenshotFile: \`${scenario.observation.screenshotFile}\``);
+      }
       if (scenario.observation.visibleText) {
         lines.push(`  - visibleText: \`${truncate(scenario.observation.visibleText, 420)}\``);
       }
