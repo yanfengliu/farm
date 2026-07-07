@@ -46,7 +46,7 @@ Use the Markdown report as the review packet for an LLM-player loop: inspect the
 
 Browser scenario control should stay player-like. The harness may read debug APIs after screenshots for metrics, but browser scenario actions should use visible inputs such as button clicks, keyboard shortcuts, pointer moves, waits, and viewport changes rather than `window.advanceTime()` or direct simulation commands. To point the harness at an already-running Farm server, set `FARM_PLAYTEST_URL` to `http://127.0.0.1:5175/`.
 
-The default scripted scenario should exercise the full player surface before declaring the game healthy: panel tabs, toolbar tools, canvas tile clicks, side-panel drag/collapse, pause and speed controls, undo/redo, crop-mix range and numeric inputs, selling, viewport resize, and a normal page reload that proves localStorage autosave restores the progressed farm. The harness should clear localStorage only for the initial clean boot; reload checks must preserve the saved state.
+The default scripted scenario should exercise the full player surface before declaring the game healthy: panel tabs, toolbar tools, canvas tile clicks, Inspect panel details after selecting a visible tile, side-panel drag/collapse, pause and speed controls, undo/redo, crop-mix range and numeric inputs, selling, viewport resize, and a normal page reload that proves localStorage autosave restores the progressed farm. The harness should clear localStorage only for the initial clean boot; reload checks must preserve the saved state.
 
 For step-by-step visual playtesting, run:
 

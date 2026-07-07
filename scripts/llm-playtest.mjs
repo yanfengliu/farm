@@ -167,6 +167,8 @@ async function runPlayerSurfaceTour(page) {
   await playerClick(page, '[data-command="undo"]', 'Undo the bulldoze through the visible toolbar');
   await playerClick(page, '[data-tool="inspect"]', 'Select Inspect tool');
   await playerCanvasClick(page, 390, 300, 'Inspect a visible farm tile through the canvas');
+  await playerWait(page, 150, 'Let the Inspect panel render selected tile details');
+  scenarios.push(await captureScenario(page, 'inspect-tile', 'Inspect panel after visible tile selection'));
   await playerHoldKey(page, 'ArrowRight', 260, 'Pan the farm camera right with the keyboard');
   await playerWheelCanvas(page, -360, 'Zoom the farm camera with the mouse wheel');
   await playerClick(page, '[data-panel="goals"]', 'Return to Goals panel after the surface tour');

@@ -78,4 +78,15 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain("if (element.matches('canvas')) return 'click-canvas-coordinate'");
     expect(source).toContain("if (element.matches('input[type=\"number\"]')) return 'adjust'");
   });
+
+  test('scripted tour captures the Inspect panel after selecting a visible tile', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+    const inspectClick = source.indexOf('Inspect a visible farm tile through the canvas');
+    const inspectCapture = source.indexOf("captureScenario(page, 'inspect-tile'");
+    const returnToGoals = source.indexOf('Return to Goals panel after the surface tour');
+
+    expect(inspectClick).toBeGreaterThan(-1);
+    expect(inspectCapture).toBeGreaterThan(inspectClick);
+    expect(returnToGoals).toBeGreaterThan(inspectCapture);
+  });
 });
