@@ -1482,7 +1482,12 @@ document.addEventListener('click', (event) => {
   if (tool) selectedTool = tool;
 
   const panel = target.closest<HTMLElement>('[data-panel]')?.dataset.panel as Panel | undefined;
-  if (panel) activePanel = panel;
+  if (panel) {
+    activePanel = panel;
+    if (panel === 'mix' && getFarmSnapshot(farmGame).tier.unlockedCrops.length > 1 && !isTutorialSeen('open-mix-panel')) {
+      markTutorialSeen('open-mix-panel');
+    }
+  }
 
   const command = target.closest<HTMLElement>('[data-command]')?.dataset.command;
   if (command === 'dismiss-tutorial') {

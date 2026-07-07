@@ -288,6 +288,49 @@ describe('tutorial tips', () => {
     }
   }, 20000);
 
+  test('opening crop mix before its guide appears prevents a stale crop mix tip', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'mix-seen-through-use' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.cropMix = { carrot: 0.75, wheat: 0.25, tomato: 0 };
+    savedState.inventory.crops = { carrot: 2, wheat: 0, tomato: 0 };
+    savedState.inventory.seeds = { carrot: 0, wheat: 4, tomato: 0 };
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="sell-first-crop"]');
+
+      await page.click('[data-panel="mix"]');
+      await page.waitForSelector('.crop-mix[data-crop-id="wheat"]');
+      await page.click('[data-panel="inventory"]');
+      await page.click('[data-command="sell-all"]');
+      await page.waitForTimeout(350);
+
+      const visibleTip = await page.locator('.tutorial-tip').evaluateAll((tips) => (
+        tips.map((tip) => ({
+          id: tip.getAttribute('data-tutorial-tip'),
+          text: tip.textContent ?? '',
+        }))
+      ));
+
+      expect(visibleTip.some((tip) => tip.id === 'open-mix-panel')).toBe(false);
+      expect(visibleTip.some((tip) => tip.text.includes('Tune Crop Mix'))).toBe(false);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('canvas tutorial tip stays above the toolbar instead of offscreen', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'canvas-tip-bounds' }));
     savedState.inventory.seeds = { carrot: 5, wheat: 0, tomato: 0 };
