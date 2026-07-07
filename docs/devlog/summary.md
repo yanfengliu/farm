@@ -44,3 +44,4 @@
 - 2026-07-06: Prioritized visible tier-claim Farm Guide cards over held sell guidance after the Goals reward screenshot pointed players back to Inventory.
 - 2026-07-06: Tightened the visual-loop seed heuristic after the step log showed a Sell Crops guide being overridden by incidental "coins buy seeds" copy.
 - 2026-07-06: Corrected the Select Plot Farm Guide shortcut after the compact screenshot showed the card saying 2 while the toolbar mapped Plot to 1.
+- 2026-07-06: Added direct numeric Crop Mix percentage inputs, a persistent 100% allocation summary, and LLM harness coverage for filling the new controls.

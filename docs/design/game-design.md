@@ -15,7 +15,7 @@ Idle progress runs only while the tab/window is open. There is no offline simula
 ## Core Loop
 
 1. The player owns a small grid farm with plots, wells, storage bins, seeds, coins, and one worker.
-2. The player sets a percentage crop mix for unlocked crops.
+2. The player sets a percentage crop mix for unlocked crops. The mix is a 100% allocation budget: when one unlocked crop is adjusted, the remaining unlocked crops share the rest.
 3. Workers autonomously plant, water, harvest, and haul according to the crop mix and farm needs.
 4. Crops and seeds are tracked in inventory. Storage buildings increase shared capacity.
 5. Workers must physically haul crops to storage drop-off points before those crops enter the shared inventory.
@@ -35,7 +35,7 @@ The player can:
 - Place wells and storage bins with single clicks on empty owned land.
 - Buy adjacent land tiles.
 - Bulldoze farm objects for free with no refund.
-- Adjust crop mix percentages.
+- Adjust crop mix percentages with sliders or direct numeric percentage fields.
 - Claim the next milestone tier once its requirement is met.
 - Sell a selected crop amount or sell all sellable crops.
 - Pause and set 1x, 2x, or 4x speed.

@@ -40,3 +40,4 @@
 - Let visible tier-claim Farm Guide cards preempt held sell guidance so reward moments do not point players away from the Goals panel.
 - Tightened the visual-loop seed heuristic so incidental Farm Guide text like "coins buy seeds" no longer overrides a visible Sell Crops prompt.
 - Corrected the Select Plot Farm Guide shortcut from 2 to 1 so the guide matches the toolbar key binding.
+- Added typed Crop Mix percentage inputs with a persistent 100% allocation summary and LLM playtest coverage for filling the new controls.

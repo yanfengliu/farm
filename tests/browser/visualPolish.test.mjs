@@ -311,4 +311,57 @@ describe('visual polish', () => {
       await context.close();
     }
   }, 15000);
+
+  test('crop mix number inputs rebalance unlocked crops to one hundred percent', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'crop-mix-number-input' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.cropMix = { carrot: 0.75, wheat: 0.25, tomato: 0 };
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="mix"]');
+      await page.waitForSelector('[data-mix-number="wheat"]');
+
+      await page.locator('[data-mix-number="wheat"]').fill('40');
+
+      await expect.poll(async () => page.evaluate(() => {
+        const values = Object.fromEntries(
+          Array.from(globalThis.document.querySelectorAll('[data-mix-number]'))
+            .map((input) => [input.getAttribute('data-mix-number'), Number(input.value)]),
+        );
+        return {
+          carrot: values.carrot,
+          wheat: values.wheat,
+          tomato: values.tomato,
+          total: Object.values(values).reduce((sum, value) => sum + value, 0),
+          summary: globalThis.document.querySelector('.crop-mix-allocation')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+        };
+      })).toEqual({
+        carrot: 60,
+        wheat: 40,
+        tomato: 0,
+        total: 100,
+        summary: '100% allocated across unlocked crops',
+      });
+
+      const debugMix = await page.evaluate(() => globalThis.__farmDebug.getState().cropMix);
+      expect(Math.round(debugMix.carrot * 100)).toBe(60);
+      expect(Math.round(debugMix.wheat * 100)).toBe(40);
+      expect(Math.round(debugMix.tomato * 100)).toBe(0);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
 });

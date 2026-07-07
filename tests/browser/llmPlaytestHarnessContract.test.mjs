@@ -19,6 +19,7 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('playerDragResize');
     expect(source).toContain('playerPress(');
     expect(source).toContain('playerPressSelector');
+    expect(source).toContain('playerFillSelector');
     expect(source).toContain('playerHoldKey');
     expect(source).toContain('playerWheelCanvas');
     expect(source).toContain('playerReload');
@@ -44,6 +45,7 @@ describe('LLM playtest harness player contract', () => {
       '[data-speed="2"]',
       '[data-speed="4"]',
       '[data-mix="wheat"]',
+      '[data-mix-number="wheat"]',
       '[data-command="sell-all"]',
       'ArrowRight',
     ]) {

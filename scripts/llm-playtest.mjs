@@ -73,10 +73,11 @@ try {
   scenarios.push(await captureScenario(page, 'tier-claimed', 'Tier claimed goals panel'));
 
   await playerClick(page, '[data-panel="mix"]', 'Open Crop Mix panel after tier unlock');
+  await playerFillSelector(page, '[data-mix-number="wheat"]', '40', 'Type a direct Wheat crop mix percentage');
   await playerPressSelector(page, '[data-mix="wheat"]', 'ArrowRight', 'Adjust wheat crop mix through the focused range input');
   await playerPressSelector(page, '[data-mix="carrot"]', 'ArrowLeft', 'Adjust carrot crop mix through the focused range input');
   await playerWait(page, 150, 'Let crop mix adjustment settle');
-  scenarios.push(await captureScenario(page, 'crop-mix-adjusted', 'Crop mix adjusted through visible range controls'));
+  scenarios.push(await captureScenario(page, 'crop-mix-adjusted', 'Crop mix adjusted through visible numeric and range controls'));
 
   await playerClick(page, '[data-panel="inventory"]', 'Open Inventory panel for sell controls');
   await page.waitForSelector('[data-command="sell-all"]', { state: 'visible', timeout: 1000 }).catch(() => null);
@@ -230,6 +231,11 @@ async function playerPressSelector(page, selector, key, label) {
   await page.locator(selector).first().focus();
   await page.keyboard.press(key);
   playerActions.push({ kind: 'press', label, selector, key });
+}
+
+async function playerFillSelector(page, selector, value, label) {
+  await page.locator(selector).first().fill(value);
+  playerActions.push({ kind: 'fill', label, selector, value });
 }
 
 async function playerWheelCanvas(page, deltaY, label) {

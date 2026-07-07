@@ -115,7 +115,7 @@ async function captureVisualObservation(page, stepIndex, label) {
 
   return page.evaluate(({ observationIndex, observationLabel, screenshotPath }) => {
     const visibleText = compactText(document.body.innerText ?? '');
-    const availableActions = Array.from(document.querySelectorAll('button, input[type="range"], [role="button"], [role="separator"], canvas'))
+    const availableActions = Array.from(document.querySelectorAll('button, input[type="range"], input[type="number"], [role="button"], [role="separator"], canvas'))
       .filter((element) => isVisible(element) && !element.disabled)
       .slice(0, 60)
       .map((element) => ({
@@ -148,6 +148,7 @@ async function captureVisualObservation(page, stepIndex, label) {
       if (element.matches('canvas')) return 'click-canvas-coordinate';
       if (element.matches('[role="separator"]')) return 'drag-resize';
       if (element.matches('input[type="range"]')) return 'adjust';
+      if (element.matches('input[type="number"]')) return 'adjust';
       return 'click';
     }
 
@@ -255,6 +256,18 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(tutorialAction, `Follow the visible tutorial prompt: ${tutorialAction.label}.`);
   }
 
+  const wheatNumberAction = findAction(observation, '[data-mix-number="wheat"]');
+  const adjustedWheatNumber = actionHistory.some((action) => (
+    action.kind === 'adjust' && action.selector === '[data-mix-number="wheat"]'
+  ));
+  if (wheatNumberAction && !adjustedWheatNumber && /Crop Mix|allocated across unlocked crops/i.test(observation.visibleText)) {
+    return adjustDecision(
+      wheatNumberAction,
+      'Type a direct Wheat crop mix percentage so the visual loop covers the same numerical control a player sees.',
+      40,
+    );
+  }
+
   const upgradeAction = findUpgradeAction(observation);
   if (upgradeAction && !clickedSelectors.has(upgradeAction.selector) && /Tool Upgrades|Worker Boots/i.test(observation.visibleText)) {
     return clickDecision(upgradeAction, 'Buy the visible worker upgrade so the playtest exercises progression beyond selling and tier claims.');
@@ -330,6 +343,19 @@ function clickDecision(action, rationale, position) {
       ...position,
     },
     expectedResult: `The visible control "${action.label}" should respond and the next screenshot should reflect the state change.`,
+  };
+}
+
+function adjustDecision(action, rationale, value) {
+  return {
+    rationale,
+    action: {
+      kind: 'adjust',
+      selector: action.selector,
+      label: action.label,
+      value,
+    },
+    expectedResult: `The visible control "${action.label}" should change to ${value} and the next screenshot should show a rebalanced crop mix.`,
   };
 }
 
@@ -520,6 +546,17 @@ async function executePlayerDecision(page, decision) {
     } else if (decision.action.kind === 'adjust') {
       const locator = page.locator(decision.action.selector).first();
       await locator.waitFor({ state: 'visible', timeout: 5000 });
+      const isNumberInput = await locator.evaluate((element) => (
+        element instanceof HTMLInputElement && element.type === 'number'
+      ));
+      if (isNumberInput) {
+        await locator.fill(String(decision.action.value));
+        return {
+          ok: true,
+          startedAt,
+          completedAt: new Date().toISOString(),
+        };
+      }
       const box = await locator.boundingBox();
       if (!box) throw new Error(`Cannot adjust ${decision.action.selector}; no visible bounds`);
       const trackX = box.x + box.width * (decision.action.value / 100);

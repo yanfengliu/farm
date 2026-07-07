@@ -105,4 +105,12 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('durationMs');
     expect(source).toContain('Zoom the farm camera');
   });
+
+  test('visual loop can observe and fill crop mix number inputs', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('input[type="number"]');
+    expect(source).toContain('[data-mix-number="wheat"]');
+    expect(source).toContain('locator.fill(String(decision.action.value))');
+  });
 });

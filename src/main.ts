@@ -800,10 +800,12 @@ function renderPanel(): void {
       <p class="small">Land purchased: ${state.stats.lifetimeLandPurchased}</p>
     `;
   } else if (activePanel === 'mix') {
+    const mixPercentages = cropMixPercentages(state);
     markup = `
       <h2>Crop Mix</h2>
-      ${CROP_IDS.map((id) => cropMixRow(state, id)).join('')}
-      <p class="small">Workers plant toward these percentages when seeds and plots are available.</p>
+      ${cropMixAllocationMarkup(state, mixPercentages)}
+      ${CROP_IDS.map((id) => cropMixRow(state, id, mixPercentages)).join('')}
+      <p class="small">Set one crop directly. The remaining unlocked crops automatically share the rest.</p>
     `;
   } else {
     markup = inspectMarkup(state);
@@ -1191,20 +1193,115 @@ function upgradeRow(state: FarmState, upgradeId: UpgradeId): string {
   `;
 }
 
-function cropMixRow(state: FarmState, cropId: CropId): string {
+function cropMixAllocationMarkup(state: FarmState, percentages: Record<CropId, number>): string {
+  const allocated = state.tier.unlockedCrops.reduce((sum, cropId) => sum + percentages[cropId], 0);
+  return `
+    <div class="crop-mix-allocation" aria-live="polite">
+      <strong>${allocated}%</strong> allocated across unlocked crops
+    </div>
+  `;
+}
+
+function cropMixRow(state: FarmState, cropId: CropId, percentages: Record<CropId, number>): string {
   const locked = !state.tier.unlockedCrops.includes(cropId);
-  const value = Math.round(state.cropMix[cropId] * 100);
+  const value = percentages[cropId];
   const status = cropMixStatus(state, cropId, locked, value);
   const detail = cropMixDetail(state, cropId, status);
   const actionLabel = `Set ${CROPS[cropId].label} crop mix`;
+  const numberActionLabel = `Set ${CROPS[cropId].label} crop mix percentage`;
   return `
-    <label class="crop-mix" data-crop-id="${cropId}" data-crop-status="${status}">
+    <div class="crop-mix" data-crop-id="${cropId}" data-crop-status="${status}">
       <span class="crop-mix-name">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label}</span>
-      <input type="range" min="0" max="100" value="${value}" data-mix="${cropId}" title="${actionLabel}" aria-label="${actionLabel}" ${locked ? 'disabled' : ''} />
-      <span class="crop-mix-value">${value}%</span>
+      <input class="crop-mix-slider" type="range" min="0" max="100" value="${value}" data-mix="${cropId}" title="${actionLabel}" aria-label="${actionLabel}" ${locked ? 'disabled' : ''} />
+      <label class="crop-mix-number">
+        <input type="number" min="0" max="100" step="1" inputmode="numeric" value="${value}" data-mix-number="${cropId}" title="${numberActionLabel}" aria-label="${numberActionLabel}" ${locked ? 'disabled' : ''} />
+        <span>%</span>
+      </label>
       <span class="crop-mix-detail">${detail}</span>
-    </label>
+    </div>
   `;
+}
+
+function cropMixPercentages(state: FarmState): Record<CropId, number> {
+  const unlocked = CROP_IDS.filter((cropId) => state.tier.unlockedCrops.includes(cropId));
+  const weights = zeroCropPercentages();
+  for (const cropId of unlocked) {
+    weights[cropId] = Math.max(0, state.cropMix[cropId] ?? 0);
+  }
+  return allocateCropPercentages(unlocked, weights, 100);
+}
+
+function rebalanceCropMixPercentages(state: FarmState, changedCropId: CropId, requestedValue: number): Record<CropId, number> {
+  const unlocked = CROP_IDS.filter((cropId) => state.tier.unlockedCrops.includes(cropId));
+  if (!unlocked.includes(changedCropId)) return cropMixPercentages(state);
+  if (unlocked.length === 1) {
+    const singleCropMix = zeroCropPercentages();
+    singleCropMix[changedCropId] = 100;
+    return singleCropMix;
+  }
+
+  const next = zeroCropPercentages();
+  const changedValue = clampPercent(requestedValue);
+  next[changedCropId] = changedValue;
+
+  const remainingCrops = unlocked.filter((cropId) => cropId !== changedCropId);
+  const remainingTotal = 100 - changedValue;
+  const currentPercentages = cropMixPercentages(state);
+  const remainingWeights = zeroCropPercentages();
+  for (const cropId of remainingCrops) {
+    remainingWeights[cropId] = currentPercentages[cropId];
+  }
+
+  const remainingPercentages = allocateCropPercentages(remainingCrops, remainingWeights, remainingTotal);
+  for (const cropId of remainingCrops) {
+    next[cropId] = remainingPercentages[cropId];
+  }
+  return next;
+}
+
+function allocateCropPercentages(cropIds: CropId[], weights: Record<CropId, number>, totalPercent: number): Record<CropId, number> {
+  const percentages = zeroCropPercentages();
+  if (cropIds.length === 0 || totalPercent <= 0) return percentages;
+
+  const totalWeight = cropIds.reduce((sum, cropId) => sum + Math.max(0, weights[cropId]), 0);
+  if (totalWeight <= 0) {
+    const evenShare = Math.floor(totalPercent / cropIds.length);
+    let remainder = totalPercent - evenShare * cropIds.length;
+    for (const cropId of cropIds) {
+      percentages[cropId] = evenShare + (remainder > 0 ? 1 : 0);
+      remainder -= 1;
+    }
+    return percentages;
+  }
+
+  const fractional = cropIds.map((cropId) => {
+    const exact = (Math.max(0, weights[cropId]) / totalWeight) * totalPercent;
+    const whole = Math.floor(exact);
+    percentages[cropId] = whole;
+    return { cropId, remainder: exact - whole };
+  });
+
+  let remainder = totalPercent - cropIds.reduce((sum, cropId) => sum + percentages[cropId], 0);
+  fractional.sort((a, b) => {
+    if (b.remainder !== a.remainder) return b.remainder - a.remainder;
+    return CROP_IDS.indexOf(a.cropId) - CROP_IDS.indexOf(b.cropId);
+  });
+  for (const item of fractional) {
+    if (remainder <= 0) break;
+    percentages[item.cropId] += 1;
+    remainder -= 1;
+  }
+
+  return percentages;
+}
+
+function zeroCropPercentages(): Record<CropId, number> {
+  return { carrot: 0, wheat: 0, tomato: 0 };
+}
+
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, Math.round(value)));
 }
 
 function cropMixStatus(state: FarmState, cropId: CropId, locked: boolean, value: number): CropMixStatus {
@@ -1304,12 +1401,13 @@ function panelStateSignature(state: FarmState): string {
     ].join('|');
   }
   if (activePanel === 'mix') {
+    const mixPercentages = cropMixPercentages(state);
     return [
       activePanel,
       emptyPlotCount(state),
       ...CROP_IDS.map((cropId) => [
         cropId,
-        Math.round(state.cropMix[cropId] * 100),
+        mixPercentages[cropId],
         state.inventory.seeds[cropId],
         plantedCropCount(state, cropId),
         state.tier.unlockedCrops.includes(cropId) ? 'unlocked' : 'locked',
@@ -1576,14 +1674,13 @@ document.addEventListener('click', (event) => {
 document.addEventListener('input', (event) => {
   const target = event.target;
   if (!(target instanceof HTMLInputElement)) return;
-  const cropId = target.dataset.mix as CropId | undefined;
+  const cropId = (target.dataset.mix ?? target.dataset.mixNumber) as CropId | undefined;
   if (!cropId) return;
+  if (target.dataset.mixNumber && target.value.trim() === '') return;
+  const requestedValue = Number(target.value);
+  if (!Number.isFinite(requestedValue)) return;
   const state = getFarmSnapshot(farmGame);
-  const mix: Partial<Record<CropId, number>> = {};
-  for (const id of CROP_IDS) {
-    const input = document.querySelector<HTMLInputElement>(`[data-mix="${id}"]`);
-    mix[id] = input ? Number(input.value) : Math.round(state.cropMix[id] * 100);
-  }
+  const mix = rebalanceCropMixPercentages(state, cropId, requestedValue);
   submitFarmCommand(farmGame, { type: 'setCropMix', mix });
 });
 
