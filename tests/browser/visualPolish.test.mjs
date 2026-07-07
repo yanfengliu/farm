@@ -175,6 +175,49 @@ describe('visual polish', () => {
     }
   }, 15000);
 
+  test('overflowing side panels advertise scrollable content', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="goals"]');
+      await page.waitForSelector('.tier-list');
+
+      const topState = await page.evaluate(() => {
+        const panel = globalThis.document.querySelector('.side-panel');
+        const content = globalThis.document.querySelector('#panel-content');
+        return {
+          scrollable: (content?.scrollHeight ?? 0) > (content?.clientHeight ?? 0) + 1,
+          canScrollUp: panel?.classList.contains('can-scroll-up') ?? false,
+          canScrollDown: panel?.classList.contains('can-scroll-down') ?? false,
+        };
+      });
+
+      expect(topState.scrollable).toBe(true);
+      expect(topState.canScrollUp).toBe(false);
+      expect(topState.canScrollDown).toBe(true);
+
+      await page.locator('#panel-content').evaluate((content) => {
+        content.scrollTop = content.scrollHeight;
+        content.dispatchEvent(new globalThis.Event('scroll'));
+      });
+
+      await expect.poll(async () => page.evaluate(() => {
+        const panel = globalThis.document.querySelector('.side-panel');
+        return {
+          canScrollUp: panel?.classList.contains('can-scroll-up') ?? false,
+          canScrollDown: panel?.classList.contains('can-scroll-down') ?? false,
+        };
+      })).toEqual({
+        canScrollUp: true,
+        canScrollDown: false,
+      });
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('icon-only panel tabs remain clickable through their pixel glyphs', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const page = await context.newPage();

@@ -42,3 +42,4 @@
 - Corrected the Select Plot Farm Guide shortcut from 2 to 1 so the guide matches the toolbar key binding.
 - Added typed Crop Mix percentage inputs with a persistent 100% allocation summary and LLM playtest coverage for filling the new controls.
 - Enriched LLM playtest observations so scripted and visual reports list canvas, numeric inputs, action hints, active states, shortcuts, and current input values.
+- Added side-panel scroll affordances and bottom padding so dense Goals content reads as intentionally scrollable instead of clipped behind the toolbar.

@@ -144,6 +144,8 @@ Worker task state is visible only on hover or inspect, not as permanent icons ov
 
 The side panel can be collapsed for more playfield space or resized from its inner edge when text-heavy inventory, goals, crop-mix, or inspect content needs more room. The chosen side-panel width is a UI preference and is separate from the deterministic farm save.
 
+Long side-panel content should visibly advertise its scroll state with a lightweight rail or edge fade, and bottom content should remain comfortably readable above the toolbar when scrolled to the end.
+
 The UI chrome should feel elegant and desktop-first: black and white, semi-transparent, glassy, icon-led, and compact but readable. The farm itself can stay colorful and cozy, but the surrounding HUD, panels, toolbar, and non-playfield backdrop should avoid a green theme. A warm-charcoal stage is acceptable for depth as long as it stays clearly outside the green farm palette.
 
 UI icons should use colorful, crisp pixel-art glyphs rather than generic line icons so the chrome still belongs to the top-down pixel farm without turning the surrounding panels green.

@@ -760,7 +760,10 @@ function renderPanel(): void {
     panelCollapsed !== lastRenderedCollapsed ||
     panelSignature !== lastPanelStateSignature
   );
-  if (!forceRender && now - lastPanelRenderedAt < PANEL_RENDER_INTERVAL_MS) return;
+  if (!forceRender && now - lastPanelRenderedAt < PANEL_RENDER_INTERVAL_MS) {
+    syncPanelScrollAffordance();
+    return;
+  }
 
   let markup = '';
   if (activePanel === 'inventory') {
@@ -819,6 +822,15 @@ function renderPanel(): void {
   lastRenderedCollapsed = panelCollapsed;
   lastPanelRenderedAt = now;
   lastPanelStateSignature = panelSignature;
+  syncPanelScrollAffordance();
+}
+
+function syncPanelScrollAffordance(): void {
+  const scrollable = !panelCollapsed && panelContent.scrollHeight > panelContent.clientHeight + 1;
+  const canScrollUp = scrollable && panelContent.scrollTop > 1;
+  const canScrollDown = scrollable && panelContent.scrollTop + panelContent.clientHeight < panelContent.scrollHeight - 1;
+  sidePanel.classList.toggle('can-scroll-up', canScrollUp);
+  sidePanel.classList.toggle('can-scroll-down', canScrollDown);
 }
 
 function renderTutorialTip(): void {
@@ -1609,7 +1621,10 @@ panelResizer.addEventListener('keydown', (event) => {
 
 window.addEventListener('resize', () => {
   setPanelWidth(panelWidth, false);
+  syncPanelScrollAffordance();
 });
+
+panelContent.addEventListener('scroll', syncPanelScrollAffordance);
 
 document.addEventListener('click', (event) => {
   const target = event.target;
