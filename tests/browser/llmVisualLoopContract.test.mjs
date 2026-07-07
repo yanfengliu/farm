@@ -62,6 +62,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('Farmers Waiting');
   });
 
+  test('visual loop restocks visible zero-seed inventory rows before stopping', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('function hasVisibleZeroSeedRestock');
+    expect(source).toContain('seedAction && hasVisibleZeroSeedRestock(observation.visibleText)');
+    expect(source).toContain('Visible Inventory seed rows show zero stock, so buy seeds before ending the run.');
+  });
+
   test('visual loop follows the crop mix tutorial prompt', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

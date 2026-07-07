@@ -599,6 +599,10 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     );
   }
 
+  if (seedAction && hasVisibleZeroSeedRestock(observation.visibleText)) {
+    return clickDecision(seedAction, 'Visible Inventory seed rows show zero stock, so buy seeds before ending the run.');
+  }
+
   const goalsAction = findAction(observation, '[data-panel="goals"]');
   if (goalsAction && !clickedSelectors.has(goalsAction.selector)) {
     return clickDecision(goalsAction, 'Open the visible Goals panel because progression and tier rewards should be understandable there.');
@@ -629,6 +633,13 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
 
 function hasExplicitSeedGuidance(visibleText) {
   return /FARM GUIDE Buy Seeds|Farmers Waiting|Restock seeds/i.test(visibleText);
+}
+
+function hasVisibleZeroSeedRestock(visibleText) {
+  return /Inventory/i.test(visibleText) &&
+    /(?:Carrot|Wheat|Tomato) seeds: 0\s+\d+c/i.test(visibleText) &&
+    !hasVisibleSellableCrops(visibleText) &&
+    !hasActionableGuidance(visibleText);
 }
 
 function hasActionableGuidance(visibleText) {

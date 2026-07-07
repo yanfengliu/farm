@@ -57,3 +57,4 @@
 - Prioritized active milestone crops in Goals seed-restock guidance so Tier 2 seed stalls surface Wheat before Carrot.
 - Kept the visual LLM-player loop running while visible Farm Guide or HUD guidance still offers an actionable next step, with support for deeper 80-step progression audits.
 - Made high-storage selling guidance recur after its first tutorial use so low-coin, nearly-full farms still point players back to Inventory.
+- Taught the visual LLM-player loop to restock from visible zero-seed Inventory rows before ending a run.
