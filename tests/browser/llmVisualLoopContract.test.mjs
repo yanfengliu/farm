@@ -189,6 +189,26 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain("pressDecision('1'");
   });
 
+  test('visual loop limits press decisions to listed player keyboard controls', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('function findKeyboardControl(observation, key, selector)');
+    expect(source).toContain('const visibleKeyboardAction = findKeyboardControl(observation, action.key, action.selector)');
+    expect(source).toContain('if (!visibleKeyboardAction) return fallback');
+    expect(source).toContain('normalized.action.selector = visibleKeyboardAction.selector');
+  });
+
+  test('visual loop exposes selector-focused keyboard controls', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('focusedControlKeyboardActions');
+    expect(source).toContain("document.querySelector('[data-panel-resizer]')");
+    expect(source).toContain('Resize side panel wider');
+    expect(source).toContain('Increase range value');
+    expect(source).toContain('requiresFocus: true');
+    expect(source).toContain('await page.locator(decision.action.selector).first().focus()');
+  });
+
   test('visual loop treats a pressed Plot shortcut as satisfying the Select Plot guide', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

@@ -149,6 +149,9 @@ async function runPlayerSurfaceTour(page) {
   await playerClick(page, '[data-panel="mix"]', 'Open Crop Mix panel');
   await playerClick(page, '[data-panel="inspect"]', 'Open Inspect panel');
   await playerDragResize(page, '[data-panel-resizer]', -88, 0, 'Drag the visible side-panel resize handle wider');
+  await playerPressSelector(page, '[data-panel-resizer]', 'End', 'Resize the side-panel handle to maximum width with the keyboard');
+  await playerPressSelector(page, '[data-panel-resizer]', 'Home', 'Resize the side-panel handle to minimum width with the keyboard');
+  await playerPressSelector(page, '[data-panel-resizer]', 'ArrowLeft', 'Nudge the side-panel handle wider with the keyboard');
   await playerClick(page, '[data-command="toggle-panel"]', 'Collapse the visible side panel');
   await playerClick(page, '[data-command="toggle-panel"]', 'Expand the visible side panel');
   await playerClick(page, '[data-command="pause"]', 'Pause with the visible toolbar control');
@@ -414,6 +417,7 @@ async function captureScenario(page, id, label) {
         { label: 'Pan camera up', key: 'ArrowUp', alternateKeys: ['W'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
         { label: 'Pan camera down', key: 'ArrowDown', alternateKeys: ['S'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
         ...toolbarShortcutKeyboardActions(),
+        ...focusedControlKeyboardActions(),
       ];
     }
 
@@ -450,6 +454,42 @@ async function captureScenario(page, id, label) {
       if (button.matches('[data-command="pause"]')) return label;
       if (button.matches('[data-speed]')) return `Set ${label}`;
       return label;
+    }
+
+    function focusedControlKeyboardActions() {
+      const actions = [];
+      const resizer = document.querySelector('[data-panel-resizer]');
+      if (resizer && isVisible(resizer)) {
+        const selector = playerSelectorFor(resizer);
+        const state = {
+          ...controlStateFor(resizer),
+          canHold: false,
+          requiresFocus: true,
+        };
+        actions.push(
+          { label: 'Resize side panel wider', key: 'ArrowLeft', alternateKeys: [], actionHint: 'press', selector, state },
+          { label: 'Resize side panel narrower', key: 'ArrowRight', alternateKeys: [], actionHint: 'press', selector, state },
+          { label: 'Resize side panel to minimum', key: 'Home', alternateKeys: [], actionHint: 'press', selector, state },
+          { label: 'Resize side panel to maximum', key: 'End', alternateKeys: [], actionHint: 'press', selector, state },
+        );
+      }
+
+      for (const range of document.querySelectorAll('input[type="range"]')) {
+        if (!isVisible(range) || range.disabled) continue;
+        const selector = playerSelectorFor(range);
+        const label = actionLabelFor(range);
+        const state = {
+          ...controlStateFor(range),
+          canHold: false,
+          requiresFocus: true,
+        };
+        actions.push(
+          { label: `Decrease range value: ${label}`, key: 'ArrowLeft', alternateKeys: [], actionHint: 'press', selector, state },
+          { label: `Increase range value: ${label}`, key: 'ArrowRight', alternateKeys: [], actionHint: 'press', selector, state },
+        );
+      }
+
+      return actions;
     }
 
     function isTextContainerVisible(element) {
@@ -491,6 +531,15 @@ async function captureScenario(page, id, label) {
         state.canScrollDown = element.scrollTop < maxScrollTop - 1;
       }
       return state;
+    }
+
+    function actionLabelFor(element) {
+      return compactText(
+        element.getAttribute('aria-label') ||
+        element.getAttribute('title') ||
+        element.textContent ||
+        element.tagName.toLowerCase(),
+      );
     }
 
     function isVisible(element) {

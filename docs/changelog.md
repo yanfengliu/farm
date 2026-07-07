@@ -50,3 +50,4 @@
 - Fixed the visual-loop HTML replay viewer so screenshots stay visible in a fixed viewport while decision metadata scrolls.
 - Added visible toolbar shortcuts to LLM/player keyboard observations and taught the visual loop to use the Plot shortcut during first-run guidance.
 - Added canvas drag-paint coverage to the scripted LLM surface tour and visual-loop drag decisions with screenshot-relative start coordinates.
+- Tightened visual-loop key presses to listed player keyboard controls and exposed selector-focused resizer/range key actions in LLM/player observations.

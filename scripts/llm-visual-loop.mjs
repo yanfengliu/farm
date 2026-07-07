@@ -56,7 +56,7 @@ try {
     url,
     mode: 'step-by-step-visual-loop',
     decisionProvider: providerCommand ? 'external-command' : 'local-heuristic',
-    actionBoundary: 'Each decision receives screenshot path, visible text, visible controls, and keyboard controls; execution is limited to click, drag, adjust, wheel, press, wait, viewport, or stop.',
+    actionBoundary: 'Each decision receives screenshot path, visible text, visible controls, and keyboard controls; execution is limited to click, drag, adjust, wheel, listed-keyboard press, wait, viewport, or stop.',
     summary: {
       consoleErrors,
       pageErrors,
@@ -144,7 +144,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     function buildDecisionPrompt(observation) {
       return [
         'You are playtesting a desktop idle farming game as a real player.',
-        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click and canvas drag actions may include x/y coordinates relative to the chosen element.',
+        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click and canvas drag actions may include x/y coordinates relative to the chosen element. Press actions must use a listed keyboard control; include its selector when the control says it requires focus.',
         JSON.stringify(observation, null, 2),
       ].join('\n\n');
     }
@@ -156,6 +156,7 @@ async function captureVisualObservation(page, stepIndex, label) {
         { label: 'Pan camera up', key: 'ArrowUp', alternateKeys: ['W'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
         { label: 'Pan camera down', key: 'ArrowDown', alternateKeys: ['S'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
         ...toolbarShortcutKeyboardActions(),
+        ...focusedControlKeyboardActions(),
       ];
     }
 
@@ -188,6 +189,42 @@ async function captureVisualObservation(page, stepIndex, label) {
       if (button.matches('[data-command="pause"]')) return label;
       if (button.matches('[data-speed]')) return `Set ${label}`;
       return label;
+    }
+
+    function focusedControlKeyboardActions() {
+      const actions = [];
+      const resizer = document.querySelector('[data-panel-resizer]');
+      if (resizer && isVisible(resizer)) {
+        const selector = playerSelectorFor(resizer);
+        const state = {
+          ...controlStateFor(resizer),
+          canHold: false,
+          requiresFocus: true,
+        };
+        actions.push(
+          { label: 'Resize side panel wider', key: 'ArrowLeft', alternateKeys: [], actionHint: 'press', selector, state },
+          { label: 'Resize side panel narrower', key: 'ArrowRight', alternateKeys: [], actionHint: 'press', selector, state },
+          { label: 'Resize side panel to minimum', key: 'Home', alternateKeys: [], actionHint: 'press', selector, state },
+          { label: 'Resize side panel to maximum', key: 'End', alternateKeys: [], actionHint: 'press', selector, state },
+        );
+      }
+
+      for (const range of document.querySelectorAll('input[type="range"]')) {
+        if (!isVisible(range) || range.disabled) continue;
+        const selector = playerSelectorFor(range);
+        const label = actionLabelFor(range);
+        const state = {
+          ...controlStateFor(range),
+          canHold: false,
+          requiresFocus: true,
+        };
+        actions.push(
+          { label: `Decrease range value: ${label}`, key: 'ArrowLeft', alternateKeys: [], actionHint: 'press', selector, state },
+          { label: `Increase range value: ${label}`, key: 'ArrowRight', alternateKeys: [], actionHint: 'press', selector, state },
+        );
+      }
+
+      return actions;
     }
 
     function actionHintFor(element) {
@@ -618,6 +655,17 @@ function findKeyboardAction(observation, key) {
   return observation.keyboardActions?.find((action) => action.key === key || action.alternateKeys?.includes(key));
 }
 
+function findKeyboardControl(observation, key, selector) {
+  const requestedKey = String(key || '');
+  const requestedSelector = typeof selector === 'string' && selector.trim() ? selector.trim() : '';
+  return observation.keyboardActions?.find((action) => {
+    const keyMatches = action.key === requestedKey || action.alternateKeys?.includes(requestedKey);
+    if (!keyMatches) return false;
+    if (requestedSelector) return action.selector === requestedSelector;
+    return true;
+  });
+}
+
 function findSeedAction(observation) {
   return (
     findAction(observation, '[data-seed-guidance-action]') ||
@@ -639,7 +687,7 @@ async function chooseWithExternalProvider(command, payload) {
       rationale: 'short explanation',
       action: {
         kind: 'click | drag | adjust | wheel | press | wait | viewport | stop',
-        selector: 'required for click, drag, adjust, and wheel',
+        selector: 'required for click, drag, adjust, and wheel; optional for press unless the listed keyboard control requires focus',
         x: 'optional x coordinate relative to the clicked or dragged element',
         y: 'optional y coordinate relative to the clicked or dragged element',
         deltaX: 'optional horizontal drag distance in pixels',
@@ -741,8 +789,15 @@ function normalizeDecision(decision, observation, provider) {
     normalized.action.label = visibleAction.label;
     normalized.action.deltaY = boundedNumber(action.deltaY, -320, -900, 900);
   } else if (kind === 'press') {
-    normalized.action.key = String(action.key || 'Escape');
-    normalized.action.durationMs = boundedNumber(action.durationMs, 0, 0, 1500);
+    const visibleKeyboardAction = findKeyboardControl(observation, action.key, action.selector);
+    if (!visibleKeyboardAction) return fallback;
+    normalized.action.key = String(action.key || visibleKeyboardAction.key);
+    normalized.action.label = visibleKeyboardAction.label;
+    normalized.action.selector = visibleKeyboardAction.selector;
+    normalized.action.requiresFocus = Boolean(visibleKeyboardAction.state?.requiresFocus);
+    normalized.action.durationMs = visibleKeyboardAction.state?.canHold
+      ? boundedNumber(action.durationMs, 0, 0, 1500)
+      : 0;
   } else if (kind === 'wait') {
     normalized.action.ms = boundedNumber(action.ms, defaultWaitMs, 100, 15000);
   } else if (kind === 'viewport') {
@@ -800,6 +855,9 @@ async function executePlayerDecision(page, decision) {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await page.mouse.wheel(0, decision.action.deltaY);
     } else if (decision.action.kind === 'press') {
+      if (decision.action.selector && decision.action.requiresFocus) {
+        await page.locator(decision.action.selector).first().focus();
+      }
       if (decision.action.durationMs > 0) {
         await page.keyboard.down(decision.action.key);
         await page.waitForTimeout(decision.action.durationMs);

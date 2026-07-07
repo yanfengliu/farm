@@ -49,6 +49,7 @@ describe('LLM playtest harness player contract', () => {
       '[data-mix-number="wheat"]',
       '[data-command="sell-all"]',
       'ArrowRight',
+      "playerPressSelector(page, '[data-panel-resizer]', 'End'",
       'Drag-paint visible farm tiles',
     ]) {
       expect(source).toContain(selector);
@@ -130,5 +131,15 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('selector: playerSelectorFor(button)');
     expect(source).toContain("if (button.matches('[data-tool]')) return `Select ${label} tool`");
     expect(source).toContain("if (button.matches('[data-speed]')) return `Set ${label}`");
+  });
+
+  test('scripted observations enumerate focused control keyboard actions', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    expect(source).toContain('focusedControlKeyboardActions');
+    expect(source).toContain("document.querySelector('[data-panel-resizer]')");
+    expect(source).toContain('Resize side panel wider');
+    expect(source).toContain('Increase range value');
+    expect(source).toContain('requiresFocus: true');
   });
 });

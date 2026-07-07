@@ -54,3 +54,4 @@
 - 2026-07-07: Fixed the visual-loop HTML replay viewer so screenshot frames stay visible while long metadata scrolls.
 - 2026-07-07: Re-audited the player-control surface and added visible toolbar shortcuts to LLM/player keyboard observations, with the visual loop pressing the Plot shortcut from the guide path.
 - 2026-07-07: Added canvas drag-paint coverage to the LLM/player harness so drag tools can be exercised from visible screenshot coordinates.
+- 2026-07-07: Re-inspected keyboard parity in the LLM/player harness, constrained visual-loop press decisions to listed controls, and exposed focus-required resizer/range key actions.
