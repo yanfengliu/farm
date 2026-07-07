@@ -488,6 +488,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     : 0;
   const canvasAction = findAction(observation, 'canvas');
   const panelScrollAction = findAction(observation, '[data-player-scroll="side-panel"]');
+  const goalsAction = findAction(observation, '[data-panel="goals"]');
   const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
   const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
   const explicitPaintGuidanceVisible = /FARM GUIDE Paint Empty Land|Paint plots on empty land/i.test(observation.visibleText);
@@ -495,6 +496,10 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const claimAction = findAction(observation, '[data-command="claim-tier"]');
   if (claimAction) {
     return clickDecision(claimAction, 'A visible tier reward is ready, so claim it before watching the farm continue.');
+  }
+
+  if (goalsAction && !goalsAction.state?.active && visibleTierReady(observation.visibleText)) {
+    return clickDecision(goalsAction, 'A visible tier-ready prompt points back to Goals, so reopen Goals even if it was used earlier.');
   }
 
   const seedAction = findSeedActionForVisibleNeed(observation);
@@ -608,7 +613,6 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(seedAction, 'Visible Inventory seed rows show zero stock, so buy seeds before ending the run.');
   }
 
-  const goalsAction = findAction(observation, '[data-panel="goals"]');
   if (goalsAction && !clickedSelectors.has(goalsAction.selector)) {
     return clickDecision(goalsAction, 'Open the visible Goals panel because progression and tier rewards should be understandable there.');
   }
@@ -649,6 +653,10 @@ function hasVisibleZeroSeedRestock(visibleText) {
 
 function hasActionableGuidance(visibleText) {
   return /FARM GUIDE (Open Goals|Buy Seeds|Claim|Tune Crop Mix|Open Inventory|Sell Crops|Select Plot|Paint Empty Land)|Restock seeds|Paint plots on empty land|Tier \d+ ready/i.test(visibleText);
+}
+
+function visibleTierReady(visibleText) {
+  return /Tier \d+ ready/i.test(visibleText);
 }
 
 function tutorialActionFromText(observation) {

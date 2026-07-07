@@ -61,3 +61,4 @@
 - Made the visual LLM-player loop wait for a post-action watch frame before stopping so newly revealed guidance has a chance to appear.
 - Removed fixed visible-text caps from the LLM/player harness observation packets while keeping compact labels for controls.
 - Taught visible Inventory seed restocking to prefer the active milestone crop when its seed row is empty.
+- Taught the visual LLM-player loop to reopen Goals from visible tier-ready HUD prompts even after earlier Goals visits.

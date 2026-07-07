@@ -87,6 +87,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain("findAction(observation, '[data-panel=\"mix\"]')");
   });
 
+  test('visual loop reopens Goals when visible HUD copy says a tier is ready', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('function visibleTierReady(visibleText)');
+    expect(source).toContain('goalsAction && !goalsAction.state?.active && visibleTierReady(observation.visibleText)');
+    expect(source).toContain('A visible tier-ready prompt points back to Goals');
+  });
+
   test('visual loop reads stabilized Farm Guide prompts without treating them as HUD tool state', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
