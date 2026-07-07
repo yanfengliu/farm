@@ -60,3 +60,4 @@
 - 2026-07-07: Re-audited the LLM/player harness visibility model so observations include all hit-test-reachable controls, ignore occluded text/actions, and expose number-input arrow controls.
 - 2026-07-07: Prioritized active milestone crops in Goals seed-restock guidance after the visual loop spent Tier 2 coins on Carrot before Wheat.
 - 2026-07-07: Extended the visual LLM-player loop so it keeps following actionable Farm Guide/HUD guidance after tier claims instead of ending while the screen still asks for a player action.
+- 2026-07-07: Made storage-pressure selling guidance recur after the visual loop ended on Goals with low coins, high stored crops, and no obvious next action.

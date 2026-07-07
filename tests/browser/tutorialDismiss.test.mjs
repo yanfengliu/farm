@@ -282,6 +282,52 @@ describe('tutorial tips', () => {
     }
   }, 20000);
 
+  test('storage pressure sell guidance returns after the first sell guide was seen', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'storage-pressure-sell-guide' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.cropMix = { carrot: 0, wheat: 1, tomato: 0 };
+    savedState.inventory.crops = { carrot: 9, wheat: 4, tomato: 0 };
+    savedState.inventory.seeds = { carrot: 4, wheat: 4, tomato: 0 };
+    savedState.coins = 2;
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+      globalThis.localStorage.setItem('farm-tutorial-seen-v1', JSON.stringify({
+        'open-inventory-for-selling': true,
+        'sell-first-crop': true,
+      }));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="goals"]');
+      await page.waitForSelector('.tutorial-tip');
+      await page.waitForTimeout(250);
+
+      const tip = await page.locator('.tutorial-tip').evaluate((element) => ({
+        title: element.querySelector('.tutorial-title')?.textContent?.trim() ?? '',
+        summary: element.querySelector('.tutorial-summary')?.textContent?.trim() ?? '',
+        action: element.querySelector('.tutorial-detail p')?.textContent?.trim() ?? '',
+        target: element.getAttribute('data-tutorial-tip'),
+      }));
+
+      expect(tip.target).toBe('open-inventory-for-selling');
+      expect(tip.title).toBe('Open Inventory');
+      expect(tip.summary).toMatch(/Storage is almost full/i);
+      expect(tip.action).toMatch(/Sell All/i);
+    } finally {
+      await context.close();
+    }
+  }, 20000);
+
   test('crop mix tutorial tip stays inside the viewport', async () => {
     const game = createFarmGame({ seed: 'mix-tip-bounds' });
     for (let i = 0; i < 5000; i += 1) {

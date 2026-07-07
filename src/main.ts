@@ -1052,6 +1052,7 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
   }
 
   const hasSellableCrops = Object.values(state.inventory.crops).some((count) => count > 0);
+  const storagePressure = storagePressureInfo(state);
   if (hasSellableCrops) {
     if (activePanel === 'inventory' && !isTutorialSeen('sell-first-crop')) {
       return {
@@ -1064,14 +1065,20 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
         targetSelector: '[data-sell], [data-command="sell-all"]',
       };
     }
-    if (activePanel !== 'inventory' && !isTutorialSeen('open-inventory-for-selling')) {
+    if (activePanel !== 'inventory' && (storagePressure || !isTutorialSeen('open-inventory-for-selling'))) {
       return {
         id: 'open-inventory-for-selling',
         icon: 'backpack',
         title: 'Open Inventory',
-        body: 'You have crops ready to sell.',
-        action: 'Click Inventory to see crop counts and sell controls.',
-        why: 'Selling harvested crops converts stored goods into spendable coins.',
+        body: storagePressure
+          ? `Storage is almost full (${storagePressure.stored}/${storagePressure.capacity}). Sell crops to make room.`
+          : 'You have crops ready to sell.',
+        action: storagePressure
+          ? 'Click Inventory, then Sell All or a crop-specific sell button.'
+          : 'Click Inventory to see crop counts and sell controls.',
+        why: storagePressure
+          ? 'Selling stored crops frees bin space and turns a full harvest into spendable coins.'
+          : 'Selling harvested crops converts stored goods into spendable coins.',
         targetSelector: '[data-panel="inventory"]',
       };
     }
@@ -1513,6 +1520,13 @@ function cropIcon(cropId: CropId): IconName {
 
 function storedCropCount(state: FarmState): number {
   return Object.values(state.inventory.crops).reduce((sum, count) => sum + count, 0);
+}
+
+function storagePressureInfo(state: FarmState): { stored: number; capacity: number } | null {
+  const capacity = state.inventory.cropCapacity;
+  if (capacity <= 0) return null;
+  const stored = storedCropCount(state);
+  return stored >= Math.ceil(capacity * 0.8) ? { stored, capacity } : null;
 }
 
 function milestoneProgressText(state: FarmState): string {
