@@ -233,7 +233,9 @@ describe('visual polish', () => {
       expect(carrot?.detail).toContain('No seeds stocked');
       expect(wheat?.status).toBe('ready');
       expect(wheat?.detail).toContain('Seeds 4');
+      expect(wheat?.detail).toContain('Seeds 4 - Planted 0 - Ready for workers');
       expect(wheat?.detail).toContain('Ready for workers');
+      expect(wheat?.detail).not.toContain('·');
       expect(tomato?.status).toBe('locked');
       expect(tomato?.detail).toContain('Locked until a later tier');
       expect(Math.max(...rows.map((row) => row.right))).toBeLessThanOrEqual(

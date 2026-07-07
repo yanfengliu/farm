@@ -1198,11 +1198,11 @@ function cropMixStatus(state: FarmState, cropId: CropId, locked: boolean, value:
 function cropMixDetail(state: FarmState, cropId: CropId, status: CropMixStatus): string {
   if (status === 'locked') return 'Locked until a later tier';
 
-  const stock = `Seeds ${state.inventory.seeds[cropId]} · Planted ${plantedCropCount(state, cropId)}`;
-  if (status === 'off') return `${stock} · Disabled in mix`;
-  if (status === 'no-seeds') return `${stock} · No seeds stocked`;
-  if (status === 'needs-plots') return `${stock} · Needs empty plots`;
-  return `${stock} · Ready for workers`;
+  const stock = `Seeds ${state.inventory.seeds[cropId]} - Planted ${plantedCropCount(state, cropId)}`;
+  if (status === 'off') return `${stock} - Disabled in mix`;
+  if (status === 'no-seeds') return `${stock} - No seeds stocked`;
+  if (status === 'needs-plots') return `${stock} - Needs empty plots`;
+  return `${stock} - Ready for workers`;
 }
 
 function inspectMarkup(state: FarmState): string {
