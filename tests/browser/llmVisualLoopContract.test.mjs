@@ -164,6 +164,17 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('isRectVisibleToPlayer');
   });
 
+  test('visual observations do not cap player-visible text before sending it to the LLM', async () => {
+    const visualLoopSource = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+    const scriptedPlaytestSource = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    for (const source of [visualLoopSource, scriptedPlaytestSource]) {
+      expect(source).not.toContain('while (fragments.length < 180)');
+      expect(source).not.toContain('return compactText(fragments.join');
+      expect(source).toContain('return normalizeVisibleText(fragments.join');
+    }
+  });
+
   test('visual loop exposes scrollable side-panel content as a wheel target', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
@@ -256,6 +267,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('claimedTier && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)');
     expect(source).toContain('waitCount >= 7 && !hasActionableGuidance(observation.visibleText)');
     expect(source).toContain('FARM GUIDE Paint Empty Land');
+  });
+
+  test('visual loop waits after recent player actions before stopping', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('const lastAction = actionHistory.at(-1);');
+    expect(source).toContain("lastAction?.kind === 'wait' && claimedTier && waitsAfterClaim >= 2");
+    expect(source).toContain("lastAction?.kind === 'wait' && waitCount >= 7");
   });
 
   test('visual loop replay viewer keeps screenshots in the viewport while metadata scrolls', async () => {

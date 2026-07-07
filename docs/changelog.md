@@ -58,3 +58,5 @@
 - Kept the visual LLM-player loop running while visible Farm Guide or HUD guidance still offers an actionable next step, with support for deeper 80-step progression audits.
 - Made high-storage selling guidance recur after its first tutorial use so low-coin, nearly-full farms still point players back to Inventory.
 - Taught the visual LLM-player loop to restock from visible zero-seed Inventory rows before ending a run.
+- Made the visual LLM-player loop wait for a post-action watch frame before stopping so newly revealed guidance has a chance to appear.
+- Removed fixed visible-text caps from the LLM/player harness observation packets while keeping compact labels for controls.

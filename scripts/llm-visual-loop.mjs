@@ -269,7 +269,7 @@ async function captureVisualObservation(page, stepIndex, label) {
     }
 
     function actionLabelFor(element) {
-      return compactText(
+      return compactLabel(
         element.getAttribute('aria-label') ||
         element.getAttribute('title') ||
         element.textContent ||
@@ -277,8 +277,12 @@ async function captureVisualObservation(page, stepIndex, label) {
       );
     }
 
-    function compactText(value) {
+    function compactLabel(value) {
       return value.replace(/\s+/g, ' ').trim().slice(0, 2400);
+    }
+
+    function normalizeVisibleText(value) {
+      return value.replace(/\s+/g, ' ').trim();
     }
 
     function visibleTextForPlayer() {
@@ -298,13 +302,13 @@ async function captureVisualObservation(page, stepIndex, label) {
         },
       });
 
-      while (fragments.length < 180) {
+      while (true) {
         const node = walker.nextNode();
         if (!node) break;
         fragments.push(node.textContent ?? '');
       }
 
-      return compactText(fragments.join(' '));
+      return normalizeVisibleText(fragments.join(' '));
     }
 
     function isTextContainerVisible(element) {
@@ -448,6 +452,7 @@ async function chooseVisualLoopAction({ observation, history, defaultWaitMs, pro
 
 function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const actionHistory = history.map((step) => step.decision?.action).filter(Boolean);
+  const lastAction = actionHistory.at(-1);
   const clickedSelectors = new Set(actionHistory.filter((action) => action.kind === 'click').map((action) => action.selector));
   const waitCount = actionHistory.filter((action) => action.kind === 'wait').length;
   const canvasClickCount = actionHistory.filter((action) => action.kind === 'click' && action.selector === 'canvas').length;
@@ -608,7 +613,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(goalsAction, 'Open the visible Goals panel because progression and tier rewards should be understandable there.');
   }
 
-  if (claimedTier && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)) {
+  if (lastAction?.kind === 'wait' && claimedTier && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)) {
     return {
       rationale: 'The loop already claimed a tier and watched the post-claim farm for two intervals.',
       action: { kind: 'stop' },
@@ -616,7 +621,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     };
   }
 
-  if (waitCount >= 7 && !hasActionableGuidance(observation.visibleText)) {
+  if (lastAction?.kind === 'wait' && waitCount >= 7 && !hasActionableGuidance(observation.visibleText)) {
     return {
       rationale: 'Several watch intervals have passed without a higher-priority visible action becoming available.',
       action: { kind: 'stop' },

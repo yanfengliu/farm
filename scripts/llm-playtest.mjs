@@ -332,7 +332,7 @@ async function captureScenario(page, id, label) {
     const availableActions = Array.from(document.querySelectorAll(playerActionSelector))
       .filter((element) => isVisible(element) && isReachableToPlayer(element) && !element.disabled)
       .map((element) => ({
-        label: element.getAttribute('aria-label') || element.getAttribute('title') || compactText(element.textContent ?? ''),
+        label: element.getAttribute('aria-label') || element.getAttribute('title') || compactLabel(element.textContent ?? ''),
         selector: playerSelectorFor(element),
         tagName: element.tagName.toLowerCase(),
         type: element.getAttribute('type') || undefined,
@@ -381,8 +381,12 @@ async function captureScenario(page, id, label) {
       },
     };
 
-    function compactText(value) {
+    function compactLabel(value) {
       return value.replace(/\s+/g, ' ').trim().slice(0, 2200);
+    }
+
+    function normalizeVisibleText(value) {
+      return value.replace(/\s+/g, ' ').trim();
     }
 
     function visibleTextForPlayer() {
@@ -402,13 +406,13 @@ async function captureScenario(page, id, label) {
         },
       });
 
-      while (fragments.length < 180) {
+      while (true) {
         const node = walker.nextNode();
         if (!node) break;
         fragments.push(node.textContent ?? '');
       }
 
-      return compactText(fragments.join(' '));
+      return normalizeVisibleText(fragments.join(' '));
     }
 
     function playerKeyboardActions() {
@@ -431,7 +435,7 @@ async function captureScenario(page, id, label) {
           const label = (
             button.getAttribute('aria-label') ||
             button.getAttribute('title') ||
-            compactText(button.textContent ?? '')
+            compactLabel(button.textContent ?? '')
           );
           return {
             label: shortcutKeyboardLabelFor(button, label),
@@ -542,7 +546,7 @@ async function captureScenario(page, id, label) {
     }
 
     function actionLabelFor(element) {
-      return compactText(
+      return compactLabel(
         element.getAttribute('aria-label') ||
         element.getAttribute('title') ||
         element.textContent ||

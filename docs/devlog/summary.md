@@ -62,3 +62,5 @@
 - 2026-07-07: Extended the visual LLM-player loop so it keeps following actionable Farm Guide/HUD guidance after tier claims instead of ending while the screen still asks for a player action.
 - 2026-07-07: Made storage-pressure selling guidance recur after the visual loop ended on Goals with low coins, high stored crops, and no obvious next action.
 - 2026-07-07: Taught the visual LLM-player loop to use visible zero-seed Inventory buy buttons before stopping, matching what a player can infer from the panel.
+- 2026-07-07: Required the visual LLM-player loop to observe a watch frame after recent player actions before stopping, preventing post-action guidance from being missed.
+- 2026-07-07: Removed fixed visible-text caps from scripted and visual LLM/player observations so the harness sees the full viewport-visible text.
