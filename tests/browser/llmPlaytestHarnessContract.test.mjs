@@ -108,4 +108,14 @@ describe('LLM playtest harness player contract', () => {
     expect(source).toContain('NodeFilter.SHOW_TEXT');
     expect(source).toContain('isRectVisibleToPlayer');
   });
+
+  test('scripted observations enumerate keyboard-only camera controls', async () => {
+    const source = await readFile('scripts/llm-playtest.mjs', 'utf8');
+
+    expect(source).toContain('keyboardActions');
+    expect(source).toContain('function playerKeyboardActions()');
+    expect(source).toContain('Pan camera right');
+    expect(source).toContain("key: 'ArrowRight'");
+    expect(source).toContain("alternateKeys: ['D']");
+  });
 });

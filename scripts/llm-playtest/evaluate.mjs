@@ -234,6 +234,12 @@ export function renderPlaytestMarkdown(run, findings) {
           lines.push(`    - ${formatAvailableAction(action)}`);
         }
       }
+      if ((scenario.observation.keyboardActions ?? []).length > 0) {
+        lines.push('  - keyboardActions:');
+        for (const action of scenario.observation.keyboardActions) {
+          lines.push(`    - ${formatKeyboardAction(action)}`);
+        }
+      }
     }
     lines.push('- metrics:');
     for (const [key, value] of Object.entries(scenario.metrics ?? {})) {
@@ -250,6 +256,12 @@ function formatAvailableAction(action) {
   const hint = action.actionHint ? ` | ${action.actionHint}` : '';
   const state = action.state ? ` | state ${JSON.stringify(action.state)}` : '';
   return `${label}: \`${action.selector}\`${hint}${state}`;
+}
+
+function formatKeyboardAction(action) {
+  const alternates = action.alternateKeys?.length ? ` | alternate keys ${action.alternateKeys.join(', ')}` : '';
+  const state = action.state ? ` | state ${JSON.stringify(action.state)}` : '';
+  return `${action.label}: \`${action.key}\`${alternates} | ${action.actionHint}${state}`;
 }
 
 function truncate(value, maxLength) {

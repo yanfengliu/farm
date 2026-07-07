@@ -56,7 +56,7 @@ try {
     url,
     mode: 'step-by-step-visual-loop',
     decisionProvider: providerCommand ? 'external-command' : 'local-heuristic',
-    actionBoundary: 'Each decision receives screenshot path, visible text, and visible controls; execution is limited to click, drag, adjust, wheel, press, wait, viewport, or stop.',
+    actionBoundary: 'Each decision receives screenshot path, visible text, visible controls, and keyboard controls; execution is limited to click, drag, adjust, wheel, press, wait, viewport, or stop.',
     summary: {
       consoleErrors,
       pageErrors,
@@ -129,6 +129,7 @@ async function captureVisualObservation(page, stepIndex, label) {
         state: controlStateFor(element),
         bounds: roundedBounds(element.getBoundingClientRect()),
       }));
+    const keyboardActions = playerKeyboardActions();
 
     return {
       index: observationIndex,
@@ -136,15 +137,26 @@ async function captureVisualObservation(page, stepIndex, label) {
       screenshot: screenshotPath,
       visibleText,
       availableActions,
-      prompt: buildDecisionPrompt({ screenshotPath, visibleText, availableActions }),
+      keyboardActions,
+      prompt: buildDecisionPrompt({ screenshotPath, visibleText, availableActions, keyboardActions }),
     };
 
     function buildDecisionPrompt(observation) {
       return [
         'You are playtesting a desktop idle farming game as a real player.',
-        'Use the screenshot and visible controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click actions may include x/y coordinates relative to the chosen element.',
+        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, drag, adjust, wheel, press, wait, viewport, or stop. Click actions may include x/y coordinates relative to the chosen element.',
         JSON.stringify(observation, null, 2),
       ].join('\n\n');
+    }
+
+    function playerKeyboardActions() {
+      return [
+        { label: 'Pan camera left', key: 'ArrowLeft', alternateKeys: ['A'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
+        { label: 'Pan camera right', key: 'ArrowRight', alternateKeys: ['D'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
+        { label: 'Pan camera up', key: 'ArrowUp', alternateKeys: ['W'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
+        { label: 'Pan camera down', key: 'ArrowDown', alternateKeys: ['S'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
+        { label: 'Pause or resume', key: 'Space', alternateKeys: [], actionHint: 'press', state: { canHold: false } },
+      ];
     }
 
     function actionHintFor(element) {
@@ -824,6 +836,12 @@ function renderVisualLoopMarkdown(run) {
     for (const action of step.observation.availableActions.slice(0, 18)) {
       lines.push(`- ${action.label || action.selector} | ${action.selector} | ${action.actionHint}${formatActionState(action.state)} | ${JSON.stringify(action.bounds)}`);
     }
+    if ((step.observation.keyboardActions ?? []).length > 0) {
+      lines.push('Keyboard actions:');
+      for (const action of step.observation.keyboardActions) {
+        lines.push(`- ${formatKeyboardAction(action)}`);
+      }
+    }
     lines.push('');
   }
 
@@ -842,6 +860,11 @@ function formatActionState(state) {
   return state ? ` | state ${JSON.stringify(state)}` : '';
 }
 
+function formatKeyboardAction(action) {
+  const alternates = action.alternateKeys?.length ? ` | alternate keys ${action.alternateKeys.join(', ')}` : '';
+  return `${action.label} | ${action.key}${alternates} | ${action.actionHint}${formatActionState(action.state)}`;
+}
+
 function renderVisualLoopHtml(run) {
   const runJson = JSON.stringify(run);
   return `<!doctype html>
@@ -851,10 +874,10 @@ function renderVisualLoopHtml(run) {
     <title>Farm LLM Visual Loop</title>
     <style>
       :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #050505; color: #f5f5f5; }
-      body { margin: 0; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) 390px; }
-      main { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; }
+      body { margin: 0; height: 100vh; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 390px; }
+      main { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; height: 100vh; overflow: hidden; }
       img { width: 100%; height: 100%; object-fit: contain; background: #0b0b0b; }
-      aside { border-left: 1px solid rgba(255,255,255,.18); padding: 14px; overflow: auto; background: rgba(255,255,255,.05); }
+      aside { height: 100vh; box-sizing: border-box; border-left: 1px solid rgba(255,255,255,.18); padding: 14px; overflow: auto; background: rgba(255,255,255,.05); }
       button { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.08); color: inherit; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
       button:hover, button.active { background: rgba(255,255,255,.2); }
       .strip { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(255,255,255,.16); overflow-x: auto; background: rgba(255,255,255,.04); }
@@ -877,6 +900,8 @@ function renderVisualLoopHtml(run) {
       <pre id="visibleText"></pre>
       <h2>Actions</h2>
       <ul id="actions"></ul>
+      <h2>Keyboard</h2>
+      <ul id="keyboardActions"></ul>
       <h2>Findings</h2>
       <pre id="findings"></pre>
     </aside>
@@ -893,6 +918,7 @@ function renderVisualLoopHtml(run) {
       const decision = document.getElementById('decision');
       const visibleText = document.getElementById('visibleText');
       const actions = document.getElementById('actions');
+      const keyboardActions = document.getElementById('keyboardActions');
       const findings = document.getElementById('findings');
       findings.textContent = JSON.stringify(run.findings, null, 2);
       for (const [i, item] of frames.entries()) {
@@ -909,6 +935,7 @@ function renderVisualLoopHtml(run) {
         decision.textContent = JSON.stringify({ decision: item.decision, execution: item.execution }, null, 2);
         visibleText.textContent = item.observation.visibleText;
         actions.innerHTML = item.observation.availableActions.map((action) => '<li><strong>' + escapeHtml(action.label || action.selector) + '</strong><br /><span class="meta">' + escapeHtml(action.selector) + ' / ' + action.actionHint + escapeHtml(formatActionState(action.state)) + '</span></li>').join('');
+        keyboardActions.innerHTML = (item.observation.keyboardActions || []).map((action) => '<li><strong>' + escapeHtml(action.label) + '</strong><br /><span class="meta">' + escapeHtml(action.key) + escapeHtml(action.alternateKeys?.length ? ' / ' + action.alternateKeys.join(', ') : '') + ' / ' + escapeHtml(action.actionHint + formatActionState(action.state)) + '</span></li>').join('');
         [...strip.children].forEach((button, i) => button.classList.toggle('active', i === index));
       }
       function formatActionState(state) {

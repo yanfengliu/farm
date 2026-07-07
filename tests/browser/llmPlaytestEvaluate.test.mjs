@@ -106,6 +106,38 @@ describe('LLM playtest evaluator', () => {
     expect(markdown).toContain('"value":"40"');
   });
 
+  test('renders keyboard controls in visible observations', () => {
+    const run = {
+      ...baseRun,
+      scenarios: [
+        {
+          ...baseRun.scenarios[0],
+          observation: {
+            screenshot: 'farm.png',
+            visibleText: 'Farm canvas',
+            availableActions: [],
+            keyboardActions: [
+              {
+                label: 'Pan camera right',
+                key: 'ArrowRight',
+                alternateKeys: ['D'],
+                actionHint: 'press',
+              },
+            ],
+            playerActionsSincePrevious: [],
+          },
+        },
+      ],
+    };
+
+    const markdown = renderPlaytestMarkdown(run, []);
+
+    expect(markdown).toContain('keyboardActions');
+    expect(markdown).toContain('Pan camera right');
+    expect(markdown).toContain('ArrowRight');
+    expect(markdown).toContain('D');
+  });
+
   test('converts findings into improvement annotations anchored to scenario evidence', () => {
     const findings = evaluatePlaytest(baseRun);
     const annotations = buildAnnotations(baseRun, findings);

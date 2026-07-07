@@ -325,6 +325,7 @@ async function captureScenario(page, id, label) {
         state: controlStateFor(element),
         bounds: roundedBounds(element.getBoundingClientRect()),
       }));
+    const keyboardActions = playerKeyboardActions();
 
     return {
       id: scenarioId,
@@ -335,6 +336,7 @@ async function captureScenario(page, id, label) {
         screenshot: screenshotPath,
         visibleText,
         availableActions,
+        keyboardActions,
         playerActionsSincePrevious,
       },
       metrics: {
@@ -389,6 +391,16 @@ async function captureScenario(page, id, label) {
       }
 
       return compactText(fragments.join(' '));
+    }
+
+    function playerKeyboardActions() {
+      return [
+        { label: 'Pan camera left', key: 'ArrowLeft', alternateKeys: ['A'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
+        { label: 'Pan camera right', key: 'ArrowRight', alternateKeys: ['D'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
+        { label: 'Pan camera up', key: 'ArrowUp', alternateKeys: ['W'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
+        { label: 'Pan camera down', key: 'ArrowDown', alternateKeys: ['S'], actionHint: 'press', state: { canHold: true, suggestedDurationMs: 260 } },
+        { label: 'Pause or resume', key: 'Space', alternateKeys: [], actionHint: 'press', state: { canHold: false } },
+      ];
     }
 
     function isTextContainerVisible(element) {

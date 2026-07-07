@@ -50,3 +50,5 @@
 - 2026-07-07: Added a dedicated scripted LLM Inspect-panel screenshot after a visible tile selection so playtest review can judge object details directly.
 - 2026-07-07: Expanded the Inspect panel from raw tile kind text into labeled object/worker detail rows after the new screenshot showed well inspection was too sparse.
 - 2026-07-07: Tightened the LLM/player harness so visible text is viewport/scroll clipped, side-panel wheel actions do not count as camera zoom, and default visual loops still reach Crop Mix numeric adjustment.
+- 2026-07-07: Exposed Arrow/WASD camera panning and Space pause/resume as keyboard actions in LLM/player observation packets and reports.
+- 2026-07-07: Fixed the visual-loop HTML replay viewer so screenshot frames stay visible while long metadata scrolls.

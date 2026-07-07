@@ -147,4 +147,25 @@ describe('LLM visual loop harness contract', () => {
 
     expect(source).toMatch(/const zoomedCamera = actionHistory\.some\(\(action\) => \(\s*action\.kind === 'wheel' &&\s*action\.selector === 'canvas'/s);
   });
+
+  test('visual loop observations enumerate keyboard-only camera controls', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('keyboardActions');
+    expect(source).toContain('function playerKeyboardActions()');
+    expect(source).toContain('Pan camera right');
+    expect(source).toContain("key: 'ArrowRight'");
+    expect(source).toContain("alternateKeys: ['D']");
+  });
+
+  test('visual loop replay viewer keeps screenshots in the viewport while metadata scrolls', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('height: 100vh;');
+    expect(source).toContain('overflow: hidden;');
+    expect(source).toContain('main {');
+    expect(source).toContain('min-height: 0;');
+    expect(source).toContain('aside {');
+    expect(source).toContain('overflow: auto;');
+  });
 });
