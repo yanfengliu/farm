@@ -53,6 +53,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain("findAction(observation, '[data-buy-seeds')");
   });
 
+  test('visual loop seed decisions ignore incidental Farm Guide why copy', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).not.toContain('/Buy seeds|Buy .* seeds|Farmers Waiting/i');
+    expect(source).toContain('FARM GUIDE Buy Seeds');
+    expect(source).toContain('Farmers Waiting');
+  });
+
   test('visual loop follows the crop mix tutorial prompt', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

@@ -233,7 +233,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   }
 
   const seedAction = findSeedAction(observation);
-  if (seedAction && /Buy seeds|Buy .* seeds|Farmers Waiting/i.test(observation.visibleText)) {
+  if (seedAction && hasExplicitSeedGuidance(observation.visibleText)) {
     return clickDecision(seedAction, 'Workers need seeds and the visible guidance offers a direct seed-buying action.');
   }
 
@@ -299,6 +299,10 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     action: { kind: 'wait', ms: defaultWaitMs },
     expectedResult: 'The next screenshot should show workers, crops, storage, goals, or guidance changing over real browser time.',
   };
+}
+
+function hasExplicitSeedGuidance(visibleText) {
+  return /FARM GUIDE Buy Seeds|Farmers Waiting|Restock seeds/i.test(visibleText);
 }
 
 function tutorialActionFromText(observation) {

@@ -38,3 +38,4 @@
 - Added current/target harvest counts to HUD and Goals milestone copy so players can see progress toward carrot and wheat tiers.
 - Moved Farm dev and playtest defaults to the 5175 localhost lane, with `FARM_PLAYTEST_URL` support for attaching harnesses to an already-running server.
 - Let visible tier-claim Farm Guide cards preempt held sell guidance so reward moments do not point players away from the Goals panel.
+- Tightened the visual-loop seed heuristic so incidental Farm Guide text like "coins buy seeds" no longer overrides a visible Sell Crops prompt.

@@ -42,3 +42,4 @@
 - 2026-07-06: Added current/target harvest counts to HUD and Goals milestone text so waiting and worker progress are visible.
 - 2026-07-06: Moved Farm dev and LLM playtest defaults away from the AoE localhost port and documented `FARM_PLAYTEST_URL` for 5175 visual checks.
 - 2026-07-06: Prioritized visible tier-claim Farm Guide cards over held sell guidance after the Goals reward screenshot pointed players back to Inventory.
+- 2026-07-06: Tightened the visual-loop seed heuristic after the step log showed a Sell Crops guide being overridden by incidental "coins buy seeds" copy.
