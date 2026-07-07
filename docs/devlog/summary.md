@@ -36,3 +36,4 @@
 - 2026-07-05: Fixed a short-lived Inventory panel stale-render case where HUD storage and tutorial guidance could update before visible crop rows did.
 - 2026-07-05: Raised the step-by-step visual LLM loop budget so the default run completes the first visible tier claim instead of ending one action early.
 - 2026-07-05: Reworked transient tutorial tips into stable Farm Guide cards with consistent Do/Why sections, richer context, and a readable hold when guidance changes.
+- 2026-07-06: Added seed stock, planted counts, and readiness states to Crop Mix rows after the visual LLM loop exposed that percentages alone did not explain planting blockers.

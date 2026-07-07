@@ -133,7 +133,7 @@ The layout uses a canvas playfield with a bottom toolbar and collapsible side pa
 Side panels provide:
 
 - Inventory and manual selling.
-- Crop mix percentages.
+- Crop mix percentages, with per-crop seed stock and planting readiness so players understand when a target crop is blocked by locked tiers, missing seeds, or lack of empty plots.
 - Tier/milestone details and manual tier claiming.
 - Contextual seed-restock guidance when workers are waiting for buyable seeds.
 - Upgrades and unlocks.

@@ -663,13 +663,37 @@ body.panel-resizing .panel-resizer::before {
   display: grid;
   grid-template-columns: 84px 1fr 44px;
   align-items: center;
-  gap: 8px;
-  margin: 8px 0;
+  gap: 5px 8px;
+  margin: 0 0 6px;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.014)),
+    rgba(0, 0, 0, 0.12);
   font-size: 13px;
 }
 
 .crop-mix input {
   width: 100%;
+}
+
+.crop-mix-value {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.crop-mix-detail {
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.crop-mix[data-crop-status="ready"] .crop-mix-detail {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .tutorial-layer {

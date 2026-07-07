@@ -32,3 +32,4 @@
 - Kept Inventory crop rows in sync with HUD storage on the next frame so screenshot-based playtests no longer see stale crop counts.
 - Raised the default visual-loop step budget so the LLM player has room to claim the first ready tier after camera and plot actions.
 - Reworked next-step tutorial cards into stable Farm Guide cards with consistent Do/Why sections and a short readable hold when guidance changes.
+- Added seed stock, planted counts, and readiness states to Crop Mix rows so percentage targets explain whether each crop can actually be planted.

@@ -2,6 +2,7 @@ import { chromium } from '@playwright/test';
 import process from 'node:process';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createServer } from 'vite';
+import { createFarmGame, getFarmSnapshot } from '../../src/game/simulation/farmGame';
 
 let server;
 let browser;
@@ -177,6 +178,67 @@ describe('visual polish', () => {
         { id: 'wheat', ariaLabel: 'Set Wheat crop mix', title: 'Set Wheat crop mix' },
         { id: 'tomato', ariaLabel: 'Set Tomato crop mix', title: 'Set Tomato crop mix' },
       ]);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
+  test('crop mix rows explain seed stock and planting readiness', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'crop-mix-context' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.cropMix = { carrot: 0.75, wheat: 0.25, tomato: 0 };
+    savedState.inventory.seeds = { carrot: 0, wheat: 4, tomato: 0 };
+    for (const tile of Object.values(savedState.tiles)) {
+      if (tile.kind === 'plot') {
+        delete tile.plot;
+      }
+    }
+
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.click('[data-panel="mix"]');
+      await page.waitForSelector('#panel-content h2');
+
+      const rows = await page.evaluate(() => (
+        Array.from(globalThis.document.querySelectorAll('.crop-mix'))
+          .map((row) => ({
+            cropId: row.getAttribute('data-crop-id'),
+            status: row.getAttribute('data-crop-status'),
+            detail: row.querySelector('.crop-mix-detail')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            right: row.getBoundingClientRect().right,
+            panelRight: row.closest('.side-panel')?.getBoundingClientRect().right ?? 0,
+          }))
+      ));
+
+      const carrot = rows.find((row) => row.cropId === 'carrot');
+      const wheat = rows.find((row) => row.cropId === 'wheat');
+      const tomato = rows.find((row) => row.cropId === 'tomato');
+
+      expect(carrot).toBeDefined();
+      expect(wheat).toBeDefined();
+      expect(tomato).toBeDefined();
+      expect(carrot?.detail).toContain('Seeds 0');
+      expect(carrot?.detail).toContain('No seeds stocked');
+      expect(wheat?.status).toBe('ready');
+      expect(wheat?.detail).toContain('Seeds 4');
+      expect(wheat?.detail).toContain('Ready for workers');
+      expect(tomato?.status).toBe('locked');
+      expect(tomato?.detail).toContain('Locked until a later tier');
+      expect(Math.max(...rows.map((row) => row.right))).toBeLessThanOrEqual(
+        Math.min(...rows.map((row) => row.panelRight)) - 8,
+      );
     } finally {
       await context.close();
     }

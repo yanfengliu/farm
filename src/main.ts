@@ -22,6 +22,7 @@ import { clearFarmSave, loadSavedFarmState, saveFarmState } from './persistence/
 
 type Tool = 'inspect' | 'plot' | 'well' | 'storage' | 'land' | 'bulldoze';
 type Panel = 'inventory' | 'goals' | 'mix' | 'inspect';
+type CropMixStatus = 'locked' | 'off' | 'no-seeds' | 'needs-plots' | 'ready';
 type IconName =
   | 'backpack'
   | 'bulldoze'
@@ -1173,14 +1174,35 @@ function upgradeRow(state: FarmState, upgradeId: UpgradeId): string {
 function cropMixRow(state: FarmState, cropId: CropId): string {
   const locked = !state.tier.unlockedCrops.includes(cropId);
   const value = Math.round(state.cropMix[cropId] * 100);
+  const status = cropMixStatus(state, cropId, locked, value);
+  const detail = cropMixDetail(state, cropId, status);
   const actionLabel = `Set ${CROPS[cropId].label} crop mix`;
   return `
-    <label class="crop-mix">
+    <label class="crop-mix" data-crop-id="${cropId}" data-crop-status="${status}">
       <span class="crop-mix-name">${iconSvg(cropIcon(cropId))}${CROPS[cropId].label}</span>
       <input type="range" min="0" max="100" value="${value}" data-mix="${cropId}" title="${actionLabel}" aria-label="${actionLabel}" ${locked ? 'disabled' : ''} />
-      <span>${value}%</span>
+      <span class="crop-mix-value">${value}%</span>
+      <span class="crop-mix-detail">${detail}</span>
     </label>
   `;
+}
+
+function cropMixStatus(state: FarmState, cropId: CropId, locked: boolean, value: number): CropMixStatus {
+  if (locked) return 'locked';
+  if (value <= 0) return 'off';
+  if (state.inventory.seeds[cropId] <= 0) return 'no-seeds';
+  if (emptyPlotCount(state) <= 0) return 'needs-plots';
+  return 'ready';
+}
+
+function cropMixDetail(state: FarmState, cropId: CropId, status: CropMixStatus): string {
+  if (status === 'locked') return 'Locked until a later tier';
+
+  const stock = `Seeds ${state.inventory.seeds[cropId]} · Planted ${plantedCropCount(state, cropId)}`;
+  if (status === 'off') return `${stock} · Disabled in mix`;
+  if (status === 'no-seeds') return `${stock} · No seeds stocked`;
+  if (status === 'needs-plots') return `${stock} · Needs empty plots`;
+  return `${stock} · Ready for workers`;
 }
 
 function inspectMarkup(state: FarmState): string {
@@ -1231,7 +1253,28 @@ function storedCropCount(state: FarmState): number {
   return Object.values(state.inventory.crops).reduce((sum, count) => sum + count, 0);
 }
 
+function plantedCropCount(state: FarmState, cropId: CropId): number {
+  return Object.values(state.tiles).filter((tile) => tile.kind === 'plot' && tile.plot?.cropId === cropId).length;
+}
+
+function emptyPlotCount(state: FarmState): number {
+  return Object.values(state.tiles).filter((tile) => tile.kind === 'plot' && !tile.plot).length;
+}
+
 function panelStateSignature(state: FarmState): string {
+  if (activePanel === 'mix') {
+    return [
+      activePanel,
+      emptyPlotCount(state),
+      ...CROP_IDS.map((cropId) => [
+        cropId,
+        Math.round(state.cropMix[cropId] * 100),
+        state.inventory.seeds[cropId],
+        plantedCropCount(state, cropId),
+        state.tier.unlockedCrops.includes(cropId) ? 'unlocked' : 'locked',
+      ].join(':')),
+    ].join('|');
+  }
   if (activePanel !== 'inventory') return activePanel;
   return [
     activePanel,
