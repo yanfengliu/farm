@@ -65,12 +65,11 @@ const PANEL_RENDER_INTERVAL_MS = 250;
 const TUTORIAL_STORAGE_KEY = 'farm-tutorial-seen-v1';
 const PANEL_WIDTH_STORAGE_KEY = 'farm-side-panel-width-v1';
 const SPEED_STORAGE_KEY = 'farm-speed-v1';
-const PANEL_WIDTH_DEFAULT = 320;
+const PANEL_WIDTH_DEFAULT = 340;
 const PANEL_WIDTH_MIN = 300;
 const PANEL_WIDTH_MAX = 560;
 const PANEL_PLAYFIELD_MIN = 360;
-const TUTORIAL_TIP_WIDTH = 320;
-const TUTORIAL_MIN_VISIBLE_MS = 4500;
+const TUTORIAL_TIP_WIDTH = 348;
 const TUTORIAL_VIEWPORT_PADDING = 8;
 const TUTORIAL_TARGET_GAP = 12;
 
@@ -93,7 +92,6 @@ let lastPanelRenderedAt = 0;
 let lastPanelStateSignature = '';
 let lastTutorialMarkup = '';
 let activeTutorialTip: TutorialTip | null = null;
-let activeTutorialTipShownAt = 0;
 let panelWidth = loadPanelWidth();
 let panelResizeDrag: { pointerId: number; startX: number; startWidth: number } | null = null;
 const seenTutorialTips = loadTutorialSeen();
@@ -843,14 +841,8 @@ function syncPanelScrollAffordance(): void {
 function renderTutorialTip(): void {
   const state = getFarmSnapshot(farmGame);
   const candidate = currentTutorialTip(state);
-  const now = performance.now();
-  const shouldHoldCurrent = Boolean(
-    activeTutorialTip &&
-    activeTutorialTip.id !== candidate?.id &&
-    !tutorialTipCanPreempt(activeTutorialTip, candidate) &&
-    now - activeTutorialTipShownAt < TUTORIAL_MIN_VISIBLE_MS,
-  );
-  const tip = shouldHoldCurrent ? activeTutorialTip : candidate;
+  const stickyTip = activeTutorialTip && !isTutorialSeen(activeTutorialTip.id) ? activeTutorialTip : null;
+  const tip = stickyTip ?? candidate;
 
   if (!tip) {
     clearTutorialTip();
@@ -859,14 +851,13 @@ function renderTutorialTip(): void {
 
   const target = visibleTutorialTarget(tip.targetSelector);
   if (!target) {
-    if (shouldHoldCurrent && lastTutorialMarkup) return;
+    if (stickyTip && lastTutorialMarkup) return;
     clearTutorialTip();
     return;
   }
 
   if (!activeTutorialTip || activeTutorialTip.id !== tip.id || activeTutorialTip.targetSelector !== tip.targetSelector) {
     activeTutorialTip = tip;
-    activeTutorialTipShownAt = now;
   }
 
   const { left, top, placement } = tutorialTipPosition(target);
@@ -896,20 +887,6 @@ function renderTutorialTip(): void {
     lastTutorialMarkup = markup;
   }
   keepTutorialTipInView();
-}
-
-function tutorialTipCanPreempt(current: TutorialTip, candidate: TutorialTip | null): boolean {
-  return Boolean(candidate && tutorialTipPriority(candidate) > tutorialTipPriority(current));
-}
-
-function tutorialTipPriority(tip: TutorialTip): number {
-  if (tip.id === 'claim-tier') return 100;
-  if (tip.id === 'open-goals-for-claim') return 90;
-  if (tip.id === 'buy-needed-seeds' || tip.id === 'open-goals-for-seeds') return 80;
-  if (tip.id === 'select-plot-tool' || tip.id === 'paint-empty-land') return 70;
-  if (tip.id === 'sell-first-crop' || tip.id === 'open-inventory-for-selling') return 60;
-  if (tip.id === 'open-mix-panel' || tip.id === 'open-mix-for-tomatoes') return 50;
-  return 0;
 }
 
 function tutorialTipPosition(target: HTMLElement): { left: number; top: number; placement: TutorialTipPlacement } {
@@ -996,7 +973,8 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
   }
 
   const alerts = state.alerts.join(' ');
-  if (alerts.includes('Restock seeds')) {
+  const needsSeedRestock = seedRestockNeeded(state);
+  if (needsSeedRestock) {
     const goalCrop = milestoneCropId(state);
     const buyableGoalCrop = goalCrop && seedBuyTargetAvailable(state, goalCrop) ? goalCrop : null;
     const goalSeedAction = buyableGoalCrop
@@ -1088,6 +1066,10 @@ function currentTutorialTip(state: FarmState): TutorialTip | null {
     }
   }
 
+  if (needsSeedRestock || storagePressure) {
+    return null;
+  }
+
   if (state.tier.unlockedCrops.length > 1 && !isTutorialSeen('open-mix-panel')) {
     return {
       id: 'open-mix-panel',
@@ -1125,7 +1107,6 @@ function visibleTutorialTarget(selector: string): HTMLElement | null {
 
 function clearTutorialTip(): void {
   activeTutorialTip = null;
-  activeTutorialTipShownAt = 0;
   if (!lastTutorialMarkup) return;
   tutorialLayer.innerHTML = '';
   lastTutorialMarkup = '';
@@ -1198,8 +1179,7 @@ function tierUnlockRow(state: FarmState): string {
 }
 
 function seedGuidanceRow(state: FarmState): string {
-  const hasSeedAlert = state.alerts.some((alert) => alert.includes('Restock seeds'));
-  if (!hasSeedAlert) return '';
+  if (!seedRestockNeeded(state)) return '';
 
   const milestoneCrop = milestoneCropId(state);
   const buyableCrops = state.tier.unlockedCrops.filter((cropId) => (
@@ -1250,6 +1230,18 @@ function seedBuyTargetAvailable(state: FarmState, cropId: CropId): boolean {
     state.cropMix[cropId] > 0 &&
     state.inventory.seeds[cropId] === 0 &&
     state.coins >= CROPS[cropId].seedPrice;
+}
+
+function seedRestockNeeded(state: FarmState): boolean {
+  if (state.alerts.some((alert) => alert.includes('Restock seeds'))) return true;
+  if (!state.workers.some((worker) => worker.task.kind === 'idle')) return false;
+  if (!Object.values(state.tiles).some((tile) => tile.kind === 'plot' && !tile.plot)) return false;
+
+  const desiredCrops = state.tier.unlockedCrops.filter((cropId) => state.cropMix[cropId] > 0);
+  if (desiredCrops.length === 0) return false;
+
+  const availableSeeds = desiredCrops.reduce((sum, cropId) => sum + state.inventory.seeds[cropId], 0);
+  return availableSeeds <= 0 && desiredCrops.some((cropId) => seedBuyTargetAvailable(state, cropId));
 }
 
 function upgradeRow(state: FarmState, upgradeId: UpgradeId): string {
@@ -1704,6 +1696,19 @@ function markTutorialSeen(id: string): void {
   clearTutorialTip();
 }
 
+function markActiveTutorialTargetSeen(): void {
+  if (activeTutorialTip) markTutorialSeen(activeTutorialTip.id);
+}
+
+function markActiveTutorialShortcutSeen(key: string): void {
+  if (!activeTutorialTip) return;
+  const normalizedKey = key.toLowerCase();
+  const tool = tools.find((item) => item.key.toLowerCase() === normalizedKey);
+  if (tool && activeTutorialTip.targetSelector === `[data-tool="${tool.id}"]`) {
+    markTutorialSeen(activeTutorialTip.id);
+  }
+}
+
 function loadSpeed(): 1 | 2 | 4 {
   try {
     const stored = Number(localStorage.getItem(SPEED_STORAGE_KEY));
@@ -1745,7 +1750,6 @@ function resetFarm(): void {
   lastPanelStateSignature = '';
   lastTutorialMarkup = '';
   activeTutorialTip = null;
-  activeTutorialTipShownAt = 0;
 }
 
 panelResizer.addEventListener('pointerdown', (event) => {
@@ -1826,7 +1830,7 @@ document.addEventListener('click', (event) => {
 
   const command = target.closest<HTMLElement>('[data-command]')?.dataset.command;
   if (command === 'dismiss-tutorial') {
-    if (activeTutorialTip) markTutorialSeen(activeTutorialTip.id);
+    markActiveTutorialTargetSeen();
     return;
   }
   if (command === 'undo') submitFarmCommand(farmGame, { type: 'undo' });
@@ -1863,7 +1867,7 @@ document.addEventListener('click', (event) => {
   }
 
   if (clickedTutorialTarget && activeTutorialTip) {
-    markTutorialSeen(activeTutorialTip.id);
+    markActiveTutorialTargetSeen();
   }
 });
 
@@ -1898,6 +1902,7 @@ document.addEventListener('keydown', (event) => {
   else if (key === '-') setSpeed(2);
   else if (key === '=') setSpeed(4);
   else if (key === 'r' && event.shiftKey) resetFarm();
+  markActiveTutorialShortcutSeen(key);
 });
 
 declare global {

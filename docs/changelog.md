@@ -79,3 +79,4 @@
 - Deprecated the old scripted LLM playtest harness; `npm run playtest:llm` now delegates to the canonical visual screenshot/action loop with a deeper default audit budget.
 - Expanded the canonical visual LLM-player loop so it audits the retired scripted surface controls and reports clean stops that still leave actionable final guidance on screen.
 - Standardized canonical visual-loop self-improvement artifacts on `civ-engine` improvement findings, including run manifests, fix/proposal classification, visual-finding bridging, and before/after rerun comparison.
+- Made Farm Guide cards sticky until the player follows the suggested action or dismisses the card, and raised desktop HUD, panel, toolbar, and guide text/control scale for readability.

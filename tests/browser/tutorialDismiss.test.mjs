@@ -158,7 +158,7 @@ describe('tutorial tips', () => {
     }
   }, 15000);
 
-  test('tutorial tips stay readable briefly when guidance changes', async () => {
+  test('select plot tip advances immediately when its keyboard shortcut is used', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'guidance-hold' }));
     savedState.inventory.seeds = { carrot: 5, wheat: 0, tomato: 0 };
     for (const tile of Object.values(savedState.tiles)) {
@@ -179,17 +179,17 @@ describe('tutorial tips', () => {
       await page.waitForSelector('.tutorial-tip[data-tutorial-tip="select-plot-tool"]');
 
       await page.keyboard.press('1');
-      await page.waitForTimeout(750);
+      await page.waitForTimeout(250);
 
-      const heldTip = await page.locator('.tutorial-tip').evaluate((tip) => ({
+      const nextTip = await page.locator('.tutorial-tip').evaluate((tip) => ({
         id: tip.getAttribute('data-tutorial-tip'),
         title: tip.querySelector('.tutorial-title')?.textContent?.trim() ?? '',
         text: tip.textContent ?? '',
       }));
 
-      expect(heldTip.id).toBe('select-plot-tool');
-      expect(heldTip.title).toBe('Select Plot');
-      expect(heldTip.text).toContain('Press 1 or click Plot');
+      expect(nextTip.id).toBe('paint-empty-land');
+      expect(nextTip.title).toBe('Paint Empty Land');
+      expect(nextTip.text).toContain('Click a green owned tile');
     } finally {
       await context.close();
     }
@@ -278,7 +278,7 @@ describe('tutorial tips', () => {
     }
   }, 20000);
 
-  test('visible tier claim guidance preempts held sell guidance in Goals', async () => {
+  test('visible tier claim guidance waits until the current sell guidance is followed', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'claim-tip-priority' }));
     const readyPlot = Object.values(savedState.tiles).find((tile) => tile.kind === 'plot');
     if (readyPlot?.kind === 'plot') {
@@ -309,8 +309,12 @@ describe('tutorial tips', () => {
         title: element.querySelector('.tutorial-title')?.textContent?.trim() ?? '',
       }));
 
-      expect(tip.id).toBe('claim-tier');
-      expect(tip.title).toBe('Claim Tier 2');
+      expect(tip.id).toBe('open-inventory-for-selling');
+      expect(tip.title).toBe('Open Inventory');
+
+      await page.click('[data-panel="inventory"]');
+      await page.click('[data-panel="goals"]');
+      await page.waitForSelector('.tutorial-tip[data-tutorial-tip="claim-tier"]');
     } finally {
       await context.close();
     }

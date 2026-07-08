@@ -83,3 +83,4 @@
 - 2026-07-07: Deprecated the old scripted LLM playtest harness and made `playtest:llm` delegate to the canonical visual screenshot/action loop with a deeper default audit budget.
 - 2026-07-07: Expanded the canonical visual LLM-player loop to audit the retired scripted surface controls and flag clean stops when final screenshots still show actionable guidance.
 - 2026-07-08: Standardized visual-loop self-improvement reports on `civ-engine` `ImprovementFinding` objects, added run manifests, visual-finding bridges, before/after rerun comparison, and dogfooded provider-failure recovery evidence.
+- 2026-07-08: Made Farm Guide cards stay on the current suggested action until the player follows it or dismisses it, while raising the desktop UI text/control scale for readability.

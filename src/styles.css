@@ -60,10 +60,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 28px;
-  padding: 4px 9px;
+  min-height: 30px;
+  padding: 5px 10px;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 14px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.09),
     0 8px 18px rgba(0, 0, 0, 0.22);
@@ -112,7 +112,7 @@ button:disabled .button-icon {
 
 .farm-shell {
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr) 56px;
+  grid-template-rows: 48px minmax(0, 1fr) 64px;
   width: 100vw;
   height: 100vh;
   min-width: 860px;
@@ -120,7 +120,7 @@ button:disabled .button-icon {
 
 .hud {
   display: grid;
-  grid-template-columns: repeat(6, minmax(66px, auto)) minmax(0, 1fr);
+  grid-template-columns: repeat(6, minmax(72px, auto)) minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
@@ -139,8 +139,8 @@ button:disabled .button-icon {
 .hud > div:not(.hud-alert) {
   display: grid;
   align-content: center;
-  min-height: 32px;
-  padding: 4px 8px;
+  min-height: 36px;
+  padding: 5px 9px;
   border: 1px solid rgba(255, 255, 255, 0.105);
   border-radius: 5px;
   background:
@@ -153,20 +153,20 @@ button:disabled .button-icon {
 
 .hud strong {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.1;
   color: var(--muted);
   text-transform: uppercase;
 }
 
 .hud span {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .hud-alert {
   min-width: 0;
-  min-height: 32px;
-  padding: 6px 10px;
+  min-height: 36px;
+  padding: 7px 11px;
   border-left: 1px solid var(--line-warm);
   color: var(--text);
   overflow: hidden;
@@ -176,7 +176,7 @@ button:disabled .button-icon {
 
 .play-area {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--side-panel-width, 320px);
+  grid-template-columns: minmax(0, 1fr) var(--side-panel-width, 340px);
   min-height: 0;
 }
 
@@ -219,7 +219,7 @@ button:disabled .button-icon {
 }
 
 .side-panel::before {
-  top: 40px;
+  top: 44px;
   height: 28px;
   background: linear-gradient(180deg, rgba(7, 6, 5, 0.86), transparent);
 }
@@ -281,9 +281,9 @@ body.panel-resizing .panel-resizer::before {
 .panel-tabs {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(4, minmax(38px, 1fr)) 30px;
-  gap: 4px;
-  padding: 6px;
+  grid-template-columns: repeat(4, minmax(42px, 1fr)) 34px;
+  gap: 5px;
+  padding: 7px;
   border-bottom: 1px solid var(--line);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015)),
@@ -293,10 +293,10 @@ body.panel-resizing .panel-resizer::before {
 .panel-tabs button {
   position: relative;
   min-width: 0;
-  min-height: 28px;
+  min-height: 30px;
   border-radius: 4px;
-  font-size: 12px;
-  padding: 3px 5px;
+  font-size: 13px;
+  padding: 4px 6px;
 }
 
 .panel-tabs button[data-panel]::after {
@@ -313,7 +313,7 @@ body.panel-resizing .panel-resizer::before {
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
     rgba(9, 8, 7, 0.96);
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -339,8 +339,8 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .panel-tabs button[data-panel] .button-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .panel-toggle {
@@ -365,7 +365,7 @@ body.panel-resizing .panel-resizer::before {
 
 .panel-content {
   overflow: auto;
-  padding: 12px 10px 34px;
+  padding: 14px 12px 36px;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.34) rgba(255, 255, 255, 0.08);
@@ -393,14 +393,14 @@ body.panel-resizing .panel-resizer::before {
 
 .panel-content h2 {
   margin: 0 0 10px;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.1;
   text-shadow: 0 0 18px rgba(255, 255, 255, 0.14);
 }
 
 .panel-content h3 {
   margin: 13px 0 7px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
 }
 
@@ -408,24 +408,24 @@ body.panel-resizing .panel-resizer::before {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 9px;
-  margin: 0 0 5px;
-  padding: 7px 7px;
+  gap: 10px;
+  margin: 0 0 6px;
+  padding: 8px 8px;
   border: 1px solid rgba(255, 255, 255, 0.095);
   border-radius: 5px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.018)),
     rgba(0, 0, 0, 0.14);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .row button {
-  min-width: 32px;
-  min-height: 26px;
+  min-width: 34px;
+  min-height: 28px;
   border-radius: 4px;
-  font-size: 12px;
-  padding: 3px 6px;
+  font-size: 13px;
+  padding: 4px 7px;
 }
 
 .row-label,
@@ -438,8 +438,8 @@ body.panel-resizing .panel-resizer::before {
 
 .row-label .button-icon,
 .crop-mix-name .button-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   color: var(--muted);
 }
 
@@ -458,7 +458,7 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .upgrade-row strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .upgrade-row p {
@@ -466,10 +466,10 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .upgrade-row button {
-  min-height: 27px;
+  min-height: 29px;
   border-radius: 4px;
-  font-size: 12px;
-  padding: 3px 6px;
+  font-size: 13px;
+  padding: 4px 7px;
 }
 
 .primary-action {
@@ -499,7 +499,7 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .tier-current-card strong {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .tier-unlock-banner {
@@ -549,21 +549,21 @@ body.panel-resizing .panel-resizer::before {
 
 .banner-kicker {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .tier-banner-copy strong {
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.1;
 }
 
 .tier-banner-copy p {
   margin: 0;
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -584,7 +584,7 @@ body.panel-resizing .panel-resizer::before {
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.24);
   color: var(--text);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.2;
 }
 
@@ -618,7 +618,7 @@ body.panel-resizing .panel-resizer::before {
 .seed-guidance strong {
   display: block;
   margin-top: 2px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .seed-guidance p {
@@ -632,10 +632,10 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .seed-actions button {
-  min-height: 28px;
+  min-height: 30px;
   min-width: 0;
-  padding: 3px 6px;
-  font-size: 12px;
+  padding: 4px 7px;
+  font-size: 13px;
 }
 
 .tier-list {
@@ -659,12 +659,12 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .tier-list strong {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .tier-list span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.25;
 }
 
@@ -687,7 +687,7 @@ body.panel-resizing .panel-resizer::before {
 
 .inspect-detail span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   line-height: 1.2;
@@ -696,13 +696,13 @@ body.panel-resizing .panel-resizer::before {
 
 .inspect-detail strong {
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.25;
 }
 
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(12, minmax(58px, min(6.5vw, 82px)));
+  grid-template-columns: repeat(12, minmax(62px, min(6.8vw, 92px)));
   justify-content: center;
   gap: 5px;
   align-items: center;
@@ -722,18 +722,18 @@ body.panel-resizing .panel-resizer::before {
   position: relative;
   display: grid;
   min-width: 0;
-  grid-template-columns: 19px minmax(0, 1fr);
-  grid-template-rows: 21px 12px;
+  grid-template-columns: 21px minmax(0, 1fr);
+  grid-template-rows: 24px 14px;
   grid-template-areas:
     "icon label"
     "key key";
-  column-gap: 4px;
+  column-gap: 5px;
   row-gap: 0;
   align-content: center;
   align-items: center;
-  min-height: 40px;
+  min-height: 44px;
   border-radius: 5px;
-  padding: 3px 4px;
+  padding: 4px 5px;
 }
 
 .toolbar .tool-button::after {
@@ -750,7 +750,7 @@ body.panel-resizing .panel-resizer::before {
     linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.045)),
     rgba(9, 8, 7, 0.97);
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -781,7 +781,7 @@ body.panel-resizing .panel-resizer::before {
 
 .tool-button .key {
   grid-area: key;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 
@@ -789,13 +789,13 @@ body.panel-resizing .panel-resizer::before {
   grid-area: label;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.1;
 }
 
 .button-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   fill: currentColor;
   stroke: none;
   shape-rendering: crispEdges;
@@ -820,7 +820,7 @@ body.panel-resizing .panel-resizer::before {
 
 .small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
 }
 
@@ -835,19 +835,19 @@ body.panel-resizing .panel-resizer::before {
   border-radius: 5px;
   background: rgba(231, 190, 122, 0.08);
   color: rgba(255, 247, 225, 0.88);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.25;
 }
 
 .crop-mix-allocation strong {
   color: var(--accent);
-  font-size: 16px;
+  font-size: 17px;
   font-variant-numeric: tabular-nums;
 }
 
 .crop-mix {
   display: grid;
-  grid-template-columns: minmax(78px, 92px) minmax(92px, 1fr) 62px;
+  grid-template-columns: minmax(86px, 102px) minmax(92px, 1fr) 68px;
   align-items: center;
   gap: 5px 8px;
   margin: 0 0 6px;
@@ -857,7 +857,7 @@ body.panel-resizing .panel-resizer::before {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.014)),
     rgba(0, 0, 0, 0.12);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .crop-mix-slider {
@@ -897,7 +897,7 @@ body.panel-resizing .panel-resizer::before {
 
 .crop-mix-number span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .crop-mix-number:has(input:disabled) {
@@ -908,7 +908,7 @@ body.panel-resizing .panel-resizer::before {
   grid-column: 1 / -1;
   min-width: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.25;
 }
 
@@ -926,11 +926,11 @@ body.panel-resizing .panel-resizer::before {
 .tutorial-tip {
   position: fixed;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 24px;
-  gap: 9px;
-  width: 320px;
-  min-height: 156px;
-  padding: 11px;
+  grid-template-columns: 36px minmax(0, 1fr) 28px;
+  gap: 10px;
+  width: 348px;
+  min-height: 176px;
+  padding: 13px;
   border: 1px solid var(--line-bright);
   border-radius: 6px;
   background:
@@ -983,16 +983,16 @@ body.panel-resizing .panel-resizer::before {
 .tutorial-callout-icon {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.1);
 }
 
 .tutorial-callout-icon .button-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .tutorial-copy {
@@ -1004,7 +1004,7 @@ body.panel-resizing .panel-resizer::before {
 .tutorial-kicker,
 .tutorial-detail-label {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1012,14 +1012,14 @@ body.panel-resizing .panel-resizer::before {
 
 .tutorial-tip strong {
   display: block;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.15;
 }
 
 .tutorial-tip p {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -1036,7 +1036,7 @@ body.panel-resizing .panel-resizer::before {
 .tutorial-detail {
   display: grid;
   gap: 2px;
-  padding: 6px 7px;
+  padding: 7px 8px;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 5px;
   background: rgba(0, 0, 0, 0.22);
@@ -1047,11 +1047,11 @@ body.panel-resizing .panel-resizer::before {
 }
 
 .tutorial-close {
-  min-width: 24px;
-  min-height: 24px;
+  min-width: 28px;
+  min-height: 28px;
   padding: 0;
   align-self: start;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 input[type="range"] {
@@ -1096,18 +1096,18 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 1100px) {
   .toolbar {
-    grid-template-columns: repeat(12, minmax(50px, 64px));
+    grid-template-columns: repeat(12, minmax(54px, 68px));
   }
 
   .tool-button {
     grid-template-columns: 1fr;
-    grid-template-rows: 22px 12px;
+    grid-template-rows: 24px 14px;
     grid-template-areas:
       "icon"
       "key";
     justify-items: center;
     column-gap: 0;
-    min-height: 40px;
+    min-height: 44px;
     padding-inline: 4px;
   }
 
