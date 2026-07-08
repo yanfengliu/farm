@@ -78,3 +78,4 @@
 - Reworded terminal Tomato Rows HUD and Goals copy so it describes open-ended tuning instead of asking players to claim a nonexistent next tier.
 - Deprecated the old scripted LLM playtest harness; `npm run playtest:llm` now delegates to the canonical visual screenshot/action loop with a deeper default audit budget.
 - Expanded the canonical visual LLM-player loop so it audits the retired scripted surface controls and reports clean stops that still leave actionable final guidance on screen.
+- Standardized canonical visual-loop self-improvement artifacts on `civ-engine` improvement findings, including run manifests, fix/proposal classification, visual-finding bridging, and before/after rerun comparison.

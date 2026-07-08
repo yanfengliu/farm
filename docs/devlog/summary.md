@@ -82,3 +82,4 @@
 - 2026-07-07: Reworded terminal Tomato Rows HUD and Goals copy after visual replay showed the endgame objective was vague and the card still promised a next tier claim.
 - 2026-07-07: Deprecated the old scripted LLM playtest harness and made `playtest:llm` delegate to the canonical visual screenshot/action loop with a deeper default audit budget.
 - 2026-07-07: Expanded the canonical visual LLM-player loop to audit the retired scripted surface controls and flag clean stops when final screenshots still show actionable guidance.
+- 2026-07-08: Standardized visual-loop self-improvement reports on `civ-engine` `ImprovementFinding` objects, added run manifests, visual-finding bridges, before/after rerun comparison, and dogfooded provider-failure recovery evidence.

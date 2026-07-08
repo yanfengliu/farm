@@ -43,6 +43,8 @@ If `FARM_LLM_VISUAL_LOOP_COMMAND` is set, the command receives the same observat
 
 Use `FARM_PLAYTEST_URL=http://127.0.0.1:5175/` to run the visual loop against the same local Farm server you are inspecting manually.
 
+The visual loop report uses the shared `civ-engine` recursive-improvement contract. `latest.json` records an `improvementRun` manifest, standardized `findings` as `ImprovementFinding` objects, `visualFindings` bridged for visual-playtest consumers, and a `comparison` against the previous run. Treat `verificationStatus` and `nextAction` as required triage fields: `autoFix` findings are implementation bugs or harness faults, `manualFix` findings need product judgment or focused implementation, and `proposalOnly` findings should stay as candidate recommendations until reviewed. Rerun the loop after a change and inspect `comparison.findings.resolved`, `added`, and `persistent` before claiming the loop improved.
+
 ## Debugging Discipline
 
 Reproduce the behavior first, identify the failing invariant, add a failing test or playtest check, then fix the smallest cause.

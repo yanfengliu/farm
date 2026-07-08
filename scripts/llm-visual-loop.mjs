@@ -11,6 +11,14 @@ import {
   hasVisibleSellableCrops,
   visibleSeedStock,
 } from './llm-visual-loop/visible-state.mjs';
+import {
+  compareVisualLoopRuns,
+  createImprovementRunManifest,
+  evaluateVisualLoop,
+  loadPreviousRunSummary,
+  renderImprovementFindingsMarkdown,
+  visualFindingsFromImprovementFindings,
+} from './llm-visual-loop/improvement-report.mjs';
 
 const cwd = process.cwd();
 const outputDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop');
@@ -22,6 +30,8 @@ const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 64, 1, 120);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
+const latestRunPath = path.join(outputDir, 'latest.json');
+const previousRunSummary = await loadPreviousRunSummary(latestRunPath);
 
 await fs.rm(outputDir, { recursive: true, force: true });
 await fs.mkdir(screenshotDir, { recursive: true });
@@ -157,12 +167,17 @@ try {
     engineFindings: visualLoopResult.findings.length,
     error: visualLoopResult.error,
   };
+  run.engineFindings = visualLoopResult.findings;
 
   run.finalObservation = await captureVisualObservation(page, run.steps.length, 'final');
+  run.completedAt = new Date().toISOString();
+  run.improvementRun = createImprovementRunManifest(run);
   run.findings = evaluateVisualLoop(run);
+  run.visualFindings = visualFindingsFromImprovementFindings(run.findings);
+  run.comparison = compareVisualLoopRuns(previousRunSummary, run);
   const report = renderVisualLoopMarkdown(run);
 
-  await fs.writeFile(path.join(outputDir, 'latest.json'), `${JSON.stringify(run, null, 2)}\n`);
+  await fs.writeFile(latestRunPath, `${JSON.stringify(run, null, 2)}\n`);
   await fs.writeFile(path.join(outputDir, 'latest.md'), report);
   await fs.writeFile(path.join(outputDir, 'latest.html'), renderVisualLoopHtml(run));
 
@@ -1652,93 +1667,6 @@ async function executePlayerDecision(page, decision) {
   }
 }
 
-function evaluateVisualLoop(run) {
-  const findings = [];
-  if (run.summary.consoleErrors.length > 0 || run.summary.pageErrors.length > 0) {
-    findings.push({
-      id: 'browser-errors',
-      severity: 'high',
-      title: 'Browser errors occurred during the visual loop',
-      evidence: [...run.summary.consoleErrors, ...run.summary.pageErrors].slice(0, 5),
-      recommendation: 'Fix the page or console error before trusting playtest findings.',
-    });
-  }
-
-  if (run.summary.visualLoop && !run.summary.visualLoop.ok) {
-    findings.push({
-      id: 'visual-loop-engine-stop',
-      severity: 'high',
-      title: `civ-engine visual playtest runner stopped with ${run.summary.visualLoop.stopReason}`,
-      evidence: [run.summary.visualLoop.error ?? run.summary.visualLoop],
-      recommendation: 'Fix the visual-loop host, action adapter, or decision provider before trusting playtest findings.',
-    });
-  }
-
-  for (const step of run.steps) {
-    if (!step.execution.ok) {
-      findings.push({
-        id: 'player-action-failed',
-        severity: 'high',
-        title: `Player action failed at step ${step.index}`,
-        evidence: [step.decision.action, step.execution.error],
-        recommendation: 'Keep visible action selectors stable or adjust the loop action extraction.',
-      });
-      break;
-    }
-  }
-
-  const repeatedWaits = run.steps.filter((step) => step.decision.action.kind === 'wait').length;
-  const clickCount = run.steps.filter((step) => step.decision.action.kind === 'click').length;
-  if (repeatedWaits >= 5 && clickCount <= 1) {
-    findings.push({
-      id: 'visual-loop-low-agency',
-      severity: 'medium',
-      title: 'The visual loop mostly waited instead of making choices',
-      evidence: [`waits=${repeatedWaits}`, `clicks=${clickCount}`],
-      recommendation: 'Expose clearer next-step controls or richer visible state so a player-like agent has something meaningful to do.',
-    });
-  }
-
-  const observationsWithoutActions = run.steps.filter((step) => step.observation.availableActions.length === 0);
-  if (observationsWithoutActions.length > 0) {
-    findings.push({
-      id: 'no-visible-actions',
-      severity: 'high',
-      title: 'A visual observation had no visible actions',
-      evidence: observationsWithoutActions.map((step) => `step ${step.index}: ${step.observation.screenshot}`),
-      recommendation: 'Ensure the playable screen exposes keyboard, button, or pointer actions after loading.',
-    });
-  }
-
-  const finalVisibleText = run.finalObservation?.visibleText ?? '';
-  const finalHasActionableGuidance = hasActionableGuidance(finalVisibleText);
-  const lastDecision = run.steps.at(-1)?.decision;
-  if (lastDecision?.action.kind === 'stop' && finalHasActionableGuidance) {
-    findings.push({
-      id: 'visual-loop-stopped-with-guidance',
-      severity: 'medium',
-      title: 'The visual loop stopped while final guidance was still actionable',
-      evidence: [finalVisibleText],
-      recommendation: 'Teach the local visual player to follow the final visible guidance before trusting a clean stop.',
-    });
-  }
-
-  if (
-    run.steps.length >= run.summary.maxSteps &&
-    finalHasActionableGuidance
-  ) {
-    findings.push({
-      id: 'visual-loop-ended-with-guidance',
-      severity: 'medium',
-      title: 'The visual loop hit its step cap while guidance was still actionable',
-      evidence: [`maxSteps=${run.summary.maxSteps}`, finalVisibleText],
-      recommendation: 'Raise the run budget or teach the local visual player to follow the final visible guidance before trusting a zero-finding run.',
-    });
-  }
-
-  return findings;
-}
-
 function renderVisualLoopMarkdown(run) {
   const lines = [
     '# LLM Visual Loop Playtest',
@@ -1758,15 +1686,12 @@ function renderVisualLoopMarkdown(run) {
     '',
   ];
 
-  if (run.findings.length === 0) {
-    lines.push('- None');
-  } else {
-    for (const finding of run.findings) {
-      lines.push(`- ${finding.severity.toUpperCase()} ${finding.id}: ${finding.title}`);
-      lines.push(`  Evidence: ${finding.evidence.map((item) => JSON.stringify(item)).join('; ')}`);
-      lines.push(`  Recommendation: ${finding.recommendation}`);
-    }
-  }
+  lines.push(...renderImprovementFindingsMarkdown(run.findings));
+
+  lines.push('');
+  lines.push('## Rerun Comparison');
+  lines.push('');
+  lines.push(...renderComparisonMarkdown(run.comparison));
 
   lines.push('');
   lines.push('## Steps');
@@ -1805,6 +1730,25 @@ function renderVisualLoopMarkdown(run) {
   }
 
   return `${lines.join('\n')}\n`;
+}
+
+function renderComparisonMarkdown(comparison) {
+  if (!comparison || comparison.status === 'no-baseline') {
+    return [
+      '- No previous `latest.json` baseline was available for this run.',
+      `- Current stop reason: ${comparison?.current?.stopReason ?? 'unknown'}`,
+      `- Current findings: ${(comparison?.current?.findingIds ?? []).join(', ') || 'none'}`,
+    ];
+  }
+  return [
+    `- Status: ${comparison.status}`,
+    `- Previous run: ${comparison.previous.runId} (${comparison.previous.stopReason ?? 'unknown'}, ${comparison.previous.steps ?? 0} steps)`,
+    `- Current run: ${comparison.current.runId} (${comparison.current.stopReason ?? 'unknown'}, ${comparison.current.steps ?? 0} steps)`,
+    `- Steps delta: ${comparison.behavior.stepsDelta}`,
+    `- Resolved findings: ${comparison.findings.resolved.join(', ') || 'none'}`,
+    `- Added findings: ${comparison.findings.added.join(', ') || 'none'}`,
+    `- Persistent findings: ${comparison.findings.persistent.join(', ') || 'none'}`,
+  ];
 }
 
 function formatActionState(state) {

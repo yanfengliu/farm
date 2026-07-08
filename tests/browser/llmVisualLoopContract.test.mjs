@@ -86,27 +86,36 @@ describe('LLM visual loop harness contract', () => {
   });
 
   test('visual loop flags a capped run when the final screenshot still has actionable guidance', async () => {
-    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+    const source = [
+      await readFile('scripts/llm-visual-loop.mjs', 'utf8'),
+      await readFile('scripts/llm-visual-loop/improvement-report.mjs', 'utf8'),
+    ].join('\n');
 
-    expect(source).toContain('run.steps.length >= run.summary.maxSteps');
+    expect(source).toContain('(run.steps?.length ?? 0) >= (run.summary?.maxSteps ?? Infinity)');
     expect(source).toContain('const finalHasActionableGuidance = hasActionableGuidance(finalVisibleText)');
     expect(source).toContain('visual-loop-ended-with-guidance');
   });
 
   test('visual loop flags any clean stop when the final screenshot still has actionable guidance', async () => {
-    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+    const source = [
+      await readFile('scripts/llm-visual-loop.mjs', 'utf8'),
+      await readFile('scripts/llm-visual-loop/improvement-report.mjs', 'utf8'),
+    ].join('\n');
 
-    expect(source).toContain("lastDecision?.action.kind === 'stop'");
+    expect(source).toContain("lastDecision?.action?.kind === 'stop'");
     expect(source).toContain('visual-loop-stopped-with-guidance');
     expect(source).toContain('Tune mix, expand land, upgrade workers');
   });
 
   test('visual loop reports civ-engine runner failures as findings', async () => {
-    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+    const source = [
+      await readFile('scripts/llm-visual-loop.mjs', 'utf8'),
+      await readFile('scripts/llm-visual-loop/improvement-report.mjs', 'utf8'),
+    ].join('\n');
 
     expect(source).toContain('visual-loop-engine-stop');
     expect(source).toContain('civ-engine visual playtest runner stopped with');
-    expect(source).toContain('run.summary.visualLoop && !run.summary.visualLoop.ok');
+    expect(source).toContain('run.summary?.visualLoop && !run.summary.visualLoop.ok');
   });
 
   test('visual loop storage setup tolerates restricted browser documents', async () => {
