@@ -78,19 +78,27 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('escapeAttributeValue(dataAttribute.value)');
   });
 
-  test('visual loop has enough default budget to restock after the first tier crop mix pass', async () => {
+  test('visual loop has enough default budget to cover the surface audit and first tier path', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 32');
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 32, 1, 120)');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 64');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 64, 1, 120)');
   });
 
   test('visual loop flags a capped run when the final screenshot still has actionable guidance', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('run.steps.length >= run.summary.maxSteps');
-    expect(source).toContain('hasActionableGuidance(run.finalObservation?.visibleText');
+    expect(source).toContain('const finalHasActionableGuidance = hasActionableGuidance(finalVisibleText)');
     expect(source).toContain('visual-loop-ended-with-guidance');
+  });
+
+  test('visual loop flags any clean stop when the final screenshot still has actionable guidance', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain("lastDecision?.action.kind === 'stop'");
+    expect(source).toContain('visual-loop-stopped-with-guidance');
+    expect(source).toContain('Tune mix, expand land, upgrade workers');
   });
 
   test('visual loop reports civ-engine runner failures as findings', async () => {
@@ -134,6 +142,7 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('function hasVisibleZeroSeedRestock');
     expect(source).toContain('seedAction && hasVisibleZeroSeedRestock(observation.visibleText)');
     expect(source).toContain('Visible Inventory seed rows show zero stock, so buy seeds before ending the run.');
+    expect(source).toContain('!shouldSellVisibleCrops(visibleText)');
   });
 
   test('visual loop prefers the active milestone crop when restocking visible inventory rows', async () => {
@@ -142,6 +151,8 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('function findSeedActionForVisibleNeed(observation)');
     expect(source).toContain('visibleMilestoneCrop(observation.visibleText)');
     expect(source).toContain('findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`)');
+    expect(source).toContain('for (const zeroSeedCrop of visibleZeroSeedCropsByPriority(observation.visibleText))');
+    expect(source).toContain('if (zeroSeedAction) return zeroSeedAction;');
     expect(source).toContain('const seedAction = findSeedActionForVisibleNeed(observation);');
   });
 
@@ -202,6 +213,9 @@ describe('LLM visual loop harness contract', () => {
 
     expect(source).toContain('function findUpgradeAction');
     expect(source).toContain("findAction(observation, '[data-buy-upgrade=\"boots\"]')");
+    expect(source).toContain("findAction(observation, '[data-buy-upgrade=\"wateringCan\"]')");
+    expect(source).toContain("action.selector?.startsWith('[data-buy-upgrade=')");
+    expect(source).not.toContain('!clickedSelectors.has(upgradeAction.selector)');
   });
 
   test('visual loop does not persist external provider command strings', async () => {
@@ -358,6 +372,30 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain("findKeyboardControl(observation, 'ArrowLeft', '[data-panel-resizer]')");
     expect(source).toContain('Focus the visible side-panel resize handle');
     expect(source).toContain('selector: keyboardAction.selector');
+  });
+
+  test('visual loop local heuristic exercises the retired scripted surface tour controls', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain('draggedPanelWithMouse');
+    expect(source).toContain('Drag the visible side-panel resize handle');
+    expect(source).toContain('collapsedPanel');
+    expect(source).toContain('pausedWithButton');
+    expect(source).toContain('Cycle through 1x speed');
+    expect(source).toContain('Cycle through 2x speed');
+    expect(source).toContain('openedInspectPanel');
+    expect(source).toContain('Inspect a visible farm tile through the canvas');
+    expect(source).toContain('Select the visible Well tool');
+    expect(source).toContain('Select the visible Storage tool');
+    expect(source).toContain('Select the visible Land tool');
+    expect(source).toContain('Select the visible Bulldoze tool');
+    expect(source).toContain('Click Undo after a visible plot placement');
+    expect(source).toContain('Click Redo after undoing the visible plot placement');
+    expect(source).toContain('Resize to a compact desktop viewport');
+    expect(source).toContain('terminalOpenEndedGuidanceVisible');
+    expect(source).toContain('openedMixAfterTomato');
+    expect(source).toContain('openedGoalsAfterTomato');
+    expect(source).toContain('selectedLandAfterTomato');
   });
 
   test('visual loop local heuristic hovers an icon-only panel tab', async () => {

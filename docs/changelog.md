@@ -77,3 +77,4 @@
 - Muted disabled Inventory sell-button coin glyphs and cursor affordance so zero-count crop rows no longer look as clickable as active crop sale buttons.
 - Reworded terminal Tomato Rows HUD and Goals copy so it describes open-ended tuning instead of asking players to claim a nonexistent next tier.
 - Deprecated the old scripted LLM playtest harness; `npm run playtest:llm` now delegates to the canonical visual screenshot/action loop with a deeper default audit budget.
+- Expanded the canonical visual LLM-player loop so it audits the retired scripted surface controls and reports clean stops that still leave actionable final guidance on screen.

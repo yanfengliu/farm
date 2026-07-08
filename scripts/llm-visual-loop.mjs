@@ -9,7 +9,6 @@ import {
 } from 'civ-engine';
 import {
   hasVisibleSellableCrops,
-  preferredVisibleZeroSeedCrop,
   visibleSeedStock,
 } from './llm-visual-loop/visible-state.mjs';
 
@@ -19,7 +18,7 @@ const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
 const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 32, 1, 120);
+const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 64, 1, 120);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
@@ -806,10 +805,72 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     action.selector === '[data-panel="inventory"]'
   ));
   const draggedCanvas = actionHistory.some((action) => action.kind === 'drag' && action.selector === 'canvas');
+  const draggedPanelWithMouse = actionHistory.some((action) => (
+    action.kind === 'drag' &&
+    action.selector === '[data-panel-resizer]'
+  ));
   const resizedPanelWithKeyboard = actionHistory.some((action) => (
     action.kind === 'press' &&
     action.selector === '[data-panel-resizer]'
   ));
+  const collapsedPanel = actionHistory.filter((action) => (
+    action.kind === 'click' &&
+    action.selector === '[data-command="toggle-panel"]'
+  )).length >= 1;
+  const expandedPanel = actionHistory.filter((action) => (
+    action.kind === 'click' &&
+    action.selector === '[data-command="toggle-panel"]'
+  )).length >= 2;
+  const pauseClickIndex = actionHistory.findIndex((action) => (
+    action.kind === 'click' &&
+    action.selector === '[data-command="pause"]'
+  ));
+  const pausedWithButton = pauseClickIndex >= 0;
+  const resumedWithSpace = pauseClickIndex >= 0 && actionHistory
+    .slice(pauseClickIndex + 1)
+    .some((action) => action.kind === 'press' && action.key === 'Space');
+  const speed1Index = actionHistory.findIndex((action) => (
+    action.kind === 'click' &&
+    action.selector === '[data-speed="1"]'
+  ));
+  const speed2Index = actionHistory.findIndex((action) => (
+    action.kind === 'click' &&
+    action.selector === '[data-speed="2"]'
+  ));
+  const usedSpeed1 = speed1Index >= 0;
+  const usedSpeed2 = speed2Index >= 0;
+  const returnedToSpeed4AfterSpeedTour = speed2Index >= 0 && actionHistory
+    .slice(speed2Index + 1)
+    .some((action) => action.kind === 'click' && action.selector === '[data-speed="4"]');
+  const compactViewport = actionHistory.some((action) => (
+    action.kind === 'viewport' &&
+    action.width <= 1100 &&
+    action.height <= 760
+  ));
+  const openedInspectPanel = clickedSelectors.has('[data-panel="inspect"]');
+  const inspectToolIndex = actionHistory.findIndex((action) => (
+    (action.kind === 'click' || action.kind === 'press') &&
+    action.selector === '[data-tool="inspect"]'
+  ));
+  const selectedInspectTool = inspectToolIndex >= 0;
+  const inspectedCanvasTile = inspectToolIndex >= 0 && actionHistory
+    .slice(inspectToolIndex + 1)
+    .some((action) => action.kind === 'click' && action.selector === 'canvas');
+  const selectedWellTool = clickedSelectors.has('[data-tool="well"]');
+  const selectedStorageTool = clickedSelectors.has('[data-tool="storage"]');
+  const selectedLandTool = clickedSelectors.has('[data-tool="land"]');
+  const selectedBulldozeTool = clickedSelectors.has('[data-tool="bulldoze"]');
+  const undoIndex = actionHistory.findIndex((action) => (
+    (action.kind === 'click' && action.selector === '[data-command="undo"]') ||
+    (action.kind === 'press' && action.key === 'Z')
+  ));
+  const usedUndo = undoIndex >= 0;
+  const usedRedo = undoIndex >= 0 && actionHistory
+    .slice(undoIndex + 1)
+    .some((action) => (
+      (action.kind === 'click' && action.selector === '[data-command="redo"]') ||
+      (action.kind === 'press' && action.key === 'Y')
+    ));
   const scrolledPanelDown = actionHistory.some((action) => (
     action.kind === 'wheel' &&
     action.selector === '[data-player-scroll="side-panel"]' &&
@@ -834,9 +895,24 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const panelScrollAction = findAction(observation, '[data-player-scroll="side-panel"]');
   const inventoryAction = findAction(observation, '[data-panel="inventory"]');
   const goalsAction = findAction(observation, '[data-panel="goals"]');
+  const mixAction = findAction(observation, '[data-panel="mix"]');
+  const inspectPanelAction = findAction(observation, '[data-panel="inspect"]');
+  const inspectToolAction = findAction(observation, '[data-tool="inspect"]');
+  const panelResizeAction = findAction(observation, '[data-panel-resizer]');
+  const togglePanelAction = findAction(observation, '[data-command="toggle-panel"]');
+  const pauseAction = findAction(observation, '[data-command="pause"]');
+  const speed1Action = findAction(observation, '[data-speed="1"]');
+  const speed2Action = findAction(observation, '[data-speed="2"]');
+  const wellToolAction = findAction(observation, '[data-tool="well"]');
+  const storageToolAction = findAction(observation, '[data-tool="storage"]');
+  const landToolAction = findAction(observation, '[data-tool="land"]');
+  const bulldozeToolAction = findAction(observation, '[data-tool="bulldoze"]');
+  const undoAction = findAction(observation, '[data-command="undo"]');
+  const redoAction = findAction(observation, '[data-command="redo"]');
   const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
   const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
   const explicitPaintGuidanceVisible = /FARM GUIDE Paint Empty Land|Paint plots on empty land/i.test(observation.visibleText);
+  const terminalOpenEndedGuidanceVisible = /Tune mix, expand land, upgrade workers/i.test(observation.visibleText);
 
   const claimAction = findAction(observation, '[data-command="claim-tier"]');
   if (claimAction) {
@@ -872,6 +948,15 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     );
   }
 
+  if (panelResizeAction && !draggedPanelWithMouse) {
+    return dragDecision(
+      panelResizeAction,
+      'Drag the visible side-panel resize handle with the mouse so pointer resizing is covered before keyboard resizing.',
+      { x: 7, y: 300 },
+      { deltaX: -88, deltaY: 0 },
+    );
+  }
+
   const panelResizeKeyboardAction = findKeyboardControl(observation, 'ArrowLeft', '[data-panel-resizer]');
   if (panelResizeKeyboardAction && !resizedPanelWithKeyboard) {
     return pressDecision(
@@ -880,6 +965,71 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
       0,
       panelResizeKeyboardAction,
     );
+  }
+
+  if (togglePanelAction && !collapsedPanel) {
+    return clickDecision(togglePanelAction, 'Collapse the side panel with the visible panel toggle so the visual loop audits the compact canvas state.');
+  }
+
+  if (togglePanelAction && collapsedPanel && !expandedPanel) {
+    return clickDecision(togglePanelAction, 'Expand the side panel again so the player can continue using the panel after the collapse audit.');
+  }
+
+  if (pauseAction && !pausedWithButton) {
+    return clickDecision(pauseAction, 'Pause the farm with the visible toolbar button so the loop exercises the time-control affordance.');
+  }
+
+  const resumeKeyboardAction = findKeyboardControl(observation, 'Space', '[data-command="pause"]') || findKeyboardAction(observation, 'Space');
+  if (pausedWithButton && resumeKeyboardAction && !resumedWithSpace) {
+    return pressDecision('Space', 'Resume from pause with the listed Space keyboard control, matching how a desktop player would recover flow.', 0, resumeKeyboardAction);
+  }
+
+  if (speed1Action && !usedSpeed1) {
+    return clickDecision(speed1Action, 'Cycle through 1x speed so every visible speed control gets a real player action.');
+  }
+
+  if (speed2Action && usedSpeed1 && !usedSpeed2) {
+    return clickDecision(speed2Action, 'Cycle through 2x speed before returning to the faster idle-play pace.');
+  }
+
+  if (speedAction && usedSpeed2 && !returnedToSpeed4AfterSpeedTour) {
+    return clickDecision(speedAction, 'Return to 4x speed after auditing the slower speed buttons.');
+  }
+
+  if (returnedToSpeed4AfterSpeedTour && !compactViewport) {
+    return viewportDecision(1024, 720, 'Resize to a compact desktop viewport so the visual loop checks text fit without leaving desktop scope.');
+  }
+
+  if (inspectPanelAction && !openedInspectPanel) {
+    return clickDecision(inspectPanelAction, 'Open the Inspect panel before selecting a tile so object details are visible in a screenshot.');
+  }
+
+  if (inspectToolAction && openedInspectPanel && !selectedInspectTool) {
+    return clickDecision(inspectToolAction, 'Select the visible Inspect tool so the next canvas click uses the same mode a player sees.');
+  }
+
+  if (canvasAction && openedInspectPanel && (selectedInspectTool || /\bTOOL Inspect\b/i.test(observation.visibleText)) && !inspectedCanvasTile) {
+    return clickDecision(
+      canvasAction,
+      'Inspect a visible farm tile through the canvas so the Inspect panel contents are audited in the visual replay.',
+      { x: 410, y: 290 },
+    );
+  }
+
+  if (wellToolAction && inspectedCanvasTile && !selectedWellTool) {
+    return clickDecision(wellToolAction, 'Select the visible Well tool so the LLM-player covers the building toolbar.');
+  }
+
+  if (storageToolAction && inspectedCanvasTile && selectedWellTool && !selectedStorageTool) {
+    return clickDecision(storageToolAction, 'Select the visible Storage tool so storage placement controls are visibly audited.');
+  }
+
+  if (landToolAction && inspectedCanvasTile && selectedStorageTool && !selectedLandTool) {
+    return clickDecision(landToolAction, 'Select the visible Land tool so expansion controls are represented in the visual loop.');
+  }
+
+  if (bulldozeToolAction && inspectedCanvasTile && selectedLandTool && !selectedBulldozeTool) {
+    return clickDecision(bulldozeToolAction, 'Select the visible Bulldoze tool so destructive-tool selection is audited without applying it blindly.');
   }
 
   const plotShortcutAction = findKeyboardAction(observation, '1');
@@ -898,6 +1048,14 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
       'The Plot shortcut already selected the tool, so continue by clicking the farm canvas instead of re-clicking the toolbar.',
       { x: 410, y: 290 },
     );
+  }
+
+  if (canvasClickedAfterPlotShortcut && undoAction && !usedUndo) {
+    return clickDecision(undoAction, 'Click Undo after a visible plot placement so the history control is exercised on a real change.');
+  }
+
+  if (usedUndo && redoAction && !usedRedo) {
+    return clickDecision(redoAction, 'Click Redo after undoing the visible plot placement so history recovery is covered too.');
   }
 
   if (canvasAction && !draggedCanvas && !selectedPlotGuideVisible && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {
@@ -930,6 +1088,18 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const adjustedTomatoNumber = actionHistory.some((action) => (
     action.kind === 'adjust' && action.selector === '[data-mix-number="tomato"]'
   ));
+  const tomatoAdjustIndex = actionHistory.findIndex((action) => (
+    action.kind === 'adjust' && action.selector === '[data-mix-number="tomato"]'
+  ));
+  const openedMixAfterTomato = tomatoAdjustIndex >= 0 && actionHistory
+    .slice(tomatoAdjustIndex + 1)
+    .some((action) => action.kind === 'click' && action.selector === '[data-panel="mix"]');
+  const openedGoalsAfterTomato = tomatoAdjustIndex >= 0 && actionHistory
+    .slice(tomatoAdjustIndex + 1)
+    .some((action) => action.kind === 'click' && action.selector === '[data-panel="goals"]');
+  const selectedLandAfterTomato = tomatoAdjustIndex >= 0 && actionHistory
+    .slice(tomatoAdjustIndex + 1)
+    .some((action) => action.kind === 'click' && action.selector === '[data-tool="land"]');
   if (
     tomatoNumberAction &&
     !adjustedTomatoNumber &&
@@ -955,7 +1125,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   }
 
   const upgradeAction = findUpgradeAction(observation);
-  if (upgradeAction && !clickedSelectors.has(upgradeAction.selector) && /Tool Upgrades|Worker Boots/i.test(observation.visibleText)) {
+  if (upgradeAction && /Tool Upgrades|Worker Boots|Watering Cans/i.test(observation.visibleText)) {
     return clickDecision(upgradeAction, 'Buy the visible worker upgrade so the playtest exercises progression beyond selling and tier claims.');
   }
 
@@ -992,6 +1162,18 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(seedAction, 'Visible Inventory seed rows show zero stock, so buy seeds before ending the run.');
   }
 
+  if (mixAction && !mixAction.state?.active && (terminalOpenEndedGuidanceVisible || /Tune mix/i.test(observation.visibleText)) && !openedMixAfterTomato) {
+    return clickDecision(mixAction, 'Open Crop Mix because the visible open-ended guidance asks the player to tune mix.');
+  }
+
+  if (goalsAction && !goalsAction.state?.active && (terminalOpenEndedGuidanceVisible || /upgrade workers/i.test(observation.visibleText)) && !openedGoalsAfterTomato) {
+    return clickDecision(goalsAction, 'Open Goals because the visible open-ended guidance mentions worker upgrades.');
+  }
+
+  if (landToolAction && !landToolAction.state?.active && (terminalOpenEndedGuidanceVisible || /expand land/i.test(observation.visibleText)) && !selectedLandAfterTomato) {
+    return clickDecision(landToolAction, 'Select the Land tool because the visible open-ended guidance asks the player to expand land.');
+  }
+
   if (goalsAction && !clickedSelectors.has(goalsAction.selector)) {
     return clickDecision(goalsAction, 'Open the visible Goals panel because progression and tier rewards should be understandable there.');
   }
@@ -1026,7 +1208,7 @@ function hasExplicitSeedGuidance(visibleText) {
 function hasVisibleZeroSeedRestock(visibleText) {
   return /Inventory/i.test(visibleText) &&
     /(?:Carrot|Wheat|Tomato) seeds: 0\s+\d+c/i.test(visibleText) &&
-    !hasVisibleSellableCrops(visibleText) &&
+    !shouldSellVisibleCrops(visibleText) &&
     !hasActionableGuidance(visibleText);
 }
 
@@ -1182,7 +1364,21 @@ function dragDecision(action, rationale, start, delta) {
       deltaX: delta.deltaX,
       deltaY: delta.deltaY,
     },
-    expectedResult: `Dragging on "${action.label}" should apply the selected tool across visible farm tiles.`,
+    expectedResult: action.actionHint === 'drag-resize'
+      ? `Dragging "${action.label}" should resize the side panel while text and controls remain readable.`
+      : `Dragging on "${action.label}" should apply the selected tool across visible farm tiles.`,
+  };
+}
+
+function viewportDecision(width, height, rationale) {
+  return {
+    rationale,
+    action: {
+      kind: 'viewport',
+      width,
+      height,
+    },
+    expectedResult: `The game should remain readable and playable after resizing the browser viewport to ${width}x${height}.`,
   };
 }
 
@@ -1216,11 +1412,12 @@ function findSeedAction(observation) {
 function findSeedActionForVisibleNeed(observation) {
   const milestoneCrop = visibleMilestoneCrop(observation.visibleText);
   if (milestoneCrop && visibleSeedStock(observation.visibleText, milestoneCrop) === 0) {
-    return findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`) || findSeedAction(observation);
+    const milestoneSeedAction = findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`);
+    if (milestoneSeedAction) return milestoneSeedAction;
   }
-  const zeroSeedCrop = preferredVisibleZeroSeedCrop(observation.visibleText);
-  if (zeroSeedCrop) {
-    return findAction(observation, `[data-buy-seeds="${zeroSeedCrop}"]`) || findSeedAction(observation);
+  for (const zeroSeedCrop of visibleZeroSeedCropsByPriority(observation.visibleText)) {
+    const zeroSeedAction = findAction(observation, `[data-buy-seeds="${zeroSeedCrop}"]`);
+    if (zeroSeedAction) return zeroSeedAction;
   }
   return findSeedAction(observation);
 }
@@ -1230,10 +1427,16 @@ function visibleMilestoneCrop(visibleText) {
   return match ? match[1].toLowerCase() : null;
 }
 
+function visibleZeroSeedCropsByPriority(visibleText) {
+  return ['tomato', 'wheat', 'carrot'].filter((cropId) => visibleSeedStock(visibleText, cropId) === 0);
+}
+
 function findUpgradeAction(observation) {
   return (
     findAction(observation, '[data-buy-upgrade="boots"]') ||
-    observation.availableActions.find((action) => /buy worker boots/i.test(action.label))
+    findAction(observation, '[data-buy-upgrade="wateringCan"]') ||
+    observation.availableActions.find((action) => action.selector?.startsWith('[data-buy-upgrade=')) ||
+    observation.availableActions.find((action) => /buy (worker boots|watering cans)/i.test(action.label))
   );
 }
 
@@ -1507,15 +1710,28 @@ function evaluateVisualLoop(run) {
     });
   }
 
+  const finalVisibleText = run.finalObservation?.visibleText ?? '';
+  const finalHasActionableGuidance = hasActionableGuidance(finalVisibleText);
+  const lastDecision = run.steps.at(-1)?.decision;
+  if (lastDecision?.action.kind === 'stop' && finalHasActionableGuidance) {
+    findings.push({
+      id: 'visual-loop-stopped-with-guidance',
+      severity: 'medium',
+      title: 'The visual loop stopped while final guidance was still actionable',
+      evidence: [finalVisibleText],
+      recommendation: 'Teach the local visual player to follow the final visible guidance before trusting a clean stop.',
+    });
+  }
+
   if (
     run.steps.length >= run.summary.maxSteps &&
-    hasActionableGuidance(run.finalObservation?.visibleText ?? '')
+    finalHasActionableGuidance
   ) {
     findings.push({
       id: 'visual-loop-ended-with-guidance',
       severity: 'medium',
       title: 'The visual loop hit its step cap while guidance was still actionable',
-      evidence: [`maxSteps=${run.summary.maxSteps}`, run.finalObservation.visibleText],
+      evidence: [`maxSteps=${run.summary.maxSteps}`, finalVisibleText],
       recommendation: 'Raise the run budget or teach the local visual player to follow the final visible guidance before trusting a zero-finding run.',
     });
   }

@@ -81,3 +81,4 @@
 - 2026-07-07: Muted disabled Inventory sell-button coin glyphs after a late-game visual screenshot made zero-count crop sale controls read too similarly to active sale buttons.
 - 2026-07-07: Reworded terminal Tomato Rows HUD and Goals copy after visual replay showed the endgame objective was vague and the card still promised a next tier claim.
 - 2026-07-07: Deprecated the old scripted LLM playtest harness and made `playtest:llm` delegate to the canonical visual screenshot/action loop with a deeper default audit budget.
+- 2026-07-07: Expanded the canonical visual LLM-player loop to audit the retired scripted surface controls and flag clean stops when final screenshots still show actionable guidance.
