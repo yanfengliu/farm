@@ -16,19 +16,17 @@ Use `civ-engine` snapshots, session recording, replay, and structured debug tool
 
 The browser bundle imports `civ-engine` through `src/game/simulation/civEngine.ts`. Keep this adapter narrow. Importing from the root package in browser-facing code can pull in Node-only replay/file modules and break Vite builds.
 
-## LLM Playtest Replay Debugging
+## Deprecated LLM Playtest Entrypoint
 
-`npm run playtest:llm` records a Node-side civ-engine `SessionBundle` alongside player-driven browser screenshots and findings:
+`npm run playtest:llm` is a deprecated compatibility alias for `npm run playtest:llm:visual-loop`. It prints a deprecation warning, defaults `FARM_VISUAL_LOOP_STEPS` to a deeper 120-step audit when the environment does not override it, and writes the canonical visual-loop artifacts under `output/playwright/llm-visual-loop/`.
+
+Older `output/playwright/llm-playtest/*.bundle.json` files were produced by the retired scripted surface-tour harness:
 
 - `output/playwright/llm-playtest/latest.bundle.json`
 - `output/playwright/llm-playtest/latest.replay.md`
 - `output/playwright/llm-playtest/latest.annotations.json`
 
-The browser portion of the harness controls the game through visible player actions and records the visible text, available controls, current control state, and actions taken for each screenshot. Debug APIs are read afterward for metrics, and the Node-side replay bundle remains available for deterministic investigation.
-
-Use `FARM_PLAYTEST_URL=http://127.0.0.1:5175/` when a Farm dev server is already running and the browser portion should attach to that visible local instance.
-
-Use `npm run playtest:llm:replay` to reopen the saved bundle with `SessionReplayer`, run `selfCheck()`, and sample marker ticks without rerunning the browser harness.
+Use `npm run playtest:llm:replay` only to reopen one of those legacy bundles with `SessionReplayer`, run `selfCheck()`, and sample marker ticks without rerunning a browser harness.
 
 ## LLM Visual Loop Debugging
 

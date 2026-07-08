@@ -10,14 +10,14 @@ describe('LLM visual loop harness contract', () => {
 
   test('farm dev and playtest defaults avoid the AoE localhost port', async () => {
     const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
-    const scriptedPlaytest = await readFile('scripts/llm-playtest.mjs', 'utf8');
+    const deprecatedPlaytest = await readFile('scripts/llm-playtest.mjs', 'utf8');
     const visualLoop = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(packageJson.scripts.dev).toContain('--port 5175');
     expect(packageJson.scripts.dev).toContain('--strictPort');
-    expect(scriptedPlaytest).toContain('FARM_PLAYTEST_URL');
+    expect(deprecatedPlaytest).toContain('FARM_PLAYTEST_URL');
     expect(visualLoop).toContain('FARM_PLAYTEST_URL');
-    expect(`${packageJson.scripts.dev}\n${scriptedPlaytest}\n${visualLoop}`).not.toContain('5173');
+    expect(`${packageJson.scripts.dev}\n${deprecatedPlaytest}\n${visualLoop}`).not.toContain('5173');
   });
 
   test('visual loop observes screenshots and executes only player-facing actions', async () => {
@@ -279,13 +279,10 @@ describe('LLM visual loop harness contract', () => {
 
   test('visual observations do not cap player-visible text before sending it to the LLM', async () => {
     const visualLoopSource = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
-    const scriptedPlaytestSource = await readFile('scripts/llm-playtest.mjs', 'utf8');
 
-    for (const source of [visualLoopSource, scriptedPlaytestSource]) {
-      expect(source).not.toContain('while (fragments.length < 180)');
-      expect(source).not.toContain('return compactText(fragments.join');
-      expect(source).toContain('return normalizeVisibleText(fragments.join');
-    }
+    expect(visualLoopSource).not.toContain('while (fragments.length < 180)');
+    expect(visualLoopSource).not.toContain('return compactText(fragments.join');
+    expect(visualLoopSource).toContain('return normalizeVisibleText(fragments.join');
   });
 
   test('visual loop exposes scrollable side-panel content as a wheel target', async () => {

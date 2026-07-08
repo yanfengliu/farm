@@ -26,27 +26,17 @@ For idle-loop changes, also let real browser time pass without calling `window.a
 
 ## LLM Playtest Harness
 
-Run the LLM-oriented browser harness with:
+The canonical LLM/player browser harness is the visual loop:
 
 ```bash
-npm run playtest:llm
+npm run playtest:llm:visual-loop
 ```
 
-The harness starts Vite on Farm's preferred local port, drives browser scenarios through visible player controls, captures screenshots and structured debug state, records a civ-engine replay bundle, and writes:
+The legacy scripted `npm run playtest:llm` command is deprecated. It remains as a compatibility alias that prints a deprecation warning and delegates to the visual loop with a deeper default step budget. Do not add new coverage to the old scripted surface-tour model; add it to the visual loop contracts and replay report instead.
 
-- `output/playwright/llm-playtest/latest.md`
-- `output/playwright/llm-playtest/latest.json`
-- `output/playwright/llm-playtest/latest.annotations.json`
-- `output/playwright/llm-playtest/latest.bundle.json`
-- `output/playwright/llm-playtest/latest.replay.html`
-- `output/playwright/llm-playtest/latest.replay.md`
-- `output/playwright/llm-playtest/screenshots/`
+Use the Markdown and HTML reports as the review packet for an LLM-player loop: inspect the screenshots, local `screenshotFile` paths, visible text, available actions, keyboard actions, player action log, structured findings, and annotations, choose the highest-impact player-facing improvement, implement it, then rerun the harness. Available actions should include the same player-facing surface a person can use in that screenshot: canvas clicks, buttons, range sliders, numeric inputs, role buttons, resize handles, scrollable panel regions, keyboard-only camera controls, selector-focused keyboard controls for focusable inputs and resize handles, and visible toolbar shortcuts such as tool, undo/redo, pause, and speed keys. Action entries should carry hints and visible control state such as active toolbar buttons, keyboard shortcuts, focus requirements, input values, and scroll position. Do not cap the extracted visible actions; if a control is visible and hit-test reachable in the browser viewport, the LLM-player should see it. Do not cap the extracted player-visible text before sending it to the decision provider; normalize whitespace only, and let downstream providers handle any prompt-budget summaries. Scenario capture should wait for a rendered browser frame, sample the DOM observation, then write the PNG so the review packet describes the same moment the screenshot shows.
 
-Use the Markdown report as the review packet for an LLM-player loop: inspect the screenshots, local `screenshotFile` paths, visible text, available actions, keyboard actions, player action log, structured findings, and annotations, choose the highest-impact player-facing improvement, implement it, then rerun the harness. Available actions should include the same player-facing surface a person can use in that screenshot: canvas clicks, buttons, range sliders, numeric inputs, role buttons, resize handles, scrollable panel regions, keyboard-only camera controls, selector-focused keyboard controls for focusable inputs and resize handles, and visible toolbar shortcuts such as tool, undo/redo, pause, and speed keys. Action entries should carry hints and visible control state such as active toolbar buttons, keyboard shortcuts, focus requirements, input values, and scroll position. Do not cap the extracted visible actions; if a control is visible and hit-test reachable in the browser viewport, the LLM-player should see it. Do not cap the extracted player-visible text before sending it to the decision provider; normalize whitespace only, and let downstream providers handle any prompt-budget summaries. Scenario capture should wait for a rendered browser frame, sample the DOM observation, then write the PNG so the review packet describes the same moment the screenshot shows.
-
-Browser scenario control should stay player-like. The harness may read debug APIs after screenshots for metrics, but browser scenario actions should use visible inputs such as button clicks, keyboard shortcuts, pointer moves, waits, and viewport changes rather than `window.advanceTime()` or direct simulation commands. To point the harness at an already-running Farm server, set `FARM_PLAYTEST_URL` to `http://127.0.0.1:5175/`.
-
-The default scripted scenario should exercise the full player surface before declaring the game healthy: panel tabs and their hover labels, toolbar tools, canvas tile clicks, Inspect panel details after selecting a visible tile, side-panel drag/collapse/wheel scroll plus keyboard resize, pause and speed controls, undo/redo, crop-mix range and numeric inputs, selling, viewport resize, and a normal page reload that proves localStorage autosave restores the progressed farm. The harness should clear localStorage only for the initial clean boot; reload checks must preserve the saved state.
+Browser control should stay player-like. The harness may read debug APIs after screenshots for metrics, but decisions and browser actions should use visible inputs such as button clicks, keyboard shortcuts, pointer moves, waits, wheel scrolling, direct input edits, and viewport changes rather than `window.advanceTime()` or direct simulation commands. To point the harness at an already-running Farm server, set `FARM_PLAYTEST_URL` to `http://127.0.0.1:5175/`.
 
 For step-by-step visual playtesting, run:
 
