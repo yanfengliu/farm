@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   buildVisualPlaytestPrompt,
   runVisualPlaytestLoop,
+  SessionReplayer,
 } from 'civ-engine';
 import {
   hasVisibleSellableCrops,
@@ -30,10 +31,14 @@ const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 64, 1, 120);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
+const historyDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop-history');
+const ledgerPath = path.join(historyDir, 'ledger.jsonl');
 const latestRunPath = path.join(outputDir, 'latest.json');
 const previousRunSummary = await loadPreviousRunSummary(latestRunPath);
 
-await fs.rm(outputDir, { recursive: true, force: true });
+// Append-only history: archive the previous run instead of destroying it, so
+// cross-run comparisons and audits have more than a single run of memory.
+await archivePreviousRun(outputDir, historyDir);
 await fs.mkdir(screenshotDir, { recursive: true });
 
 const consoleErrors = [];
@@ -171,8 +176,23 @@ try {
 
   run.finalObservation = await captureVisualObservation(page, run.steps.length, 'final');
   run.completedAt = new Date().toISOString();
+
+  // Export the game-side session bundle (replayable evidence) and verify it
+  // with the engine's replay self-check while the vite server can still load
+  // the game module for the world factory.
+  const bundle = await page.evaluate(() => window.__farmDebug?.exportBundle?.() ?? null);
+  const bundlePath = path.join(outputDir, 'latest.bundle.json');
+  let verification = null;
+  if (bundle) {
+    await fs.writeFile(bundlePath, `${JSON.stringify(bundle)}\n`);
+    run.bundleSessionId = bundle.metadata?.sessionId ?? null;
+    run.bundlePath = path.relative(cwd, bundlePath);
+    verification = await verifyBundleWithReplaySelfCheck(bundle, server);
+    run.summary.replayVerification = verification;
+  }
+
   run.improvementRun = createImprovementRunManifest(run);
-  run.findings = evaluateVisualLoop(run);
+  run.findings = evaluateVisualLoop(run, { verification });
   run.visualFindings = visualFindingsFromImprovementFindings(run.findings);
   run.comparison = compareVisualLoopRuns(previousRunSummary, run);
   const report = renderVisualLoopMarkdown(run);
@@ -180,6 +200,7 @@ try {
   await fs.writeFile(latestRunPath, `${JSON.stringify(run, null, 2)}\n`);
   await fs.writeFile(path.join(outputDir, 'latest.md'), report);
   await fs.writeFile(path.join(outputDir, 'latest.html'), renderVisualLoopHtml(run));
+  await appendLedgerEntry(ledgerPath, run.improvementRun);
 
   console.log(JSON.stringify({
     report: path.relative(cwd, path.join(outputDir, 'latest.md')),
@@ -192,6 +213,57 @@ try {
 } finally {
   if (browser) await browser.close();
   if (server) await server.close();
+}
+
+async function archivePreviousRun(runDir, archiveRoot) {
+  try {
+    await fs.access(runDir);
+  } catch {
+    return;
+  }
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  await fs.mkdir(archiveRoot, { recursive: true });
+  await fs.rename(runDir, path.join(archiveRoot, stamp));
+}
+
+async function appendLedgerEntry(filePath, improvementRun) {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.appendFile(filePath, `${JSON.stringify(improvementRun)}\n`);
+}
+
+// Replays the exported bundle against the real game world factory and runs
+// the engine self-check. Skipped (null) when no local vite server exists
+// (FARM_PLAYTEST_URL runs) — findings then stay honestly unverified. A
+// vacuous pass (zero checked segments) is reported as-is and treated as weak
+// by the improvement report.
+async function verifyBundleWithReplaySelfCheck(bundle, viteServer) {
+  if (!viteServer) return null;
+  try {
+    const farmGameModule = await viteServer.ssrLoadModule('/src/game/simulation/farmGame.ts');
+    const replayer = SessionReplayer.fromBundle(bundle, {
+      worldFactory: (snapshot) => {
+        // Recreate the world with the RECORDED seed — a mismatched factory
+        // seed survives applySnapshot and diverges self-check on config.seed.
+        const game = farmGameModule.createFarmGame({ seed: snapshot?.config?.seed ?? 'farm' });
+        game.applySnapshot(snapshot);
+        return game;
+      },
+    });
+    const selfCheck = replayer.selfCheck({ stopOnFirstDivergence: true });
+    return {
+      ok: selfCheck.ok,
+      checkedSegments: selfCheck.checkedSegments,
+      // Engine SelfCheckResult.skippedSegments is an ARRAY of skipped-segment
+      // records — normalize to a count at this boundary so downstream
+      // strong-verification checks compare numbers, not arrays.
+      skippedSegments: selfCheck.skippedSegments?.length ?? 0,
+      stateDivergences: selfCheck.stateDivergences?.length ?? 0,
+      eventDivergences: selfCheck.eventDivergences?.length ?? 0,
+      executionDivergences: selfCheck.executionDivergences?.length ?? 0,
+    };
+  } catch (error) {
+    return { ok: false, error: String(error?.message ?? error) };
+  }
 }
 
 async function captureVisualObservation(page, stepIndex, label) {

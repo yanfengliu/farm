@@ -97,7 +97,8 @@ describe('LLM visual loop improvement contracts', () => {
       schemaVersion: 1,
       severity: 'high',
       category: 'bug',
-      verificationStatus: 'verified',
+      // Findings author as claims; only strong replay verification upgrades them.
+      verificationStatus: 'unverified',
       nextAction: 'autoFix',
       disposition: 'candidate',
     });
@@ -136,13 +137,60 @@ describe('LLM visual loop improvement contracts', () => {
     expect(byId.get('visual-loop-low-agency')).toMatchObject({
       category: 'usability',
       nextAction: 'proposalOnly',
-      verificationStatus: 'verified',
+      verificationStatus: 'unverified',
     });
     expect(byId.get('visual-loop-ended-with-guidance')).toMatchObject({
       category: 'usability',
       nextAction: 'manualFix',
-      verificationStatus: 'verified',
+      verificationStatus: 'unverified',
     });
+  });
+
+  test('flips deterministic findings to verified-by-metric only under strong replay verification', () => {
+    const run = makeRun({
+      bundleSessionId: 'farm-session-1',
+      summary: {
+        consoleErrors: ['Uncaught TypeError: broken HUD'],
+        pageErrors: [],
+        maxSteps: 4,
+        visualLoop: { ok: true, stopReason: 'agentStop', stepsRun: 2, traceEntries: 2, engineFindings: 0 },
+      },
+    });
+
+    const strong = evaluateVisualLoop(run, {
+      // Raw engine shape: skippedSegments is an ARRAY of skipped segments.
+      verification: { ok: true, checkedSegments: 2, skippedSegments: [] },
+    });
+    const browserErrors = strong.find((finding) => finding.id === 'browser-errors');
+    expect(browserErrors).toMatchObject({
+      verificationStatus: 'verified',
+      verificationMethod: 'metric',
+    });
+    expect(browserErrors.evidence.some(
+      (ref) => ref.kind === 'bundle' && ref.bundleId === 'farm-session-1',
+    )).toBe(true);
+    expect(() => assertImprovementFinding(browserErrors, { requireVerificationEvidence: true })).not.toThrow();
+
+    const vacuous = evaluateVisualLoop(run, {
+      verification: { ok: true, checkedSegments: 0, skippedSegments: [] },
+    });
+    expect(vacuous.find((finding) => finding.id === 'browser-errors').verificationStatus).toBe('unverified');
+
+    const partiallySkipped = evaluateVisualLoop(run, {
+      verification: { ok: true, checkedSegments: 2, skippedSegments: [{ fromTick: 0, toTick: 5 }] },
+    });
+    expect(partiallySkipped.find((finding) => finding.id === 'browser-errors').verificationStatus).toBe('unverified');
+
+    const normalizedCount = evaluateVisualLoop(run, {
+      // The loop's boundary normalization hands the report a count.
+      verification: { ok: true, checkedSegments: 2, skippedSegments: 0 },
+    });
+    expect(normalizedCount.find((finding) => finding.id === 'browser-errors').verificationStatus).toBe('verified');
+
+    const divergent = evaluateVisualLoop(run, {
+      verification: { ok: false, checkedSegments: 2, skippedSegments: [] },
+    });
+    expect(divergent.find((finding) => finding.id === 'browser-errors').verificationStatus).toBe('unverified');
   });
 
   test('creates a run manifest and visual-finding bridge from improvement findings', () => {
@@ -207,7 +255,9 @@ describe('LLM visual loop improvement contracts', () => {
       severity: 'medium',
       category: 'accessibility',
       nextAction: 'manualFix',
-      verificationStatus: 'verified',
+      // LLM-authored observations are claims — never auto-verified, even
+      // when the run's replay verification is strong.
+      verificationStatus: 'unverified',
       evidence: [
         { kind: 'step', step: 2 },
         { kind: 'screenshot', step: 2, screenshotPath: 'steps/02-step-2.png' },
@@ -271,5 +321,12 @@ describe('LLM visual loop improvement contracts', () => {
     expect(source).toContain('run.improvementRun = createImprovementRunManifest(run)');
     expect(source).toContain('run.visualFindings = visualFindingsFromImprovementFindings(run.findings)');
     expect(source).toContain('run.comparison = compareVisualLoopRuns(previousRunSummary, run)');
+    // Replayable evidence + honest verification + append-only history wiring.
+    expect(source).toContain('exportBundle');
+    expect(source).toContain('latest.bundle.json');
+    expect(source).toContain('run.findings = evaluateVisualLoop(run, { verification })');
+    expect(source).toContain('llm-visual-loop-history');
+    expect(source).toContain('ledger.jsonl');
+    expect(source).not.toContain('fs.rm(outputDir');
   });
 });

@@ -18,6 +18,7 @@ import {
   type FarmWorker,
   type TileKind,
 } from './game/simulation/farmGame';
+import { SessionRecorder, type SessionBundle } from './game/simulation/civEngine';
 import { clearFarmSave, loadSavedFarmState, saveFarmState } from './persistence/localSave';
 
 type Tool = 'inspect' | 'plot' | 'well' | 'storage' | 'land' | 'bulldoze';
@@ -74,6 +75,21 @@ const TUTORIAL_VIEWPORT_PADDING = 8;
 const TUTORIAL_TARGET_GAP = 12;
 
 let farmGame: FarmGame = createFarmGame({ state: loadSavedFarmState() ?? undefined });
+// Dev-only session recorder so playtest harnesses can export a replayable
+// civ-engine bundle (window.__farmDebug.exportBundle). Recorders are
+// single-use, so resets re-attach a fresh one to the new world.
+let farmRecorder: SessionRecorder | null = null;
+function attachFarmRecorder(): void {
+  if (!import.meta.env.DEV) return;
+  try {
+    farmRecorder?.disconnect();
+  } catch {
+    // Already disconnected or the old world is gone — safe to ignore.
+  }
+  farmRecorder = new SessionRecorder({ world: farmGame });
+  farmRecorder.connect();
+}
+attachFarmRecorder();
 let selectedTool: Tool = 'inspect';
 let activePanel: Panel = 'inventory';
 let selectedCell: { x: number; y: number } | null = null;
@@ -1743,6 +1759,7 @@ function advanceRealtime(ms: number): void {
 function resetFarm(): void {
   clearFarmSave();
   farmGame = createFarmGame({ seed: 'farm' });
+  attachFarmRecorder();
   simulationRemainderMs = 0;
   lastHudMarkup = '';
   lastToolbarMarkup = '';
@@ -1912,6 +1929,7 @@ declare global {
     __farmDebug: {
       getState: () => FarmState;
       reset: () => void;
+      exportBundle: () => SessionBundle | null;
     };
   }
 }
@@ -1924,6 +1942,18 @@ window.advanceTime = (ms: number) => {
 window.__farmDebug = {
   getState: () => getFarmSnapshot(farmGame),
   reset: resetFarm,
+  exportBundle: () => {
+    if (!farmRecorder) return null;
+    // Disconnect first so the bundle gains its terminal snapshot — a live
+    // toBundle() on a short run has only the initial snapshot, which makes
+    // the replay self-check vacuous (zero checked segments). Re-attach a
+    // fresh recorder so the page keeps recording after the export.
+    const recorder = farmRecorder;
+    recorder.disconnect();
+    const bundle = recorder.toBundle();
+    attachFarmRecorder();
+    return bundle;
+  },
 };
 
 function requireElement<T extends HTMLElement>(selector: string): T {

@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import {
-  IMPROVEMENT_FINDING_SCHEMA_VERSION,
   assertImprovementFinding,
   improvementFindingToVisualPlaytestFinding,
+  minimalImprovementFindingSchemaVersion,
 } from 'civ-engine';
 
 export const FARM_VISUAL_LOOP_OBJECTIVE = 'Play Farm like a real desktop player and find player-facing pain points.';
@@ -36,6 +36,8 @@ export function createImprovementRunManifest(run) {
     objective: FARM_VISUAL_LOOP_OBJECTIVE,
     startedAt: run.generatedAt,
     completedAt: run.completedAt,
+    sessionId: run.bundleSessionId ?? undefined,
+    bundleId: run.bundleSessionId ?? undefined,
     tags: ['visual-loop', 'self-improvement', 'civ-engine'],
     data: withoutUndefined({
       url: run.url,
@@ -50,7 +52,23 @@ export function createImprovementRunManifest(run) {
   });
 }
 
-export function evaluateVisualLoop(run) {
+// Deterministic findings (computed from run artifacts) author as claims and
+// are upgraded to verified-by-metric ONLY when the run's replay self-check is
+// strong: ok, at least one checked segment, and zero skipped segments. A
+// vacuous or divergent replay keeps everything unverified. LLM-authored
+// engine findings are never auto-verified.
+export function strongReplayVerification(verification) {
+  if (!verification || verification.ok !== true) return false;
+  // Tolerate both shapes: the loop normalizes skippedSegments to a count,
+  // but a raw engine SelfCheckResult carries an array.
+  const skipped = Array.isArray(verification.skippedSegments)
+    ? verification.skippedSegments.length
+    : verification.skippedSegments ?? 0;
+  return (verification.checkedSegments ?? 0) > 0 && skipped === 0;
+}
+
+export function evaluateVisualLoop(run, options = {}) {
+  const deterministic = deterministicStatusFields(run, options.verification);
   const findings = [];
   const consoleErrors = run.summary?.consoleErrors ?? [];
   const pageErrors = run.summary?.pageErrors ?? [];
@@ -69,7 +87,7 @@ export function evaluateVisualLoop(run) {
         ...consoleErrors.map((message) => textEvidence('console error', message)),
         ...pageErrors.map((message) => textEvidence('page error', message)),
       ].slice(0, 8),
-      verificationStatus: 'verified',
+      ...deterministic,
       nextAction: 'autoFix',
       data: { source: 'farm.visual-loop' },
     }));
@@ -86,7 +104,7 @@ export function evaluateVisualLoop(run) {
       suggestion: 'Fix the visual-loop host, action adapter, or decision provider before trusting playtest findings.',
       area: 'playtest harness',
       evidence: metricEvidence('visualLoop.stopReason', run.summary.visualLoop.stopReason),
-      verificationStatus: 'verified',
+      ...deterministic,
       nextAction: 'autoFix',
       data: { source: 'civ-engine.runVisualPlaytestLoop' },
     }));
@@ -111,7 +129,7 @@ export function evaluateVisualLoop(run) {
           textEvidence('action', JSON.stringify(step.decision?.action ?? null)),
           textEvidence('error', step.execution?.error ?? 'unknown'),
         ]),
-        verificationStatus: 'verified',
+        ...deterministic,
         nextAction: 'autoFix',
         data: { action: jsonSafe(step.decision?.action) },
       }));
@@ -135,7 +153,7 @@ export function evaluateVisualLoop(run) {
         { kind: 'metric', label: 'waits', value: String(repeatedWaits) },
         { kind: 'metric', label: 'clicks', value: String(clickCount) },
       ],
-      verificationStatus: 'verified',
+      ...deterministic,
       nextAction: 'proposalOnly',
       data: { waits: repeatedWaits, clicks: clickCount },
     }));
@@ -155,7 +173,7 @@ export function evaluateVisualLoop(run) {
       suggestion: 'Ensure the playable screen exposes reachable controls and keyboard actions after loading.',
       area: 'player controls',
       evidence: observationsWithoutActions.flatMap((step) => stepEvidence(step)).slice(0, 8),
-      verificationStatus: 'verified',
+      ...deterministic,
       nextAction: 'autoFix',
     }));
   }
@@ -174,7 +192,7 @@ export function evaluateVisualLoop(run) {
       suggestion: 'Teach the local visual player to follow the final visible guidance before trusting a clean stop.',
       area: 'local visual player',
       evidence: finalObservationEvidence(run),
-      verificationStatus: 'verified',
+      ...deterministic,
       nextAction: 'manualFix',
     }));
   }
@@ -193,7 +211,7 @@ export function evaluateVisualLoop(run) {
         { kind: 'metric', label: 'maxSteps', value: String(run.summary?.maxSteps) },
         ...finalObservationEvidence(run),
       ],
-      verificationStatus: 'verified',
+      ...deterministic,
       nextAction: 'manualFix',
     }));
   }
@@ -215,7 +233,7 @@ function improvementFindingFieldsFromEngineFinding(engineFinding, index) {
     suggestion: nonEmptyString(engineFinding?.suggestion),
     area: nonEmptyString(engineFinding?.area) ?? 'civ-engine visual playtest',
     evidence: evidenceFromVisualFinding(engineFinding?.evidence),
-    verificationStatus: 'verified',
+    verificationStatus: 'unverified',
     nextAction: nextActionForEngineFinding(category, severity),
     refs: jsonSafe(engineFinding?.refs) ?? undefined,
     data: {
@@ -352,13 +370,33 @@ export function renderImprovementFindingsMarkdown(findings) {
 
 function makeFinding(run, fields) {
   const finding = withoutUndefined({
-    schemaVersion: IMPROVEMENT_FINDING_SCHEMA_VERSION,
     disposition: 'candidate',
     sourceRun: createImprovementRunManifest(run),
     ...fields,
+    schemaVersion: minimalImprovementFindingSchemaVersion(fields.nextAction ?? 'proposalOnly'),
   });
-  assertImprovementFinding(finding);
+  if (finding.verificationStatus === 'verified' && run.bundleSessionId) {
+    finding.evidence = [
+      ...(finding.evidence ?? []),
+      { kind: 'bundle', bundleId: run.bundleSessionId, sessionId: run.bundleSessionId },
+    ];
+  }
+  // Verified findings must carry addressed replayable evidence + a method —
+  // the strict mode makes the verified-by-metric upgrade structurally honest.
+  assertImprovementFinding(finding, {
+    requireVerificationEvidence: finding.verificationStatus === 'verified',
+  });
   return finding;
+}
+
+// Status fields for deterministic (artifact-computed) findings: verified by
+// metric only when the replay self-check is strong AND the run exported a
+// bundle to anchor the evidence; otherwise an honest 'unverified'.
+function deterministicStatusFields(run, verification) {
+  if (!strongReplayVerification(verification) || !run.bundleSessionId) {
+    return { verificationStatus: 'unverified' };
+  }
+  return { verificationStatus: 'verified', verificationMethod: 'metric' };
 }
 
 function stableRunId(run) {

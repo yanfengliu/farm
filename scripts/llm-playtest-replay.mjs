@@ -5,7 +5,7 @@ import { SessionReplayer } from 'civ-engine';
 
 const cwd = process.cwd();
 const args = process.argv.slice(2);
-const bundlePath = args.find((arg) => !arg.startsWith('--')) ?? path.join('output', 'playwright', 'llm-playtest', 'latest.bundle.json');
+const bundlePath = args.find((arg) => !arg.startsWith('--')) ?? path.join('output', 'playwright', 'llm-visual-loop', 'latest.bundle.json');
 const tickArgIndex = args.indexOf('--ticks');
 const requestedTicks = tickArgIndex >= 0
   ? args[tickArgIndex + 1].split(',').map((value) => Number(value.trim())).filter((value) => Number.isFinite(value))
@@ -24,12 +24,15 @@ try {
   const bundle = JSON.parse(await readFile(bundlePath, 'utf8'));
   const replayer = SessionReplayer.fromBundle(bundle, {
     worldFactory: (snapshot) => {
-      const game = createFarmGame({ seed: 'llm-replay' });
+      const game = createFarmGame({ seed: snapshot?.config?.seed ?? 'farm' });
       game.applySnapshot(snapshot);
       return game;
     },
   });
   const selfCheck = replayer.selfCheck({ stopOnFirstDivergence: true });
+const selfCheckStrongOk = selfCheck.ok
+  && (selfCheck.checkedSegments ?? 0) > 0
+  && (selfCheck.skippedSegments?.length ?? 0) === 0;
   const markerTicks = (bundle.markers ?? [])
     .map((marker) => marker.refs?.tickRange?.from)
     .filter((tick) => Number.isFinite(tick));
@@ -53,7 +56,8 @@ try {
   const outPath = path.join(path.dirname(bundlePath), 'latest.replay-inspect.md');
   await writeFile(outPath, markdown);
   console.log(markdown);
-  console.log(JSON.stringify({ report: outPath, selfCheckOk: selfCheck.ok, ticks }, null, 2));
+  console.log(JSON.stringify({ report: outPath, selfCheckOk: selfCheck.ok,
+  selfCheckStrongOk, ticks }, null, 2));
 } finally {
   await server.close();
 }

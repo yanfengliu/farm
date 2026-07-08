@@ -1,5 +1,6 @@
 # Devlog Summary
 
+- 2026-07-08: Recursive-loop alignment - dev-only in-page SessionRecorder + `__farmDebug.exportBundle()` (terminal-snapshot export), visual loop writes/verifies `latest.bundle.json` via replay self-check with the recorded seed, findings author unverified and flip to verified-by-metric with bundle evidence only under strong verification, append-only run history + `ledger.jsonl`, replay script repointed to the live bundle. Review fixed a dead verification path (engine skippedSegments is an array), a seed-divergent world factory, and vacuous live exports; rode on engine v1.6.1 (browser-safe session ids).
 - 2026-07-04: Captured the initial product direction for a desktop-first top-down pixel idle farm with autonomous workers, deterministic simulation, `civ-engine`, Phaser, DOM UI, and full docs/workflow expectations.
 - 2026-07-04: Built the first playable vertical slice with `civ-engine` simulation, Phaser rendering, DOM HUD/panels, hotkeys, autosave, selling, seed buying, undo/redo, debug APIs, and Playwright screenshot smoke evidence.
 - 2026-07-04: Review pass fixed live browser tick accumulation, storage-capacity recalculation after storage removal, and added a collapsible side panel.

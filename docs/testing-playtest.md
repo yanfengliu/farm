@@ -53,14 +53,17 @@ The visual loop writes:
 - `output/playwright/llm-visual-loop/latest.md`
 - `output/playwright/llm-visual-loop/latest.json`
 - `output/playwright/llm-visual-loop/latest.html`
+- `output/playwright/llm-visual-loop/latest.bundle.json` (the replayable `civ-engine` session bundle exported from the in-page dev recorder)
 - `output/playwright/llm-visual-loop/steps/`
+
+Runs are append-only: instead of destroying the previous run, the harness archives it under `output/playwright/llm-visual-loop-history/<timestamp>/` and appends each run's improvement manifest to `output/playwright/llm-visual-loop-history/ledger.jsonl`, so cross-run audits have more than one run of memory.
 
 Use `latest.html` to watch the screenshot replay with each observation, decision, execution result, available action list, keyboard action list, and finding. The viewer should keep the screenshot pane fixed inside the viewport while metadata scrolls in the right rail, so every replay frame remains visible during review. The visual loop should remain a player-surface harness: it may clear localStorage before load for a fresh run, but decisions should be based on screenshots, complete normalized visible text, and available controls, not private simulation state or offscreen DOM text. The visible-text and available-control extractors should respect viewport clipping, scroll clipping, and browser hit testing so covered controls or occluded text are not treated as player-visible.
 
 `latest.json` is also the canonical recursive-improvement packet. It includes:
 
 - `improvementRun`: a `civ-engine` improvement run manifest for the Farm visual loop.
-- `findings`: standardized `civ-engine` `ImprovementFinding` objects. Each finding must carry `schemaVersion`, severity/category, evidence refs, `verificationStatus`, `nextAction`, and a candidate disposition so fixes and proposals are classified.
+- `findings`: standardized `civ-engine` `ImprovementFinding` objects. Each finding must carry `schemaVersion` (minimal stamping: v1 vocabulary stamps 1), severity/category, evidence refs, `verificationStatus`, `nextAction`, and a candidate disposition so fixes and proposals are classified. Findings author as `unverified` claims; deterministic (artifact-computed) findings flip to `verified` with `verificationMethod: 'metric'` and a bundle evidence ref ONLY when the run exported a bundle and its replay self-check was strong (ok, at least one checked segment, zero skipped). LLM-authored engine findings are never auto-verified.
 - `visualFindings`: the same findings bridged back into `civ-engine` visual-playtest finding payloads.
 - `comparison`: a before/after summary against the previous `latest.json`, including added, resolved, and persistent finding ids plus action/step deltas.
 
@@ -81,10 +84,10 @@ npm run playtest:llm:replay
 Pass a bundle path and optional ticks when needed:
 
 ```bash
-npm run playtest:llm:replay -- output/playwright/llm-playtest/latest.bundle.json --ticks 0,657,662
+npm run playtest:llm:replay -- output/playwright/llm-visual-loop/latest.bundle.json --ticks 0,657,662
 ```
 
-The replay inspector opens the saved civ-engine `SessionBundle`, runs `SessionReplayer.selfCheck()`, samples marker ticks, and writes `output/playwright/llm-playtest/latest.replay-inspect.md`.
+The replay inspector opens the saved civ-engine `SessionBundle` (defaulting to the live visual loop's `latest.bundle.json`), runs `SessionReplayer.selfCheck()`, reports both the raw `ok` and a `selfCheckStrongOk` that refuses vacuous zero-segment passes, samples marker ticks, and writes `latest.replay-inspect.md` beside the bundle.
 
 The replay bundle is a deterministic debugging aid. It can use the simulation directly because it is not the player-facing browser control path.
 
