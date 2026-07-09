@@ -4,6 +4,7 @@ import {
   improvementFindingToVisualPlaytestFinding,
   minimalImprovementFindingSchemaVersion,
 } from 'civ-engine';
+import { coverageLedger } from './coverage-report.mjs';
 
 export const FARM_VISUAL_LOOP_OBJECTIVE = 'Play Farm like a real desktop player and find player-facing pain points.';
 const SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
@@ -213,6 +214,32 @@ export function evaluateVisualLoop(run, options = {}) {
       ],
       ...deterministic,
       nextAction: 'manualFix',
+    }));
+  }
+
+  // Curriculum signal: repeatedly-visible controls the run never exercised.
+  // Low severity so real bugs always outrank them — the loop grows coverage
+  // when it runs out of bugs. Capped per run, with the full gap count kept
+  // in data so the cap is never a silent truncation.
+  const coverage = coverageLedger(run.steps);
+  for (const gap of coverage.gaps.slice(0, 3)) {
+    findings.push(makeFinding(run, {
+      id: `coverage-gap-${slug(gap.key)}`,
+      severity: 'low',
+      category: 'opportunity',
+      title: `Visible control never exercised: ${gap.label}`,
+      observed: `"${gap.label}" (${gap.key}) was visible in ${gap.sightings} observations and never exercised this run.`,
+      expected: 'Every repeatedly-visible player control is exercised by the local visual player or a rotation scenario.',
+      suggestion: 'Teach the local visual player (or add a scenario) to reach this control, then keep it in the rotation.',
+      area: 'coverage',
+      evidence: [
+        { kind: 'metric', label: `coverage.sightings ${gap.key}`, value: String(gap.sightings) },
+        { kind: 'metric', label: 'coverage.gaps.total', value: String(coverage.gaps.length) },
+      ],
+      ...deterministic,
+      nextAction: 'improveHarness',
+      promotionTarget: 'scenario',
+      data: { source: 'farm.coverage-report', class: `coverage-gap:${gap.key}`, gapsTotal: coverage.gaps.length },
     }));
   }
 

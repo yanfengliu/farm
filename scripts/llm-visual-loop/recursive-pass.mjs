@@ -6,7 +6,10 @@ import { createImprovementRunManifest } from 'civ-engine';
 // Outcome vocabulary matches aoe2's recursive pass where applicable.
 
 const SEVERITY_RANK = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
-const FIX_ACTIONS = new Set(['autoFix', 'manualFix']);
+// improveHarness is fix-classified too: coverage-gap findings are candidates
+// whose fix is teaching the player/scenario to reach the control. They author
+// at low severity, so real bugs always outrank them in selection.
+const FIX_ACTIONS = new Set(['autoFix', 'manualFix', 'improveHarness']);
 const CLOSED_DISPOSITIONS = new Set(['rejected', 'wontFix']);
 
 export function selectFixCandidate(findings) {
