@@ -1,12 +1,19 @@
 ## Agentic Working Style
 
-Treat this file as the operating contract for this repository. Optimize for a correct, verified, readable, fun-to-play game. When a rule would make the work worse, deviate only with a short note explaining why.
+Treat the rest of this file as defaults, not rigid law — when a rule here would make the work worse, deviate and say why. Optimize for the outcome: a correct, verified, readable, fun-to-play game.
+
+Scale the approach to the task: trivial fixes → just do them; substantial work (multi-file features, audits, broad refactors) → orchestrate with parallel subagents, verify adversarially (an independent agent tries to refute the change against the live code), and keep the main thread for decisions and integration. This does not lower the verification bar.
 
 ## Continuing Through Plans
 
 - No stopping points within an approved multi-task plan. Work through all tasks continuously unless a genuinely non-obvious product decision requires user judgment.
+- Never manage context yourself — auto-compaction handles it. Do not stop, checkpoint, or ask "should I keep going" because the conversation is long. When one increment ships (gates green + commit + push + docs), start the next in the same turn. Stop only for a genuine blocker, a real user decision, or an explicit stop. (Fleet rule reinforced 2026-07-05.)
 - For routine implementation choices, make the call and proceed.
 - Keep durable documentation current in the same change that alters gameplay rules, architecture, testing, save format, public debug API, or workflow.
+
+## Recursive Loop (fleet)
+
+Before running or driving a `playtest:recursive` pass, read `../loop-ops/docs/skills/recursive-playtest.md`; before building loop machinery, read `../loop-ops/docs/skills/building-recursive-loop.md`. Those files are the fleet-wide source of truth for the loop contract (pass outcomes, honesty invariants, and the definition of a complete pass — a pass is not done at `proposal-only`).
 
 ## Project Intent
 
@@ -47,7 +54,8 @@ Boundary rules:
 
 - Use test-driven development for deterministic simulation and user-facing contracts. Write or update the failing test first, watch it fail, then implement the smallest passing change.
 - Keep gameplay numbers in `src/game/content/` rather than scattering magic numbers through systems.
-- Keep files focused. Split files before they become difficult to scan.
+- Keep files focused and under 500 LOC (hard fleet rule, not a soft target) — split before they become difficult to scan.
+- Record non-obvious failure modes in `docs/learning/lessons.md` with evidence anchors (what surfaced it, reviewer finding, fix commit, the test that pins it, behavior delta) — a lesson without anchors is folklore.
 - Expose `window.render_game_to_text()`, `window.advanceTime(ms)`, and `window.__farmDebug.getState()` for automated playtesting.
 - Do not ship a visual feature without browser evidence: screenshot or equivalent Playwright/browser verification.
 - For visual changes, verify that text fits and UI elements do not overlap at desktop and smaller desktop-like viewport sizes.
@@ -75,6 +83,7 @@ Whenever `package.json` dependency surface changes:
 2. Run `npm audit --audit-level=high --omit=dev`.
 3. Run `npm audit --audit-level=high`.
 4. A new HIGH or CRITICAL CVE blocks the change unless documented in the devlog with a reason and expiry.
+5. Mention the audit result in the commit message ("npm audit: 0 high/critical" or similar).
 
 ## Documentation
 
@@ -86,11 +95,11 @@ Read before changing relevant systems:
 - `docs/architecture/decisions.md` for durable architectural decisions.
 - `docs/devlog/summary.md` for current project history.
 
-Update documentation in the same task when gameplay rules, architecture, save behavior, debug APIs, command contracts, testing expectations, or workflow rules change.
+Update documentation in the same task when gameplay rules, architecture, save behavior, debug APIs, command contracts, testing expectations, or workflow rules change. User-visible changes also get a `docs/changelog.md` entry. Don't wrap lines in docs; a new line starts a new paragraph.
 
 ## Review Policy
 
-Run adversarial review before declaring non-trivial behavior, architecture, workflow, persistence, or public debug API changes complete. Reviewers must verify claims against the live codebase. If an external reviewer is unavailable, use an in-process review pass and record the limitation in the devlog.
+Run adversarial review before declaring non-trivial behavior, architecture, workflow, persistence, or public debug API changes complete: the in-process pass (parallel finder subagents + independent verifiers that try to refute each finding against the live code) is the default; for high-risk changes (persistence/migrations, agent-loop or concurrency, anything with data-loss blast radius) also run the multi-CLI review (Codex + Claude). Reviewers must verify claims against the live codebase — and as the driver, verify reviewer claims against the code before acting on them (a reviewer may be working from a stale snapshot or a hallucinated symbol). If an external reviewer is unavailable, proceed with the in-process pass and record the limitation in the devlog.
 
 ## Git Hygiene
 
@@ -100,3 +109,4 @@ Run adversarial review before declaring non-trivial behavior, architecture, work
 - Never revert unrelated user changes.
 - Before committing, inspect `git diff --cached --stat` and `git diff --cached`.
 - Commit durable docs that guide future work.
+- Push to remote at the end of every task — don't leave the remote behind.
