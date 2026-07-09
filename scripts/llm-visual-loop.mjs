@@ -222,8 +222,31 @@ async function archivePreviousRun(runDir, archiveRoot) {
     return;
   }
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const archiveDir = path.join(archiveRoot, stamp);
   await fs.mkdir(archiveRoot, { recursive: true });
-  await fs.rename(runDir, path.join(archiveRoot, stamp));
+  // Windows can hold the directory handle open (indexers, viewers, a
+  // just-exited child) and EPERM the whole-dir rename. Retry briefly, then
+  // fall back to moving children individually (usually succeeds when only
+  // the parent handle is held), then warn and continue rather than abort —
+  // latest.* files are overwritten by the new run either way.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await fs.rename(runDir, archiveDir);
+      return;
+    } catch (error) {
+      if (error?.code !== 'EPERM' && error?.code !== 'EBUSY') throw error;
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 300));
+    }
+  }
+  try {
+    await fs.mkdir(archiveDir, { recursive: true });
+    for (const entry of await fs.readdir(runDir)) {
+      await fs.rename(path.join(runDir, entry), path.join(archiveDir, entry));
+    }
+    await fs.rm(runDir, { recursive: true, force: true });
+  } catch (error) {
+    console.warn(`[visual-loop] could not archive previous run (${error?.message ?? error}); continuing in place`);
+  }
 }
 
 async function appendLedgerEntry(filePath, improvementRun) {
