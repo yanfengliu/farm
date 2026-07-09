@@ -31,6 +31,19 @@ describe('selectFixCandidate', () => {
     expect(candidate?.id).toBe('medium-fix');
   });
 
+  test('threads the candidate class into the pass manifest for fleet aggregation', async () => {
+    const { buildPassManifest: build } = await import('../../scripts/llm-visual-loop/recursive-pass.mjs');
+    const manifest = build({
+      id: 'farm-recursive-x',
+      startedAt: '2026-07-09T02:00:00.000Z',
+      completedAt: '2026-07-09T02:05:00.000Z',
+      candidate: { ...finding('coverage-gap-goals', 'low', 'improveHarness'), data: { class: 'coverage-gap:#goals' } },
+      artifacts: [],
+    });
+    expect(manifest.data.candidateClass).toBe('coverage-gap:#goals');
+    expect(manifest.data.candidateFindingId).toBe('coverage-gap-goals');
+  });
+
   test('skips rejected and wontFix dispositions and returns null when nothing is fixable', () => {
     expect(selectFixCandidate([
       finding('rejected-fix', 'high', 'autoFix', { disposition: 'rejected' }),

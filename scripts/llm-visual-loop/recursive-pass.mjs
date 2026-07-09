@@ -42,10 +42,18 @@ export function buildPassManifest(input) {
     data: {
       outcome,
       ...(input.candidate ? { candidateFindingId: input.candidate.id } : {}),
+      // The candidate's declared bug class (engine signature contract) so
+      // fleet aggregation keys on the class, not the run-specific id.
+      ...(candidateClassOf(input.candidate) ? { candidateClass: candidateClassOf(input.candidate) } : {}),
       ...(input.verification !== undefined && input.verification !== null
         ? { verification: input.verification }
         : {}),
       ...(input.runId !== undefined ? { runId: input.runId } : {}),
     },
   });
+}
+
+function candidateClassOf(candidate) {
+  const value = candidate?.data?.class;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
