@@ -12,6 +12,7 @@ import {
   hasVisibleSellableCrops,
   visibleSeedStock,
 } from './llm-visual-loop/visible-state.mjs';
+import { selectGuidedPaintAction } from './llm-visual-loop/guided-paint.mjs';
 import {
   compareVisualLoopRuns,
   createImprovementRunManifest,
@@ -27,7 +28,7 @@ const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
 const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 64, 1, 120);
+const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 80, 1, 120);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';
@@ -1013,6 +1014,7 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
   const pauseAction = findAction(observation, '[data-command="pause"]');
   const speed1Action = findAction(observation, '[data-speed="1"]');
   const speed2Action = findAction(observation, '[data-speed="2"]');
+  const plotToolAction = findAction(observation, '[data-tool="plot"]');
   const wellToolAction = findAction(observation, '[data-tool="well"]');
   const storageToolAction = findAction(observation, '[data-tool="storage"]');
   const landToolAction = findAction(observation, '[data-tool="land"]');
@@ -1252,9 +1254,19 @@ function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
   }
 
-  if (canvasAction && explicitPaintGuidanceVisible && !selectedPlotGuideVisible && !recentlyUsedCanvas(actionHistory)) {
+  const guidedPaintAction = selectGuidedPaintAction({
+    plotToolAction,
+    canvasAction,
+    explicitPaintGuidanceVisible,
+    selectedPlotGuideVisible,
+    recentlyUsedCanvas: recentlyUsedCanvas(actionHistory),
+  });
+  if (guidedPaintAction?.kind === 'select-plot') {
+    return clickDecision(guidedPaintAction.action, 'Reselect the Plot tool before following visible paint guidance.');
+  }
+  if (guidedPaintAction?.kind === 'paint') {
     return clickDecision(
-      canvasAction,
+      guidedPaintAction.action,
       'Visible plot guidance is still active, so place another plot instead of ending the run.',
       nextPaintPosition(canvasClickCount),
     );

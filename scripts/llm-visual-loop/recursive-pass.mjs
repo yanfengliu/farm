@@ -26,6 +26,14 @@ export function passOutcome(candidate) {
   return candidate ? 'proposal-only' : 'no-fix-candidate';
 }
 
+export function recursiveVisualLoopEnvironment(baseEnvironment) {
+  const configuredSteps = baseEnvironment?.FARM_VISUAL_LOOP_STEPS?.trim();
+  return {
+    ...(baseEnvironment ?? {}),
+    FARM_VISUAL_LOOP_STEPS: configuredSteps || '120',
+  };
+}
+
 export function buildPassManifest(input) {
   const outcome = passOutcome(input.candidate);
   return createImprovementRunManifest({

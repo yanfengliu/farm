@@ -4,6 +4,7 @@ import { assertImprovementRunManifest } from 'civ-engine';
 import {
   buildPassManifest,
   passOutcome,
+  recursiveVisualLoopEnvironment,
   selectFixCandidate,
 } from '../../scripts/llm-visual-loop/recursive-pass.mjs';
 
@@ -92,6 +93,16 @@ describe('buildPassManifest', () => {
 });
 
 describe('playtest-recursive script wiring', () => {
+  test('uses the full visual-loop ceiling by default and preserves explicit bounds', () => {
+    expect(recursiveVisualLoopEnvironment({ PATH: 'farm-path' })).toMatchObject({
+      PATH: 'farm-path',
+      FARM_VISUAL_LOOP_STEPS: '120',
+    });
+    expect(recursiveVisualLoopEnvironment({ FARM_VISUAL_LOOP_STEPS: '72' })).toMatchObject({
+      FARM_VISUAL_LOOP_STEPS: '72',
+    });
+  });
+
   test('spawns the visual loop and reads its canonical packet', async () => {
     const source = await readFile('scripts/playtest-recursive.mjs', 'utf8');
     expect(source).toContain('playtest:llm:visual-loop');

@@ -16,6 +16,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
   buildPassManifest,
+  recursiveVisualLoopEnvironment,
   selectFixCandidate,
 } from './llm-visual-loop/recursive-pass.mjs';
 
@@ -27,7 +28,11 @@ const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const startedAtMs = Date.now();
 const startedAt = new Date(startedAtMs).toISOString();
 
-const loop = await runCommand(npmBin, ['run', 'playtest:llm:visual-loop']);
+const loop = await runCommand(
+  npmBin,
+  ['run', 'playtest:llm:visual-loop'],
+  recursiveVisualLoopEnvironment(process.env),
+);
 if (loop.exitCode !== 0) {
   await finish(null, null, null, 'run-failed', 1);
 }
@@ -80,9 +85,9 @@ async function finish(runPacket, verificationResult, fixCandidate, forcedOutcome
   process.exit(exitCode);
 }
 
-function runCommand(cmd, args) {
+function runCommand(cmd, args, env) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32' });
+    const child = spawn(cmd, args, { env, stdio: 'inherit', shell: process.platform === 'win32' });
     child.on('error', reject);
     child.on('close', (code) => resolvePromise({ exitCode: code ?? -1 }));
   });

@@ -81,8 +81,8 @@ describe('LLM visual loop harness contract', () => {
   test('visual loop has enough default budget to cover the surface audit and first tier path', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 64');
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 64, 1, 120)');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 80');
+    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 80, 1, 120)');
   });
 
   test('visual loop flags a capped run when the final screenshot still has actionable guidance', async () => {
@@ -431,6 +431,14 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('{ x: 276, y: 230 }');
     expect(source).toContain('{ x: 476, y: 430 }');
     expect(source).toContain('nextPaintPosition(canvasClickCount)');
+  });
+
+  test('visual loop reselects Plot before following visible paint guidance', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+
+    expect(source).toContain("const plotToolAction = findAction(observation, '[data-tool=\"plot\"]')");
+    expect(source).toContain('selectGuidedPaintAction({');
+    expect(source).toContain('Reselect the Plot tool before following visible paint guidance');
   });
 
   test('visual loop keeps playing while actionable guidance remains after a tier claim', async () => {
