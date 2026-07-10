@@ -80,3 +80,4 @@
 - Expanded the canonical visual LLM-player loop so it audits the retired scripted surface controls and reports clean stops that still leave actionable final guidance on screen.
 - Standardized canonical visual-loop self-improvement artifacts on `civ-engine` improvement findings, including run manifests, fix/proposal classification, visual-finding bridging, and before/after rerun comparison.
 - Made Farm Guide cards sticky until the player follows the suggested action or dismisses the card, and raised desktop HUD, panel, toolbar, and guide text/control scale for readability.
+- Fixed recursive visual passes that capped on actionable guidance: ordinary runs now default to 80 decisions, recursive passes use the 120-step ceiling, and guided paint actions reselect Plot before clicking the canvas after another tool was active.
