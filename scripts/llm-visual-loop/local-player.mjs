@@ -79,8 +79,12 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (fulfillRequestAction) {
     return clickDecision(fulfillRequestAction, 'The pinned village basket is visibly ready, so deliver it before selling any reserved crops.');
   }
+  const abandonRequestAction = findAction(observation, '[data-command="abandon-request"]');
+  if (abandonRequestAction && request.accepted === 1 && request.fulfilled === 0 && request.abandoned === 0) {
+    return clickDecision(abandonRequestAction, 'Unpin the first unready basket once so the no-deadline request board also proves its no-penalty choice.');
+  }
   const acceptRequestAction = findAction(observation, '[data-accept-request');
-  if (acceptRequestAction) {
+  if (acceptRequestAction && request.fulfilled < 3) {
     return clickDecision(acceptRequestAction, 'Pin a visible village basket so the local player exercises a request from acceptance through delivery.');
   }
   if (requestsAction && !requestsAction.state?.active && /FARM GUIDE Meet The Village|NEXT CLICK Open Village Requests/i.test(observation.visibleText)) {

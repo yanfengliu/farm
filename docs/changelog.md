@@ -17,6 +17,7 @@
 - Kept the most recent command-bearing 64-tick replay window across idle rotations so long visual shifts finish with non-vacuous deterministic evidence when a recorded command exists.
 - Limited request-pressure selling to the final two bin slots and made missing active-basket crops outrank generic tier crops when the visual player chooses which zero-stock seed bundle to buy.
 - Closed the visual player's pending-request lifecycle when a basket is abandoned so stale requirements cannot influence later selling or seed purchases.
+- Added a bounded Village Request curriculum to the recursive player: demonstrate Unpin once, retain the replacement, complete three deliveries, then stop auto-pinning extra baskets and continue toward Harvest Hearth.
 
 ## 0.1.0 - 2026-07-04
 

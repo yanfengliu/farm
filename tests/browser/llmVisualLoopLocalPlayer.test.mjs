@@ -40,6 +40,50 @@ describe('LLM visual-loop deterministic local player', () => {
     expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-accept-request="pantry-carrots"]' });
   });
 
+  test('abandons the first unready basket once to cover the no-penalty choice', () => {
+    const decision = decide(
+      observation(
+        'Active basket Soup Pot 0/5 Carrot 0/2 Wheat Harvest the missing crops.',
+        [visibleAction('[data-command="abandon-request"]', 'Abandon village request')],
+      ),
+      history({ kind: 'click', selector: '[data-accept-request="soup-pot"]' }),
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-command="abandon-request"]' });
+  });
+
+  test('keeps the replacement basket after covering abandon once', () => {
+    const decision = decide(
+      observation(
+        'Active basket Bakery Basket 0/4 Carrot Harvest the missing crops.',
+        [visibleAction('[data-command="abandon-request"]', 'Abandon village request')],
+      ),
+      history(
+        { kind: 'click', selector: '[data-accept-request="soup-pot"]' },
+        { kind: 'click', selector: '[data-command="abandon-request"]' },
+        { kind: 'click', selector: '[data-accept-request="bakery-basket"]' },
+      ),
+    );
+
+    expect(decision.action.kind).toBe('wait');
+  });
+
+  test('does not pin a fourth basket after three deliveries', () => {
+    const completedRequests = Array.from({ length: 3 }, (_, index) => [
+      { kind: 'click', selector: `[data-accept-request="basket-${index}"]` },
+      { kind: 'click', selector: '[data-command="fulfill-request"]' },
+    ]).flat();
+    const decision = decide(
+      observation(
+        'Village Lane Request Board Choose one neighbor basket.',
+        [visibleAction('[data-accept-request="extra-basket"]', 'Accept Extra Basket')],
+      ),
+      history(...completedRequests),
+    );
+
+    expect(decision.action.kind).toBe('wait');
+  });
+
   test('preserves sellable crops while a village basket is active', () => {
     const decision = decide(
       observation(
