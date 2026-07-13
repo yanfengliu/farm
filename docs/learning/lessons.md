@@ -1,5 +1,21 @@
 # Engineering Lessons
 
+## 2026-07-13 - Visible presentation loops must be continuous at their boundaries
+
+- Surfaced by: adversarial hardening review followed by a 13-second paused-browser sample at 1024x720. The duck-color centroid jumped 320.30 pixels between adjacent 100 ms samples when its route wrapped, even though the existing 700 ms motion check stayed green; the same review found that clamping one 200 ms worker-easing frame differed from two 100 ms frames by 8.39 percentage points.
+- Failure mode: modulo is suitable for cycling phases but teleports a visible object's position from the end of a route to its beginning. A short test that only proves pixels moved cannot observe the eventual discontinuity. Independently clamping frame delta also breaks the composition law expected from exponential smoothing, making interpolation depend on how the renderer partitions elapsed time.
+- Fix commit: `4dea7d7` replaces duck and butterfly position wraps with continuous ping-pong routes and anchored oscillation, and routes worker easing through an unclamped exponential approach factor while keeping actor poses on simulation time.
+- Regression anchors: `tests/browser/storybookArtDirection.test.mjs` pins every sampled ping-pong step to at most its intended two-pixel travel and proves one 200 ms exponential approach equals two composed 100 ms approaches; its paused-wildlife and paused-farmhand checks keep ambience moving while actor pixels remain stable.
+- Behavior delta: the exact 13-second browser recheck reduced the worst adjacent duck-centroid change from 320.30 pixels to 10.87 pixels, while worker interpolation is now invariant to equivalent frame partitions.
+
+## 2026-07-13 - Pixel contracts must isolate the object and prove the fixture state they name
+
+- Surfaced by: content-depth review of the late-game art fixture and a transient false failure after the scarecrow patch reused the harvest-vignette teal. The test title promised a mature four-crop farm but initially asserted only worker shirts, while its whole-canvas festival count could include an unrelated prop that shared the same exact color.
+- Failure mode: whole-canvas palette counts can pass or fail for the wrong object as an art palette evolves, and a visually named fixture is not evidence unless the underlying debug state and the intended pixels are both asserted. This is especially risky when autonomous workers can change ripe plots before a screenshot is sampled.
+- Fix commit: `4dea7d7` scopes canopy, mature crop, and clustered-worker palette measurements to projected world rectangles, gives the scarecrow patch a separate color, and asserts all four saved crop IDs before checking each mature silhouette at both desktop viewports.
+- Regression anchors: `tests/browser/storybookArtDirection.test.mjs` proves permanent canopy stays out of a fully owned 12x10 farm, Tier 4 festival teal is absent at Tier 1 and present at Tier 4, carrot/wheat/tomato/pumpkin plots and mature palettes survive the pause boundary, and four outfit centroids remain separated by more than 14 screen pixels at 1280x800 and 1024x720.
+- Behavior delta: art tests now fail on the intended semantic object instead of a coincidental shared color, and the late-game readability claim cannot stay green if crops disappear or farmhands collapse into one silhouette.
+
 ## 2026-07-12 - Recursive completion conditions must encode the terminal milestone
 
 - Surfaced by: early recursive runs capped on stale paint guidance, hit a tutorial-overlay click interception, and stopped at Tier 2 or Tier 3. Later run `farm-visual-loop-2026-07-13T07-35-41-524Z` reported clean without selling Pumpkin, `farm-visual-loop-2026-07-13T07-42-42-435Z` capped with Watering Cans, Tomato range, and Pumpkin-seed gaps, and `farm-visual-loop-2026-07-13T07-48-37-268Z` narrowed the remaining work to the Pumpkin range. Independent review of the first clean run then reproduced dishonest explicit-budget scope labels and a Goals/Crop Mix bounce when Watering Cans was unaffordable; the final proof is `farm-visual-loop-2026-07-13T08-08-06-549Z`.
