@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { FarmState } from '../../game/simulation/farmGame';
-import { FARM_ENVIRONMENT_MARGIN_TILES } from '../view/farmEnvironment';
 import { FarmRenderer, TILE_SIZE } from '../view/farmRenderer';
+import { buildFarmSceneryLayout, FARM_ENVIRONMENT_MARGIN_TILES } from '../view/farmSceneryLayout';
 
 type Cell = { x: number; y: number };
 
@@ -79,6 +79,7 @@ export class FarmScene extends Phaser.Scene {
       this.#bridge.getSelectedCell(),
       this.#bridge.getSelectedTool(),
       time,
+      delta,
     );
     this.#bridge.renderUi();
   }
@@ -87,10 +88,11 @@ export class FarmScene extends Phaser.Scene {
     const state = this.#bridge.getState();
     const camera = this.cameras.main;
     this.configureCameraBounds();
-    const frameLeft = -TILE_SIZE * 3;
-    const frameRight = state.width * TILE_SIZE + TILE_SIZE * 3;
-    const frameTop = -TILE_SIZE;
-    const frameBottom = state.height * TILE_SIZE + TILE_SIZE;
+    const { frame } = buildFarmSceneryLayout(state.width, state.height, TILE_SIZE);
+    const frameLeft = frame.left;
+    const frameRight = frame.right;
+    const frameTop = frame.top;
+    const frameBottom = frame.bottom;
     const farmWidth = frameRight - frameLeft;
     const farmHeight = frameBottom - frameTop;
     const fitZoom = Math.min(
@@ -98,7 +100,7 @@ export class FarmScene extends Phaser.Scene {
       camera.width / (farmWidth + TILE_SIZE),
       camera.height / (farmHeight + TILE_SIZE),
     );
-    camera.setZoom(Math.max(this.minimumCameraZoom(), 1.05, fitZoom));
+    camera.setZoom(Math.max(this.minimumCameraZoom(), 0.78, fitZoom));
     camera.centerOn((frameLeft + frameRight) / 2, (frameTop + frameBottom) / 2);
   }
 

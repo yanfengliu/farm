@@ -1,44 +1,59 @@
 import Phaser from 'phaser';
 import { CROPS, type CropId } from '../../game/content/crops';
 import type { FarmState, FarmTile, FarmWorker } from '../../game/simulation/farmGame';
-import { drawCreekShimmer, drawFarmEnvironment, drawFlowerClump, drawGrassTuft, drawWildMeadowCell } from './farmEnvironment';
+import { drawFarmAmbience } from './farmAmbience';
+import { drawFarmEnvironment, drawFarmOverstory, drawFarmScenery, drawWildMeadowCell } from './farmEnvironment';
+import { exponentialApproach } from './farmMotionMath';
+import { drawFlowerClump, drawGrassTuft } from './farmPixelPrimitives';
+import { drawFarmhand } from './farmWorkerArt';
 
 export const TILE_SIZE = 32;
 
 type Cell = { x: number; y: number };
 type WorkerVisual = { x: number; y: number };
 
-const FARMHAND_PALETTES = [
-  { shirt: 0x4f86a6, shirtLight: 0x78acc1, trousers: 0x31566f, hat: 0xc58a43, band: 0x7d4329 },
-  { shirt: 0xb65d52, shirtLight: 0xdc8671, trousers: 0x633f4a, hat: 0xd8a34e, band: 0x754137 },
-  { shirt: 0x668c55, shirtLight: 0x8fb76f, trousers: 0x3f6245, hat: 0xc99452, band: 0x6b4930 },
-  { shirt: 0x8b68a0, shirtLight: 0xb18dc1, trousers: 0x584568, hat: 0xd1a45a, band: 0x71465a },
-];
-
 export class FarmRenderer {
   readonly #meadow: Phaser.GameObjects.Graphics;
+  readonly #water: Phaser.GameObjects.Graphics;
   readonly #ground: Phaser.GameObjects.Graphics;
+  readonly #scenery: Phaser.GameObjects.Graphics;
   readonly #objects: Phaser.GameObjects.Graphics;
   readonly #actors: Phaser.GameObjects.Graphics;
+  readonly #overstory: Phaser.GameObjects.Graphics;
   readonly #effects: Phaser.GameObjects.Graphics;
+  readonly #interaction: Phaser.GameObjects.Graphics;
   readonly #workerVisuals = new Map<number, WorkerVisual>();
   #meadowSignature = '';
   #groundSignature = '';
 
   constructor(scene: Phaser.Scene) {
     this.#meadow = scene.add.graphics().setDepth(0);
+    this.#water = scene.add.graphics().setDepth(5);
     this.#ground = scene.add.graphics().setDepth(10);
+    this.#scenery = scene.add.graphics().setDepth(15);
     this.#objects = scene.add.graphics().setDepth(20);
     this.#actors = scene.add.graphics().setDepth(30);
+    this.#overstory = scene.add.graphics().setDepth(35);
     this.#effects = scene.add.graphics().setDepth(40);
+    this.#interaction = scene.add.graphics().setDepth(50);
   }
 
-  draw(state: FarmState, selectedCell: Cell | null, selectedTool: string, presentationTimeMs = 0): void {
+  draw(
+    state: FarmState,
+    selectedCell: Cell | null,
+    selectedTool: string,
+    presentationTimeMs = 0,
+    deltaMs = 1000 / 60,
+  ): void {
     const presentationTick = Math.floor(presentationTimeMs / 100);
-    const meadowSignature = `${state.width}x${state.height}`;
+    const meadowSignature = `${state.width}x${state.height}:tier${state.tier.level}`;
     if (meadowSignature !== this.#meadowSignature) {
       this.#meadow.clear();
+      this.#scenery.clear();
+      this.#overstory.clear();
       drawFarmEnvironment(this.#meadow, state, TILE_SIZE);
+      drawFarmScenery(this.#scenery, state, TILE_SIZE);
+      drawFarmOverstory(this.#overstory, state, TILE_SIZE);
       this.#meadowSignature = meadowSignature;
     }
 
@@ -55,7 +70,7 @@ export class FarmRenderer {
       this.#groundSignature = groundSignature;
     }
 
-    for (const layer of [this.#objects, this.#actors, this.#effects]) layer.clear();
+    for (const layer of [this.#water, this.#objects, this.#actors, this.#effects, this.#interaction]) layer.clear();
     this.drawFarmBoundary(state);
 
     for (let y = 0; y < state.height; y += 1) {
@@ -66,15 +81,18 @@ export class FarmRenderer {
     }
 
     const activeIds = new Set<number>();
-    for (const worker of state.workers) {
+    const workerDraws = state.workers.map((worker) => {
       activeIds.add(worker.id);
-      const position = this.workerVisualPosition(worker);
-      this.drawWorker(state, worker, position.x, position.y);
-    }
+      const position = this.workerVisualPosition(worker, deltaMs);
+      return { worker, position };
+    });
     for (const id of this.#workerVisuals.keys()) if (!activeIds.has(id)) this.#workerVisuals.delete(id);
+    workerDraws.sort((left, right) => left.position.y - right.position.y || left.worker.id - right.worker.id);
+    for (const { worker, position } of workerDraws) {
+      drawFarmhand(this.#actors, state, worker, position.x, position.y);
+    }
 
-    this.drawAmbientEffects(state, presentationTick);
-    drawCreekShimmer(this.#effects, presentationTick);
+    drawFarmAmbience(this.#water, this.#effects, state, TILE_SIZE, presentationTick);
     if (selectedCell) this.drawSelection(state, selectedCell, selectedTool);
   }
 
@@ -319,78 +337,8 @@ export class FarmRenderer {
     }
   }
 
-  private drawWorker(state: FarmState, worker: FarmWorker, px: number, py: number): void {
-    const g = this.#actors;
-    const palette = FARMHAND_PALETTES[(worker.id - 1) % FARMHAND_PALETTES.length];
-    const walking = worker.task.path.length > 0;
-    const step = walking && state.tick % 8 < 4 ? 1 : 0;
-    const bob = walking && state.tick % 8 < 4 ? -1 : 0;
-    const facing = (worker.task.path[0]?.x ?? worker.x) < worker.x ? -1 : 1;
-    const y = py + bob;
-    g.fillStyle(0x2e3d2c, 0.35);
-    g.fillRect(px - 8, y + 9, 16, 3);
-    g.fillStyle(palette.trousers, 1);
-    g.fillRect(px - 4, y + 3, 3, 8 + step);
-    g.fillRect(px + 1, y + 3 + step, 3, 8 - step);
-    g.fillStyle(palette.shirt, 1);
-    g.fillRect(px - 5, y - 3, 10, 9);
-    g.fillStyle(palette.shirtLight, 1);
-    g.fillRect(px - 4, y - 2, 3, 6);
-    g.fillStyle(0xf2c99c, 1);
-    g.fillRect(px - 4, y - 10, 8, 8);
-    g.fillStyle(0x4a3024, 1);
-    g.fillRect(px + facing, y - 7, 1, 1);
-    g.fillRect(px + facing, y - 4, 2, 1);
-    g.fillStyle(palette.hat, 1);
-    g.fillRect(px - 7, y - 12, 14, 3);
-    g.fillRect(px - 3, y - 15, 7, 4);
-    g.fillStyle(palette.band, 1);
-    g.fillRect(px - 3, y - 12, 7, 1);
-    g.fillStyle(0x3a2921, 1);
-    g.fillRect(px - 5, y + 10 + step, 4, 3);
-    g.fillRect(px + 1, y + 11 - step, 4, 3);
-    this.drawWorkerProp(g, worker, px, y, facing);
-  }
-
-  private drawWorkerProp(g: Phaser.GameObjects.Graphics, worker: FarmWorker, px: number, py: number, facing: number): void {
-    const propX = px + facing * 7;
-    g.fillStyle(0xf2c99c, 1);
-    g.fillRect(propX - 1, py - 1, 3, 6);
-    if (worker.cargo?.kind === 'water') {
-      g.fillStyle(0x4d8ca6, 1);
-      g.fillRect(propX - 2, py + 2, 7, 7);
-      g.fillStyle(0x9bd3df, 1);
-      g.fillRect(propX, py + 3, 3, 1);
-    } else if (worker.cargo?.kind === 'seed') {
-      g.fillStyle(0xa9703e, 1);
-      g.fillRect(propX - 2, py + 1, 7, 8);
-      g.fillStyle(0xeac66e, 1);
-      g.fillRect(propX, py + 3, 1, 1);
-    } else if (worker.cargo?.kind === 'crop') {
-      g.fillStyle(0x8a542e, 1);
-      g.fillRect(propX - 3, py, 8, 8);
-      g.fillStyle(0xd99843, 1);
-      g.fillRect(propX - 1, py - 1, 5, 3);
-    } else if (worker.task.kind === 'harvesting') {
-      g.fillStyle(0x8c6a3d, 1);
-      g.fillRect(propX, py - 3, 2, 11);
-      g.fillStyle(0xe0c77b, 1);
-      g.fillRect(propX + facing, py - 4, 5, 2);
-    }
-  }
-
-  private drawAmbientEffects(state: FarmState, presentationTick: number): void {
-    const g = this.#effects;
-    for (let index = 0; index < 8; index += 1) {
-      const x = ((index * 67 + presentationTick) % (state.width * TILE_SIZE + 120)) - 60;
-      const y = ((index * 43 + Math.floor(presentationTick / 2)) % (state.height * TILE_SIZE + 80)) - 40;
-      g.fillStyle(index % 3 === 0 ? 0xffe28a : 0xd8efaa, index % 2 === 0 ? 0.65 : 0.4);
-      g.fillRect(x, y, index % 3 === 0 ? 2 : 1, 1);
-    }
-  }
-
   private drawSelection(state: FarmState, cell: Cell, tool: string): void {
-    const g = this.#effects;
+    const g = this.#interaction;
     const px = cell.x * TILE_SIZE;
     const py = cell.y * TILE_SIZE;
     const owned = Boolean(state.tiles[`${cell.x},${cell.y}`]);
@@ -403,7 +351,7 @@ export class FarmRenderer {
     }
   }
 
-  private workerVisualPosition(worker: FarmWorker): WorkerVisual {
+  private workerVisualPosition(worker: FarmWorker, deltaMs: number): WorkerVisual {
     const target = workerTargetPosition(worker);
     const current = this.#workerVisuals.get(worker.id);
     if (!current || Phaser.Math.Distance.Between(current.x, current.y, target.x, target.y) > TILE_SIZE * 1.5) {
@@ -411,8 +359,9 @@ export class FarmRenderer {
       this.#workerVisuals.set(worker.id, next);
       return next;
     }
-    current.x = Phaser.Math.Linear(current.x, target.x, 0.35);
-    current.y = Phaser.Math.Linear(current.y, target.y, 0.35);
+    const smoothing = exponentialApproach(deltaMs, 42);
+    current.x = Phaser.Math.Linear(current.x, target.x, smoothing);
+    current.y = Phaser.Math.Linear(current.y, target.y, smoothing);
     return current;
   }
 
@@ -428,7 +377,7 @@ function workerTargetPosition(worker: FarmWorker): WorkerVisual {
 }
 
 function workerOffset(id: number): Cell {
-  const offsets = [{ x: -4, y: -3 }, { x: 4, y: 3 }, { x: 4, y: -3 }, { x: -4, y: 3 }];
+  const offsets = [{ x: -9, y: -10 }, { x: 9, y: 10 }, { x: 9, y: -10 }, { x: -9, y: 10 }];
   return offsets[(id - 1) % offsets.length];
 }
 

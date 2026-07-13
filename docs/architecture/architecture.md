@@ -61,13 +61,16 @@ Simulation code must not import Phaser, touch the DOM, or depend on animation st
 
 Phaser owns:
 
-- Deterministic decorative backdrop drawing and separate ground, object, actor, effect, and interaction layers.
+- Deterministic decorative backdrop drawing and explicit meadow, water, ground, scenery, object, actor, overstory, effect, and interaction layers.
 - Tile, crop, building, and worker pixel-art drawing.
+- Shared scenery geometry for the camera frame, environment bounds, creek, bridge, cottage, garden, and permanent landmark placement.
 - Bounded camera pan/zoom, scenic farm framing, and Home-key recentering.
 - Pointer hit-testing and screen-to-grid conversion.
 - Animation playback and simple effects driven by presentation time rather than deterministic simulation ticks.
 
 Phaser scenes submit commands and consume projected farm snapshots. They do not mutate farm rules directly.
+
+Static dimension- and tier-dependent scenery is cached separately from tile ground, and claiming a tier invalidates that presentation cache so earned homestead flourishes appear immediately. Wild-cell vignettes are drawn in the ground lane so purchased land replaces them naturally, while permanent landmarks stay outside the buyable grid. Presentation-only motion uses Phaser time and never enters a save or replay; looping routes turn around continuously instead of teleporting at modulo boundaries. Worker position easing uses a composable exponential frame-delta step, while actor pose and task-prop animation use simulation time so they freeze with the farm.
 
 ## UI Boundary
 

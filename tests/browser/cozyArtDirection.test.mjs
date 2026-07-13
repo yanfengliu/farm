@@ -54,11 +54,14 @@ describe('cozy pixel art direction', () => {
   test('caches static meadow and ground drawing between visual frames', async () => {
     const renderer = await readFile('src/phaser/view/farmRenderer.ts', 'utf8');
     const environment = await readFile('src/phaser/view/farmEnvironment.ts', 'utf8');
+    const waterside = await readFile('src/phaser/view/farmWaterside.ts', 'utf8');
 
     expect(renderer).toContain('#meadowSignature');
     expect(renderer).toContain('#groundSignature');
-    expect(renderer).toContain('drawCreekShimmer(this.#effects, presentationTick)');
-    expect(environment).toContain('export function drawCreekShimmer');
+    expect(renderer).toContain('drawFarmOverstory(this.#overstory, state, TILE_SIZE)');
+    expect(renderer).toContain('drawFarmAmbience(this.#water, this.#effects, state, TILE_SIZE, presentationTick)');
+    expect(environment).toContain('export function drawFarmScenery');
+    expect(waterside).toContain('export function drawCreekShimmer');
   });
 
   test('ambient creek and well pixels keep moving while simulation is paused', async () => {
