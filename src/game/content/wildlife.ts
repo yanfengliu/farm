@@ -33,6 +33,7 @@ export const WILDLIFE_TUNING = {
   sleepingHungerIntervalTicks: 10,
   energyIntervalTicks: 5,
   sleepEnergyPerTick: 1,
+  travelIntervalTicks: 2,
   travelProgressPerTick: 2,
   eatingTicks: 20,
   roamRestTicks: 18,

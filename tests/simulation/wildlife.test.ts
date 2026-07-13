@@ -104,6 +104,35 @@ describe('duck life simulation', () => {
     expect(wildlifeTravelProgressPerTick('creek-south', 'tree-shelter-elder')).toBe(1);
   });
 
+  test('moves at an unhurried half-rate on both short and long habitat trips', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'wildlife-cozy-pace' }));
+    Object.assign(state.wildlife.ducks[0], {
+      node: 'creek-north',
+      targetNode: 'creek-mid-north',
+      targetFishId: null,
+      travelProgress: 0,
+      activity: 'roaming',
+      activityTicks: 0,
+      hunger: 0,
+      energy: 100,
+    });
+    Object.assign(state.wildlife.ducks[1], {
+      node: 'creek-north',
+      targetNode: 'creek-south',
+      targetFishId: null,
+      travelProgress: 0,
+      activity: 'roaming',
+      activityTicks: 0,
+      hunger: 0,
+      energy: 100,
+    });
+
+    const game = createFarmGame({ seed: 'wildlife-cozy-pace', state });
+    advanceFarm(game, 10);
+
+    expect(getFarmSnapshot(game).wildlife.ducks.map((duck) => duck.travelProgress)).toEqual([10, 5]);
+  });
+
   test('ducks find fish, eat, and leave the fish to respawn', () => {
     const game = createFarmGame({ seed: 'wildlife-foraging' });
 

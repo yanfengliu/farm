@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Slowed Pip and Mallow's travel to half its former cadence, with staggered updates that keep creek swims and longer shelter journeys unhurried without changing their needs or habitat decisions.
 - Replaced the repeated border groves and floating foreground leaf blocks with a deterministic living hedgerow: sixteen expansion-safe elder, hazel, birch, apple, and willow trees now use distinct silhouettes, irregular thickets, grounded trunks, and named duck shelters. Ferns, foxgloves, lavender, berry shrubs, mushrooms, cottage window boxes, two planted garden rows, alternating creek-bank sedge/cattail/iris communities, and low clover on empty owned land add natural plant communities without hiding buildable cells.
 - Added a Village Request Board with twelve authored neighbor baskets, deterministic two-offer rotations, pin/abandon/deliver actions, premium rewards, progress guidance, history support, and migration-safe request state.
 - Added an autonomous life simulation for Pip and Mallow: ducks grow hungry and tired, reserve and catch renewable fish, release meals when shelter becomes urgent, seek tree cover, sleep under the canopy, wake rested, and preserve their ecology through saves, history, replay, pause, and debug surfaces. Creek routes now reverse at habitat ends and use bounded distance-scaled pixel steps instead of long visual snaps.

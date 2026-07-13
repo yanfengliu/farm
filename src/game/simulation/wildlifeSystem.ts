@@ -109,6 +109,7 @@ function updateSleepingDuck(duck: FarmDuck): void {
 
 function advanceDuckTravel(state: FarmState, duck: FarmDuck): void {
   if (!duck.targetNode) return;
+  if ((state.tick + duck.id) % WILDLIFE_TUNING.travelIntervalTicks !== 0) return;
   const progressPerTick = wildlifeTravelProgressPerTick(duck.node, duck.targetNode);
   duck.travelProgress = Math.min(100, duck.travelProgress + progressPerTick);
   if (duck.travelProgress < 100 || !duck.targetNode) return;
