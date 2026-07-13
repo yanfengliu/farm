@@ -2,6 +2,7 @@ import type { CropDefinition, CropId } from '../content/crops';
 import type { VillageRequestId } from '../content/communityRequests';
 import type { TierLevel } from '../content/tiers';
 import type { UpgradeId } from '../content/upgrades';
+import type { CreekHabitatId, DuckActivity, WildlifeNodeId } from '../content/wildlife';
 import type { Position, World } from './civEngine';
 
 export type TileKind = 'empty' | 'plot' | 'well' | 'storage';
@@ -67,6 +68,33 @@ export interface FarmWorker {
   cargo?: WorkerCargo;
 }
 
+export interface FarmDuck {
+  id: number;
+  name: string;
+  node: WildlifeNodeId;
+  targetNode: WildlifeNodeId | null;
+  targetFishId: number | null;
+  travelProgress: number;
+  activity: DuckActivity;
+  activityTicks: number;
+  hunger: number;
+  energy: number;
+  meals: number;
+}
+
+export interface FarmFish {
+  id: number;
+  node: CreekHabitatId;
+  available: boolean;
+  reservedByDuckId: number | null;
+  respawnTick: number;
+}
+
+export interface FarmWildlife {
+  ducks: FarmDuck[];
+  fish: FarmFish[];
+}
+
 export interface FarmTier {
   level: TierLevel;
   label: string;
@@ -94,6 +122,7 @@ export interface FarmState {
   tier: FarmTier;
   stats: FarmStats;
   community: FarmCommunity;
+  wildlife: FarmWildlife;
   alerts: string[];
   history: FarmHistory;
 }

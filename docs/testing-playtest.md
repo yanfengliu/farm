@@ -22,6 +22,8 @@ Browser tests should start the dev server, open the playable first screen, and i
 
 Every gameplay-facing browser change should verify that the canvas is nonblank and that HUD text does not overlap at desktop and smaller desktop-like viewports.
 
+Wildlife visual checks should observe both creek and grove states: confirm ducks visibly forage or eat beside fish, visibly tuck beneath a real tree while sleeping, use distinct palettes, and freeze their actor pixels while paused. Sample every legal habitat route and cap per-tick world-pixel displacement so ordinary adjacent creek travel cannot hide a visual snap behind a smooth long-route fixture. Inspect the creek for irregular lily spacing, silhouettes, companion leaves, and blossom colors rather than accepting a single repeated stamp.
+
 For idle-loop changes, also let real browser time pass without calling `window.advanceTime(ms)` and confirm `window.__farmDebug.getState().tick` increases. Debug advancement can hide frame-delta bugs.
 
 ## LLM Playtest Harness

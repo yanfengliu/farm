@@ -33,7 +33,7 @@
 
 - Add a deterministic Village Request Board with authored neighbor baskets, premium delivery rewards, and no timers or failure penalties.
 - Extend progression through Harvest Hearth with pumpkins, a fourth farmhand, and an open-ended Tier 4 loop.
-- Replace the sparse dark-stage presentation with a layered storybook meadow, full-world creek and continuously roaming wildlife, bridge, cottage garden, groves, expansion-safe meadow stories, tier-earned homestead flourishes, richer crop stages, task-readable clustered workers, ambient effects, and warm harvest UI chrome.
+- Replace the sparse dark-stage presentation with a layered storybook meadow, full-world creek, self-directed duck ecology with renewable fish and tree shelters, irregular lily habitats, bridge, cottage garden, groves, expansion-safe meadow stories, tier-earned homestead flourishes, richer crop stages, task-readable clustered workers, ambient effects, and warm harvest UI chrome.
 - Expand migration, deterministic replay, browser layout, canvas-art, and recursive LLM playtest coverage for the new content.
 
 ## Later

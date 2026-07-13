@@ -8,6 +8,12 @@ import { FARM_TIERS } from '../../src/game/content/tiers';
 import { createFarmGame, getFarmSnapshot } from '../../src/game/simulation/farmGame';
 import { exponentialApproach, pingPong } from '../../src/phaser/view/farmMotionMath';
 import { buildFarmSceneryLayout } from '../../src/phaser/view/farmSceneryLayout';
+import {
+  CREEK_HABITAT_IDS,
+  TREE_SHELTER_IDS,
+  wildlifeTravelProgressPerTick,
+} from '../../src/game/content/wildlife';
+import { duckWorldPosition, wildlifeNodeWorldPosition } from '../../src/phaser/view/farmWildlifeArt';
 
 let server;
 let browser;
@@ -20,6 +26,7 @@ const STORYBOOK_PALETTE = {
   linen: [238, 215, 192],
   hay: [218, 171, 72],
   festival: [110, 182, 173],
+  duckCream: [240, 225, 183],
 };
 
 function fullyExpandedFarmState() {
@@ -51,6 +58,31 @@ function clusteredTierFourState() {
     y: 4,
     task: { kind: 'idle', path: [], progress: 0 },
   }));
+  return state;
+}
+
+function ecologyShowcaseState() {
+  const state = getFarmSnapshot(createFarmGame({ seed: 'storybook-ecology' }));
+  Object.assign(state.wildlife.ducks[0], {
+    node: 'tree-shelter-elder',
+    targetNode: null,
+    targetFishId: null,
+    travelProgress: 0,
+    activity: 'sleeping',
+    activityTicks: 0,
+    hunger: 12,
+    energy: 30,
+  });
+  Object.assign(state.wildlife.ducks[1], {
+    node: 'creek-mid-south',
+    targetNode: null,
+    targetFishId: null,
+    travelProgress: 0,
+    activity: 'eating',
+    activityTicks: 120,
+    hunger: 0,
+    energy: 80,
+  });
   return state;
 }
 
@@ -175,12 +207,35 @@ describe('storybook pixel art direction', () => {
     expect(combined).toBeCloseTo(1 - (1 - half) ** 2, 12);
   });
 
+  test('keeps every duck habitat route below a cozy per-tick pixel step', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'storybook-duck-travel' }));
+    const duck = state.wildlife.ducks[0];
+    const nodes = [...CREEK_HABITAT_IDS, ...TREE_SHELTER_IDS];
+    let largestStep = 0;
+    for (const from of nodes) {
+      for (const to of nodes) {
+        if (from === to) continue;
+        Object.assign(duck, { node: from, targetNode: to });
+        const progressStep = wildlifeTravelProgressPerTick(from, to);
+        let previous = null;
+        for (let progress = 0; progress <= 100; progress += progressStep) {
+          duck.travelProgress = progress;
+          const current = duckWorldPosition(state, 32, duck);
+          if (previous) largestStep = Math.max(largestStep, Math.hypot(current.x - previous.x, current.y - previous.y));
+          previous = current;
+        }
+      }
+    }
+    expect(largestStep).toBeLessThanOrEqual(6);
+  });
+
   test('splits deterministic scenery, waterside, ambience, workers, and interaction art into focused layers', async () => {
-    const [renderer, environment, waterside, ambience, workers] = await Promise.all([
+    const [renderer, environment, waterside, ambience, wildlife, workers] = await Promise.all([
       readFile('src/phaser/view/farmRenderer.ts', 'utf8'),
       readFile('src/phaser/view/farmEnvironment.ts', 'utf8'),
       readFile('src/phaser/view/farmWaterside.ts', 'utf8'),
       readFile('src/phaser/view/farmAmbience.ts', 'utf8'),
+      readFile('src/phaser/view/farmWildlifeArt.ts', 'utf8'),
       readFile('src/phaser/view/farmWorkerArt.ts', 'utf8'),
     ]);
 
@@ -195,9 +250,13 @@ describe('storybook pixel art direction', () => {
     expect(environment).toContain('drawTierFlourishes');
     expect(waterside).toContain('creekCenterX');
     expect(waterside).toContain('FARM_ENVIRONMENT_MARGIN_TILES');
-    expect(ambience).toContain('drawDuckPair');
+    expect(ambience).toContain('drawFarmWildlife');
     expect(ambience).toContain('drawButterflies');
     expect(ambience).not.toContain('Math.random');
+    expect(wildlife).toContain("duck.activity === 'sleeping'");
+    expect(wildlife).toContain("duck.activity === 'foraging'");
+    expect(wildlife).toContain('state.wildlife.fish');
+    expect(wildlife).not.toContain('Math.random');
     expect(workers).toContain("worker.task.kind === 'watering'");
     expect(workers).toContain('worker.cargo?.cropId');
   });
@@ -270,10 +329,11 @@ describe('storybook pixel art direction', () => {
     }
   }, 15000);
 
-  test('keeps the duck pair moving through the creek while the farm is paused', async () => {
+  test('pauses duck decisions with the farm instead of running a separate visual-only route', async () => {
     const { context, page } = await openFreshPage({ width: 1280, height: 800 });
     try {
       await page.click('[data-command="pause"]');
+      const firstState = await page.evaluate(() => window.__farmDebug.getState().wildlife);
       const duckCentroid = () => page.locator('#game-canvas canvas').evaluate((element, target) => {
         const pixels = element.getContext('2d').getImageData(0, 0, element.width, element.height).data;
         let count = 0;
@@ -299,9 +359,42 @@ describe('storybook pixel art direction', () => {
       const first = await duckCentroid();
       await page.waitForTimeout(700);
       const second = await duckCentroid();
+      const secondState = await page.evaluate(() => window.__farmDebug.getState().wildlife);
       expect(first.count).toBeGreaterThan(4);
       expect(second.count).toBeGreaterThan(4);
-      expect(Math.abs(second.x - first.x) + Math.abs(second.y - first.y)).toBeGreaterThan(1);
+      expect(secondState).toEqual(firstState);
+      expect(second).toEqual(first);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
+  test.each([
+    { width: 1280, height: 800 },
+    { width: 1024, height: 720 },
+  ])('shows one duck sleeping under a tree while its companion fishes at $width x $height', async (viewport) => {
+    const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+    const state = ecologyShowcaseState();
+    await context.addInitScript((saved) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(saved));
+    }, state);
+    const page = await context.newPage();
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.locator('#game-canvas canvas').waitFor();
+      await page.click('[data-command="pause"]');
+      const frame = buildFarmSceneryLayout(state.width, state.height, 32).frame;
+      const shelter = wildlifeNodeWorldPosition(state, 32, 'tree-shelter-elder', 1);
+      const fishing = wildlifeNodeWorldPosition(state, 32, 'creek-mid-south', 2);
+      const sleepingPixels = await paletteCountInWorldRect(page, STORYBOOK_PALETTE.duck, {
+        left: shelter.x - 14, top: shelter.y - 14, right: shelter.x + 14, bottom: shelter.y + 14,
+      }, frame);
+      const fishingPixels = await paletteCountInWorldRect(page, STORYBOOK_PALETTE.duckCream, {
+        left: fishing.x - 14, top: fishing.y - 14, right: fishing.x + 14, bottom: fishing.y + 14,
+      }, frame);
+      expect(sleepingPixels).toBeGreaterThan(4);
+      expect(fishingPixels).toBeGreaterThan(4);
     } finally {
       await context.close();
     }

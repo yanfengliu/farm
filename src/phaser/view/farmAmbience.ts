@@ -3,48 +3,22 @@ import type { FarmState } from '../../game/simulation/farmGame';
 import { buildFarmSceneryLayout } from './farmSceneryLayout';
 import { pingPong } from './farmMotionMath';
 import { coordinateHash } from './farmPixelPrimitives';
-import { creekCenterX, drawCreekShimmer } from './farmWaterside';
+import { drawCreekShimmer } from './farmWaterside';
+import { drawFarmWildlife } from './farmWildlifeArt';
 
 export function drawFarmAmbience(
   water: Phaser.GameObjects.Graphics,
+  actors: Phaser.GameObjects.Graphics,
   effects: Phaser.GameObjects.Graphics,
   state: FarmState,
   tileSize: number,
   tick: number,
 ): void {
   drawCreekShimmer(water, state, tileSize, tick);
-  drawDuckPair(water, state, tileSize, tick);
+  drawFarmWildlife(water, actors, effects, state, tileSize);
   drawSunMotes(effects, state, tileSize, tick);
   drawButterflies(effects, state, tileSize, tick);
   drawChimneySmoke(effects, state, tileSize, tick);
-}
-
-function drawDuckPair(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number, tick: number): void {
-  const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
-  const travel = Math.max(90, state.height * tileSize - 80);
-  const leadY = 42 + pingPong(tick * 2, travel);
-  drawDuck(g, creekCenterX(layout.creek.centerX, leadY) + 11, leadY, tick);
-  const secondY = 27 + pingPong(tick * 2, travel);
-  drawDuck(g, creekCenterX(layout.creek.centerX, secondY) + 23, secondY, tick + 2);
-}
-
-function drawDuck(g: Phaser.GameObjects.Graphics, x: number, y: number, tick: number): void {
-  const bob = tick % 4 < 2 ? 0 : 1;
-  g.fillStyle(0x245d65, 0.34);
-  g.fillRect(x - 7, y + 6 + bob, 14, 2);
-  g.fillStyle(0xf3cd67, 1);
-  g.fillRect(x - 5, y + bob, 10, 6);
-  g.fillRect(x + 3, y - 4 + bob, 5, 5);
-  g.fillStyle(0xffe596, 1);
-  g.fillRect(x - 3, y + 1 + bob, 4, 2);
-  g.fillStyle(0x4b713f, 1);
-  g.fillRect(x + 3, y - 5 + bob, 5, 2);
-  g.fillStyle(0x2c3328, 1);
-  g.fillRect(x + 6, y - 2 + bob, 1, 1);
-  g.fillStyle(0xe47a3f, 1);
-  g.fillRect(x + 8, y - 1 + bob, 3, 2);
-  g.fillStyle(0xb9e0d3, 0.55);
-  g.fillRect(x - 12 - (tick % 3), y + 5 + bob, 5, 1);
 }
 
 function drawButterflies(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number, tick: number): void {

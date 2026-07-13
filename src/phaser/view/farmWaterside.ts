@@ -1,6 +1,17 @@
 import type Phaser from 'phaser';
 import type { FarmState } from '../../game/simulation/farmGame';
 import { buildFarmSceneryLayout, FARM_ENVIRONMENT_MARGIN_TILES } from './farmSceneryLayout';
+import { coordinateHash } from './farmPixelPrimitives';
+
+export interface CreekLilyLayout {
+  x: number;
+  y: number;
+  size: 8 | 10 | 12;
+  notch: 0 | 1 | 2 | 3;
+  blossomColor: number | null;
+  companion: boolean;
+  bridgeY: number;
+}
 
 export function creekCenterX(baseX: number, y: number): number {
   return baseX + Math.round(Math.sin(y / 42) * 6 + Math.sin(y / 91) * 3);
@@ -29,7 +40,37 @@ export function drawCreekBed(g: Phaser.GameObjects.Graphics, state: FarmState, t
     drawReeds(g, x - 9, y + 7);
     drawReeds(g, x + layout.creek.width + 7, y + 22);
   }
-  for (let y = top + 82; y < bottom; y += 113) drawLilyPad(g, creekCenterX(layout.creek.centerX, y) + 15, y);
+  for (const lily of buildCreekLilyLayout(state, tileSize)) drawLilyPad(g, lily);
+}
+
+export function buildCreekLilyLayout(state: FarmState, tileSize: number): CreekLilyLayout[] {
+  const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
+  const lilies: CreekLilyLayout[] = [];
+  const blossomColors = [0xf3c0bc, 0xffe2a0, 0xcbb6e8] as const;
+  let y = layout.environment.top + 58;
+  let index = 0;
+
+  while (y < layout.environment.bottom - 18) {
+    const hash = coordinateHash(index + 41, state.width * 17 + state.height * 29);
+    y += 76 + (hash % 67);
+    if (Math.abs(y - layout.creek.bridgeY) <= 28) y = layout.creek.bridgeY + 31 + (hash % 13);
+    if (y >= layout.environment.bottom - 12) break;
+    const channelInset = 6 + positiveModulo(Math.floor(hash / 11), layout.creek.width - 13);
+    const size = [8, 10, 12][positiveModulo(Math.floor(hash / 97), 3)] as 8 | 10 | 12;
+    const blossomIndex = positiveModulo(Math.floor(hash / 577), blossomColors.length);
+    lilies.push({
+      x: creekCenterX(layout.creek.centerX, y) + channelInset,
+      y,
+      size,
+      notch: positiveModulo(Math.floor(hash / 31), 4) as 0 | 1 | 2 | 3,
+      blossomColor: hash % 5 === 0 ? null : (blossomColors[blossomIndex] ?? blossomColors[0]),
+      companion: hash % 4 === 1,
+      bridgeY: layout.creek.bridgeY,
+    });
+    index += 1;
+  }
+
+  return lilies;
 }
 
 export function drawCreekBridge(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {
@@ -73,12 +114,31 @@ function drawReeds(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
   g.fillRect(x + 8, y - 8, 2, 4);
 }
 
-function drawLilyPad(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
+function drawLilyPad(g: Phaser.GameObjects.Graphics, lily: CreekLilyLayout): void {
+  const { x, y, size, notch, blossomColor, companion } = lily;
+  const half = Math.floor(size / 2);
+  const height = Math.max(4, Math.floor(size / 2));
+  g.fillStyle(0x1e4839, 0.5);
+  g.fillRect(x - half - 1, y + 1, size + 2, height);
   g.fillStyle(0x28543d, 1);
-  g.fillRect(x - 5, y, 10, 3);
-  g.fillRect(x - 3, y - 2, 6, 6);
-  g.fillStyle(0xf3c0bc, 1);
-  g.fillRect(x, y - 3, 2, 2);
+  g.fillRect(x - half, y, size, height);
+  g.fillRect(x - half + 2, y - 2, size - 4, height + 1);
+  g.fillStyle(0x397f8c, 1);
+  const notchX = notch < 2 ? x - 1 : x + 1;
+  g.fillRect(notchX, notch % 2 === 0 ? y - 2 : y, 2, 3);
+  if (companion) {
+    g.fillStyle(0x356b49, 1);
+    g.fillRect(x + half - 1, y + height, 6, 3);
+    g.fillRect(x + half, y + height - 1, 4, 4);
+  }
+  if (blossomColor !== null) {
+    const flowerX = x + (notch < 2 ? 2 : -3);
+    g.fillStyle(blossomColor, 1);
+    g.fillRect(flowerX, y - 4, 3, 3);
+    g.fillRect(flowerX - 1, y - 3, 5, 1);
+    g.fillStyle(0xffefb0, 1);
+    g.fillRect(flowerX + 1, y - 3, 1, 1);
+  }
 }
 
 function positiveModulo(value: number, divisor: number): number {

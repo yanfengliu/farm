@@ -4,6 +4,7 @@ import { findGridPath, type Position } from './civEngine';
 import { claimableTierLevel } from './farmProgression';
 import { distance, idleTask, isReady, movementMultiplier, neighbors, storedCropCount, tileAt, zeroCropRecord } from './farmState';
 import type { FarmState, FarmTile, FarmWorker, WorkerTask } from './farmTypes';
+import { updateWildlife } from './wildlifeSystem';
 
 const STARTER_SEED_TRICKLE_TICKS = 240;
 
@@ -12,6 +13,7 @@ export function updateFarmState(state: FarmState): void {
   state.alerts = [];
   trickleStarterSeeds(state);
   growPlots(state);
+  updateWildlife(state);
 
   for (const worker of state.workers) {
     updateWorker(state, worker);

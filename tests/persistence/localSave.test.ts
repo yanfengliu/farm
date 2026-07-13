@@ -193,4 +193,91 @@ describe('local farm save boundary', () => {
     expect(getFarmSnapshot(game).inventory.seeds.pumpkin).toBe(0);
     expect(getFarmSnapshot(game).community.activeRequestId).toBeNull();
   });
+
+  test('migrates saves and undo snapshots from before the duck ecology existed', () => {
+    const legacy = JSON.parse(JSON.stringify(getFarmSnapshot(createFarmGame({ seed: 'legacy-wildlife' }))));
+    delete legacy.wildlife;
+    const legacyUndo = structuredClone(legacy);
+    delete legacyUndo.history;
+    legacy.history.undo = [JSON.stringify(legacyUndo)];
+    storage.setItem('farm.autosave.v1', JSON.stringify(legacy));
+
+    const loaded = loadSavedFarmState();
+    expect(loaded).not.toBeNull();
+    const game = createFarmGame({ seed: 'legacy-wildlife', state: loaded! });
+
+    expect(getFarmSnapshot(game).wildlife.ducks).toHaveLength(2);
+    expect(getFarmSnapshot(game).wildlife.fish.length).toBeGreaterThanOrEqual(4);
+
+    advanceFarm(game, 200);
+    submitFarmCommand(game, { type: 'undo' });
+    advanceFarm(game, 1);
+    const fresh = createFarmGame({ seed: 'legacy-wildlife' });
+    advanceFarm(fresh, 1);
+    expect(getFarmSnapshot(game).wildlife).toEqual(getFarmSnapshot(fresh).wildlife);
+  });
+
+  test('rejects malformed duck ecology state before it reaches normalization', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'invalid-wildlife' }));
+    state.wildlife.fish[0]!.respawnTick = -1;
+    storage.setItem('farm.autosave.v1', JSON.stringify(state));
+
+    expect(loadSavedFarmState()).toBeNull();
+
+    const orphanedReservation = getFarmSnapshot(createFarmGame({ seed: 'orphaned-wildlife' }));
+    orphanedReservation.wildlife.fish[0]!.reservedByDuckId = orphanedReservation.wildlife.ducks[0]!.id;
+    storage.setItem('farm.autosave.v1', JSON.stringify(orphanedReservation));
+    expect(loadSavedFarmState()).toBeNull();
+
+    const crossedReservation = getFarmSnapshot(createFarmGame({ seed: 'crossed-wildlife' }));
+    const duck = crossedReservation.wildlife.ducks[0]!;
+    const fish = crossedReservation.wildlife.fish[1]!;
+    duck.activity = 'foraging';
+    duck.targetFishId = fish.id;
+    duck.targetNode = crossedReservation.wildlife.fish[0]!.node;
+    fish.reservedByDuckId = duck.id;
+    storage.setItem('farm.autosave.v1', JSON.stringify(crossedReservation));
+    expect(loadSavedFarmState()).toBeNull();
+
+    const sleepingInCreek = getFarmSnapshot(createFarmGame({ seed: 'sleeping-in-creek' }));
+    Object.assign(sleepingInCreek.wildlife.ducks[0], {
+      activity: 'sleeping',
+      node: 'creek-north',
+      travelProgress: 77,
+    });
+    storage.setItem('farm.autosave.v1', JSON.stringify(sleepingInCreek));
+    expect(loadSavedFarmState()).toBeNull();
+
+    const shelterWithoutTarget = getFarmSnapshot(createFarmGame({ seed: 'shelter-without-target' }));
+    Object.assign(shelterWithoutTarget.wildlife.ducks[0], {
+      activity: 'seeking-shelter',
+      targetNode: null,
+    });
+    storage.setItem('farm.autosave.v1', JSON.stringify(shelterWithoutTarget));
+    expect(loadSavedFarmState()).toBeNull();
+
+    const roamingTowardShelter = getFarmSnapshot(createFarmGame({ seed: 'roaming-toward-shelter' }));
+    Object.assign(roamingTowardShelter.wildlife.ducks[0], {
+      activity: 'roaming',
+      targetNode: 'tree-shelter-elder',
+      travelProgress: 50,
+    });
+    storage.setItem('farm.autosave.v1', JSON.stringify(roamingTowardShelter));
+    expect(loadSavedFarmState()).toBeNull();
+
+    const missingDuck = getFarmSnapshot(createFarmGame({ seed: 'missing-authored-duck' }));
+    missingDuck.wildlife.ducks.pop();
+    storage.setItem('farm.autosave.v1', JSON.stringify(missingDuck));
+    expect(loadSavedFarmState()).toBeNull();
+
+    const missingFish = getFarmSnapshot(createFarmGame({ seed: 'missing-authored-fish' }));
+    missingFish.wildlife.fish.pop();
+    storage.setItem('farm.autosave.v1', JSON.stringify(missingFish));
+    expect(loadSavedFarmState()).toBeNull();
+
+    const crossedHabitat = getFarmSnapshot(createFarmGame({ seed: 'crossed-fish-habitat' }));
+    crossedHabitat.wildlife.fish[0]!.node = crossedHabitat.wildlife.fish[1]!.node;
+    storage.setItem('farm.autosave.v1', JSON.stringify(crossedHabitat));
+    expect(loadSavedFarmState()).toBeNull();
+  });
 });

@@ -44,7 +44,7 @@ export function drawFarmScenery(g: Phaser.GameObjects.Graphics, state: FarmState
 
 export function drawFarmOverstory(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {
   const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
-  const groves = groveAnchors(state, tileSize);
+  const groves = farmGroveAnchors(state, tileSize);
   for (let groveIndex = 0; groveIndex < groves.length; groveIndex += 1) {
     const grove = groves[groveIndex];
     if (!grove) continue;
@@ -352,18 +352,18 @@ function drawSteppingPath(g: Phaser.GameObjects.Graphics, state: FarmState, tile
   }
 }
 
-function groveAnchors(state: FarmState, tileSize: number): Array<{ x: number; y: number; trees: number[][] }> {
+export function farmGroveAnchors(state: FarmState, tileSize: number): Array<{ x: number; y: number; trees: number[][] }> {
   const { farm } = buildFarmSceneryLayout(state.width, state.height, tileSize);
   const trees = [[0, 20], [22, 2], [42, 24], [17, 42]];
   return [
-    { x: -135, y: 11, trees },
+    { x: -105, y: 11, trees },
     { x: farm.right + 75, y: 218, trees },
     { x: -16, y: farm.bottom + 22, trees: [[0, 12], [25, 0], [48, 18]] },
   ];
 }
 
 function drawGroveTrunks(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {
-  for (const grove of groveAnchors(state, tileSize)) {
+  for (const grove of farmGroveAnchors(state, tileSize)) {
     for (const [dx = 0, dy = 0] of grove.trees) {
       const x = grove.x + dx;
       const y = grove.y + dy;

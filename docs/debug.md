@@ -10,7 +10,7 @@ The game exposes:
 - `window.__farmDebug.reset()` for a fresh deterministic farm.
 - `window.__farmDebug.exportBundle()` in development builds for recent replay evidence.
 
-`render_game_to_text()` includes the current Village Request title and basket progress plus lifetime completed-request count, so a headless player can reason about retain-versus-sell decisions without reading private state.
+`render_game_to_text()` includes the current Village Request title and basket progress plus lifetime completed-request count. It also lists each duck's activity, habitat node, hunger, energy, and meal count together with the number of available fish, so a headless player can reason about both farm planning and the visible ecology without reading private state. Pre-ecology replay snapshots report `ducks=legacy fish=0/0` instead of inventing wildlife.
 
 These are public test/debug surfaces. Keep them stable or update this document and tests in the same change.
 

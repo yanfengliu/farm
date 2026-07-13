@@ -92,7 +92,7 @@ export class FarmRenderer {
       drawFarmhand(this.#actors, state, worker, position.x, position.y);
     }
 
-    drawFarmAmbience(this.#water, this.#effects, state, TILE_SIZE, presentationTick);
+    drawFarmAmbience(this.#water, this.#actors, this.#effects, state, TILE_SIZE, presentationTick);
     if (selectedCell) this.drawSelection(state, selectedCell, selectedTool);
   }
 

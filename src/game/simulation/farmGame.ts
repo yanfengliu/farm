@@ -31,12 +31,15 @@ import {
 import { claimableTierLevel } from './farmProgression';
 import { pushHistorySnapshot } from './farmHistory';
 import { updateFarmState } from './farmSystems';
+import { createInitialWildlifeState } from './wildlifeSystem';
 
 export { claimableTierLevel } from './farmProgression';
 
 export type {
   FarmCommand,
   FarmCommunity,
+  FarmDuck,
+  FarmFish,
   FarmGame,
   FarmHistory,
   FarmInventory,
@@ -44,6 +47,7 @@ export type {
   FarmStats,
   FarmTier,
   FarmTile,
+  FarmWildlife,
   FarmWorker,
   PlotState,
   TileKind,
@@ -119,6 +123,14 @@ export function renderFarmToText(game: FarmGame): string {
     .map((id) => `${id}:${Math.round(state.cropMix[id] * 100)}`)
     .join(',');
   const upgrades = UPGRADE_IDS.map((id) => `${id}:${state.upgrades[id]}`).join(',');
+  const ducks = state.wildlife
+    ? state.wildlife.ducks.map((duck) => (
+        `${duck.name}:${duck.activity}@${duck.targetNode ?? duck.node}` +
+        `(h${duck.hunger},e${duck.energy},m${duck.meals})`
+      )).join(',')
+    : 'legacy';
+  const availableFish = state.wildlife?.fish.filter((fish) => fish.available).length ?? 0;
+  const totalFish = state.wildlife?.fish.length ?? 0;
   const storage = `${storedCropCount(state)}/${state.inventory.cropCapacity}`;
   return [
     `tick=${state.tick}`,
@@ -129,6 +141,8 @@ export function renderFarmToText(game: FarmGame): string {
     `seeds=${seeds}`,
     `cropMix=${mix}`,
     `upgrades=${upgrades}`,
+    `ducks=${ducks}`,
+    `fish=${availableFish}/${totalFish}`,
     `tier=${state.tier.level}`,
     `claimableTier=${claimableTierLevel(state) ?? 0}`,
     `request=${state.community.activeRequestId ?? 'none'}`,
@@ -325,8 +339,13 @@ function restoreHistory(state: FarmState, direction: 'undo' | 'redo'): void {
   pushHistorySnapshot(target, serializeCore(state));
   const restored = JSON.parse(serialized) as Omit<FarmState, 'history'>;
   const history = state.history;
-  Object.assign(state, restored, { history });
+  const preserveLegacyWildlifeAbsence = !state.wildlife && !restored.wildlife;
+  Object.assign(state, restored, {
+    history,
+    wildlife: restored.wildlife ?? (preserveLegacyWildlifeAbsence ? undefined : createInitialWildlifeState()),
+  });
   normalizeFarmState(state);
+  if (preserveLegacyWildlifeAbsence) delete (state as Partial<FarmState>).wildlife;
 }
 
 function serializeCore(state: FarmState): string {

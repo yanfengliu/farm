@@ -1,6 +1,14 @@
 import { CROP_IDS, type CropId } from '../game/content/crops';
 import { villageRequestById, type VillageRequestId } from '../game/content/communityRequests';
 import { UPGRADE_IDS } from '../game/content/upgrades';
+import {
+  CREEK_HABITAT_IDS,
+  DUCK_ACTIVITY_IDS,
+  DUCK_PROFILES,
+  isCreekHabitatId,
+  isTreeShelterId,
+  isWildlifeNodeId,
+} from '../game/content/wildlife';
 import type { FarmState } from '../game/simulation/farmGame';
 
 const SAVE_KEY = 'farm.autosave.v1';
@@ -53,6 +61,7 @@ function isFarmCore(value: unknown): value is Omit<FarmState, 'history'> & Recor
   if (value.upgrades !== undefined && !isUpgradeRecord(value.upgrades)) return false;
   if (!isFarmTier(value.tier) || !isFarmStats(value.stats)) return false;
   if (value.community !== undefined && !isFarmCommunity(value.community)) return false;
+  if (value.wildlife !== undefined && !isFarmWildlife(value.wildlife, value.tick)) return false;
   if (!Array.isArray(value.alerts) || !value.alerts.every((alert) => typeof alert === 'string')) return false;
   return true;
 }
@@ -191,6 +200,93 @@ function isUpgradeRecord(value: unknown): boolean {
   return isRecord(value) && UPGRADE_IDS.every((id) => isNonNegativeInteger(value[id]));
 }
 
+function isFarmWildlife(value: unknown, currentTick: number): boolean {
+  if (!isRecord(value) || !Array.isArray(value.ducks) || !Array.isArray(value.fish)) return false;
+  if (value.ducks.length !== DUCK_PROFILES.length || value.fish.length !== CREEK_HABITAT_IDS.length) return false;
+  const expectedDuckNames = new Map<number, string>(DUCK_PROFILES.map((duck) => [duck.id, duck.name]));
+  const expectedFishNodes = new Map<number, string>(CREEK_HABITAT_IDS.map((node, index) => [index + 1, node]));
+  const duckIds = new Set<number>();
+  const fishIds = new Set<number>();
+  for (const fish of value.fish) {
+    if (!isFarmFish(fish) || !isRecord(fish) || fishIds.has(fish.id as number)) return false;
+    if (expectedFishNodes.get(fish.id as number) !== fish.node) return false;
+    fishIds.add(fish.id as number);
+  }
+  for (const duck of value.ducks) {
+    if (!isFarmDuck(duck) || !isRecord(duck) || duckIds.has(duck.id as number)) return false;
+    if (expectedDuckNames.get(duck.id as number) !== duck.name) return false;
+    if (!isDuckMachineStateCoherent(duck)) return false;
+    duckIds.add(duck.id as number);
+    if (duck.targetFishId !== null && !fishIds.has(duck.targetFishId as number)) return false;
+  }
+  const ducks = value.ducks as Array<Record<string, unknown>>;
+  for (const fish of value.fish) {
+    if (!isRecord(fish)) return false;
+    if (fish.reservedByDuckId !== null && !duckIds.has(fish.reservedByDuckId as number)) return false;
+    if (fish.available === true && fish.respawnTick !== 0) return false;
+    if (fish.available === false && (fish.reservedByDuckId !== null || (fish.respawnTick as number) <= currentTick)) return false;
+    if (fish.reservedByDuckId !== null) {
+      const duck = ducks.find((candidate) => candidate.id === fish.reservedByDuckId);
+      if (!duck || duck.activity !== 'foraging' || duck.targetFishId !== fish.id || duck.targetNode !== fish.node) return false;
+    }
+  }
+  for (const duck of ducks) {
+    if (duck.targetFishId === null) {
+      if (duck.activity === 'foraging') return false;
+      continue;
+    }
+    const fish = (value.fish as Array<Record<string, unknown>>).find((candidate) => candidate.id === duck.targetFishId);
+    if (!fish || duck.activity !== 'foraging' || duck.targetNode !== fish.node || fish.reservedByDuckId !== duck.id) return false;
+  }
+  return true;
+}
+
+function isFarmDuck(value: unknown): boolean {
+  if (!isRecord(value) || !isPositiveInteger(value.id) || typeof value.name !== 'string' || value.name.length === 0) return false;
+  if (!isWildlifeNodeId(value.node) || (value.targetNode !== null && !isWildlifeNodeId(value.targetNode))) return false;
+  if (value.targetFishId !== null && !isPositiveInteger(value.targetFishId)) return false;
+  if (!isBoundedInteger(value.travelProgress, 0, 100) || !isBoundedInteger(value.hunger, 0, 100)) return false;
+  if (!isBoundedInteger(value.energy, 0, 100) || !isNonNegativeInteger(value.activityTicks)) return false;
+  return typeof value.activity === 'string' &&
+    DUCK_ACTIVITY_IDS.includes(value.activity as (typeof DUCK_ACTIVITY_IDS)[number]) &&
+    isNonNegativeInteger(value.meals);
+}
+
+function isDuckMachineStateCoherent(duck: Record<string, unknown>): boolean {
+  const activity = duck.activity;
+  const targetNode = duck.targetNode;
+  const targetFishId = duck.targetFishId;
+  const travelProgress = duck.travelProgress as number;
+  if (targetNode === null && travelProgress !== 0) return false;
+  if (targetNode !== null && travelProgress >= 100) return false;
+  if (activity !== 'foraging' && targetFishId !== null) return false;
+
+  if (activity === 'sleeping') {
+    return isTreeShelterId(duck.node) && targetNode === null && duck.activityTicks === 0;
+  }
+  if (activity === 'seeking-shelter') {
+    return isTreeShelterId(targetNode) && targetFishId === null && duck.activityTicks === 0;
+  }
+  if (activity === 'foraging') {
+    return isCreekHabitatId(targetNode) && isPositiveInteger(targetFishId) && duck.activityTicks === 0;
+  }
+  if (activity === 'eating') {
+    return isCreekHabitatId(duck.node) && targetNode === null && targetFishId === null &&
+      isPositiveInteger(duck.activityTicks);
+  }
+  return activity === 'roaming' && targetFishId === null &&
+    (targetNode === null || isCreekHabitatId(targetNode));
+}
+
+function isFarmFish(value: unknown): boolean {
+  return isRecord(value) &&
+    isPositiveInteger(value.id) &&
+    isCreekHabitatId(value.node) &&
+    typeof value.available === 'boolean' &&
+    (value.reservedByDuckId === null || isPositiveInteger(value.reservedByDuckId)) &&
+    isNonNegativeInteger(value.respawnTick);
+}
+
 function isCropNumberRecord(value: unknown): boolean {
   return isCropRecord(value, isNonNegativeNumber);
 }
@@ -239,4 +335,8 @@ function isNonNegativeInteger(value: unknown): value is number {
 
 function isNonNegativeNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isBoundedInteger(value: unknown, minimum: number, maximum: number): value is number {
+  return isInteger(value) && value >= minimum && value <= maximum;
 }

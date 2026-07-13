@@ -5,6 +5,7 @@ import type { UpgradeId } from '../content/upgrades';
 import type { Position } from './civEngine';
 import { trimFarmHistory } from './farmHistory';
 import type { FarmCommunity, FarmState, FarmTier, FarmTile, PlotState, TileKind, WorkerTask } from './farmTypes';
+import { createInitialWildlifeState } from './wildlifeSystem';
 
 const STORAGE_CAPACITY_PER_BIN = 15;
 const STARTER_STORAGE_POSITION = { x: 7, y: 2 };
@@ -69,6 +70,7 @@ export function createInitialFarmState(): FarmState {
       lifetimeRequestsCompleted: 0,
     },
     community: zeroCommunityState(),
+    wildlife: createInitialWildlifeState(),
     alerts: [],
     history: { undo: [], redo: [] },
   };
@@ -212,6 +214,7 @@ export function normalizeFarmState(state: FarmState): FarmState {
   state.stats.lifetimeUpgradePurchases ??= 0;
   state.stats.lifetimeRequestsCompleted ??= 0;
   state.community = { ...zeroCommunityState(), ...(state.community ?? {}) };
+  state.wildlife ??= createInitialWildlifeState();
   normalizeCommunityProgress(state);
   if (state.community.activeRequestId) {
     const activeRequest = villageRequestById(state.community.activeRequestId);

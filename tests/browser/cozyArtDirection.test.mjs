@@ -59,7 +59,7 @@ describe('cozy pixel art direction', () => {
     expect(renderer).toContain('#meadowSignature');
     expect(renderer).toContain('#groundSignature');
     expect(renderer).toContain('drawFarmOverstory(this.#overstory, state, TILE_SIZE)');
-    expect(renderer).toContain('drawFarmAmbience(this.#water, this.#effects, state, TILE_SIZE, presentationTick)');
+    expect(renderer).toContain('drawFarmAmbience(this.#water, this.#actors, this.#effects, state, TILE_SIZE, presentationTick)');
     expect(environment).toContain('export function drawFarmScenery');
     expect(waterside).toContain('export function drawCreekShimmer');
   });
