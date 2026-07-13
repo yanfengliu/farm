@@ -39,6 +39,7 @@ const farmScene = new FarmScene({
   applyTool: (x, y) => ui.applyTool(x, y),
   canDragTool: () => ui.canDragTool(),
   captureAnnotation: (pick) => annotations?.capturePick(pick) ?? false,
+  isAnnotationDrafting: () => annotations?.isDrafting ?? false,
 });
 
 const annotationController = new FarmAnnotationController({

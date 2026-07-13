@@ -94,6 +94,9 @@ export function buildPassManifest(input) {
       ...(input.verification !== undefined && input.verification !== null
         ? { verification: input.verification }
         : {}),
+      ...(input.replayCoverage !== undefined && input.replayCoverage !== null
+        ? { replayCoverage: { ...input.replayCoverage } }
+        : {}),
       ...(input.runId !== undefined ? { runId: input.runId } : {}),
     },
   });

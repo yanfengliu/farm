@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { assertImprovementFinding, improvementFindingToVisualPlaytestFinding, minimalImprovementFindingSchemaVersion } from 'civ-engine';
-import { coverageLedger } from './coverage-report.mjs';
+import { coverageGapFindingId, coverageLedger } from './coverage-report.mjs';
 export const FARM_VISUAL_LOOP_OBJECTIVE = 'Play Farm like a real desktop player and find player-facing pain points.';
 const SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
 const CATEGORIES = new Set(['visual', 'usability', 'rules', 'performance', 'accessibility', 'regression', 'bug', 'opportunity']);
@@ -207,7 +207,7 @@ export function evaluateVisualLoop(run, options = {}) {
   const coverage = coverageLedger(run.steps);
   for (const gap of coverage.gaps.slice(0, 3)) {
     findings.push(makeFinding(run, {
-      id: `coverage-gap-${slug(gap.key)}`,
+      id: coverageGapFindingId(gap.key),
       severity: 'low',
       category: 'opportunity',
       title: `Visible control never exercised: ${gap.label}`,
@@ -296,6 +296,8 @@ export function visualFindingsFromImprovementFindings(findings) {
 
 export function summarizeVisualLoopRun(run) {
   const findings = Array.isArray(run.findings) ? run.findings : [];
+  const findingIds = findings.map((finding) => finding.id).filter(Boolean).sort();
+  const coverageGapIds = coverageLedger(run.steps).gaps.map((gap) => coverageGapFindingId(gap.key));
   return {
     schemaVersion: 1,
     runId: run.improvementRun?.id ?? stableRunId(run),
@@ -308,7 +310,8 @@ export function summarizeVisualLoopRun(run) {
     ok: run.summary?.visualLoop?.ok ?? null,
     stopReason: run.summary?.visualLoop?.stopReason ?? null,
     actionCounts: actionCounts(run.steps ?? []),
-    findingIds: findings.map((finding) => finding.id).filter(Boolean).sort(),
+    findingIds,
+    openFindingIds: [...new Set([...findingIds, ...coverageGapIds])].sort(),
     findingClassifications: Object.fromEntries(findings
       .filter((finding) => finding.id)
       .map((finding) => [finding.id, withoutUndefined({
@@ -323,6 +326,7 @@ export function summarizeVisualLoopRun(run) {
 
 export function compareVisualLoopRuns(previousRunSummary, currentRun) {
   const current = summarizeVisualLoopRun(currentRun);
+  const currentOpenIds = current.openFindingIds ?? current.findingIds;
   if (!previousRunSummary) {
     return {
       schemaVersion: 1,
@@ -330,7 +334,7 @@ export function compareVisualLoopRuns(previousRunSummary, currentRun) {
       current,
       findings: {
         resolved: [],
-        added: current.findingIds,
+        added: currentOpenIds,
         persistent: [],
       },
       behavior: {
@@ -341,8 +345,8 @@ export function compareVisualLoopRuns(previousRunSummary, currentRun) {
   }
 
   const previous = normalizeRunSummary(previousRunSummary);
-  const previousIds = new Set(previous.findingIds);
-  const currentIds = new Set(current.findingIds);
+  const previousIds = new Set(previous.openFindingIds ?? previous.findingIds);
+  const currentIds = new Set(currentOpenIds);
 
   return {
     schemaVersion: 1,
@@ -414,13 +418,7 @@ function stableRunId(run) {
   return `farm-visual-loop-${startedAt.replace(/[^0-9A-Za-z]+/g, '-').replace(/^-|-$/g, '') || 'unknown'}`;
 }
 
-function slug(value) {
-  return String(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 80);
-}
+function slug(value) { return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80); }
 
 function normalizeRunSummary(value) {
   if (Array.isArray(value.findingIds)) return value;

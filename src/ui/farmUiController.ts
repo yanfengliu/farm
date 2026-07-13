@@ -23,6 +23,10 @@ export interface FarmUiBridge {
 
 const PANEL_RENDER_INTERVAL_MS = 250;
 const SPEED_STORAGE_KEY = 'farm-speed-v1';
+const DRAFT_GAMEPLAY_KEYS = new Set([
+  ' ', '0', '1', '2', '3', '4', '-', '=', 'a', 'b', 'd', 'home', 'i', 's', 'w', 'y', 'z',
+  'arrowdown', 'arrowleft', 'arrowright', 'arrowup',
+]);
 
 export class FarmUiController {
   readonly shell: FarmShellElements;
@@ -291,10 +295,9 @@ export class FarmUiController {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const clickedTutorialTarget = this.#tutorial.activeTargetContains(target);
-    const tool = target.closest<HTMLElement>('[data-tool]')?.dataset.tool as Tool | undefined;
-    if (tool) {
-      this.#selectedTool = tool;
-      this.#annotations?.stopAiming();
+    if (this.#annotations?.handleClick(target)) {
+      if (clickedTutorialTarget) this.#tutorial.markActiveTargetSeen();
+      return;
     }
 
     const panel = target.closest<HTMLElement>('[data-panel]')?.dataset.panel as Panel | undefined;
@@ -303,9 +306,16 @@ export class FarmUiController {
       if (panel === 'mix') this.markMixTutorialsSeen();
     }
 
-    if (this.#annotations?.handleClick(target)) {
-      if (clickedTutorialTarget) this.#tutorial.markActiveTargetSeen();
+    if (this.#annotations?.isDrafting) {
+      const command = target.closest<HTMLElement>('[data-command]')?.dataset.command;
+      if (command === 'toggle-annotations') this.handleNamedCommand(command);
       return;
+    }
+
+    const tool = target.closest<HTMLElement>('[data-tool]')?.dataset.tool as Tool | undefined;
+    if (tool) {
+      this.#selectedTool = tool;
+      this.#annotations?.stopAiming();
     }
 
     const command = target.closest<HTMLElement>('[data-command]')?.dataset.command;
@@ -338,6 +348,7 @@ export class FarmUiController {
   }
 
   private handleNamedCommand(command: string | undefined): void {
+    if (this.#annotations?.isDrafting && command !== 'toggle-annotations') return;
     if (command === 'undo') this.#bridge.submit({ type: 'undo' });
     if (command === 'redo') this.#bridge.submit({ type: 'redo' });
     if (command === 'pause' && !this.#annotations?.isDrafting) this.#paused = !this.#paused;
@@ -352,6 +363,7 @@ export class FarmUiController {
   private handleMixPreview(event: Event): void {
     const target = event.target;
     if (target instanceof Element && this.#annotations?.handleInput(target)) return;
+    if (this.#annotations?.isDrafting) return;
     if (!(target instanceof HTMLInputElement)) return;
     const cropId = (target.dataset.mix ?? target.dataset.mixNumber) as CropId | undefined;
     if (!cropId || (target.dataset.mixNumber && target.value.trim() === '')) return;
@@ -368,6 +380,7 @@ export class FarmUiController {
   }
 
   private handleMixCommit(event: Event): void {
+    if (this.#annotations?.isDrafting) return;
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
     const cropId = (target.dataset.mix ?? target.dataset.mixNumber) as CropId | undefined;
@@ -385,7 +398,18 @@ export class FarmUiController {
       event.target.closest('button, input, select, textarea, [contenteditable="true"], [role="button"]')
     ) return;
     const key = event.key.toLowerCase();
-    if (key === ' ') { event.preventDefault(); this.#paused = !this.#paused; }
+    if (
+      this.#annotations?.isDrafting &&
+      (DRAFT_GAMEPLAY_KEYS.has(key) || (key === 'r' && event.shiftKey))
+    ) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    if (key === ' ') {
+      event.preventDefault();
+      if (!this.#annotations?.isDrafting) this.#paused = !this.#paused;
+    }
     else if (key === '1') this.#selectedTool = 'plot';
     else if (key === '2') this.#selectedTool = 'well';
     else if (key === '3') this.#selectedTool = 'storage';

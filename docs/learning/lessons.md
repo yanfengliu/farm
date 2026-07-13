@@ -1,5 +1,37 @@
 # Engineering Lessons
 
+## 2026-07-13 - Modal debug tools must own the gameplay input boundary
+
+- Surfaced by: independent code review placed a plot, opened a paused Farm Notes draft, focused the canvas, pressed `Z`, and cancelled the draft; the queued Undo then removed the plot even though the farm appeared locked while the editor was open. Toolbar Undo/Redo, tool/speed keys, and `Shift+R` shared the same leak.
+- Failure mode: pausing simulation time and consuming canvas picks are separate from isolating document-level controls. A modal editor that returns early only for its own keys can still let the same bubbled event reach global UI and Phaser listeners, while command buttons can mutate history behind the editor.
+- Fix commit: `fix: harden recursive Farm Notes proof` routes annotation commands first, blocks non-annotation farm commands while drafting, and prevents the remaining document event from reaching later gameplay listeners.
+- Regression anchors: `tests/browser/annotations.test.mjs` creates a real plot, opens a draft, attempts another canvas paint, toolbar Undo, Space, Z, Y, reset, tool, and speed inputs, then cancels and proves the tile, farm identity, history, tick, tool, and speed are unchanged.
+- Behavior delta: writing a Farm Note is now an actual modal pause rather than a visual pause with deferred gameplay side effects.
+
+## 2026-07-13 - Automation state must come from successful executions
+
+- Surfaced by: independent review injected failed accept-request, canvas-paint, and Undo executions into the local player's history. The next decisions incorrectly abandoned a basket, attempted Undo, and advanced to Redo because the curriculum summarized intended decisions rather than browser outcomes.
+- Failure mode: a decision log records intent, not evidence. Treating a failed action as completed poisons every derived state machine and can turn a clean coverage report into a sequence of controls that the browser never exercised. Similarly, limiting the three displayed coverage findings must not remove undisplayed gap classes from the open set used for cross-run resolution.
+- Fix commit: `fix: harden recursive Farm Notes proof` filters only explicit `execution.ok === false` steps from curriculum state while retaining older success-by-default fixtures, and compares runs with the union of emitted findings plus every uncapped coverage-gap id.
+- Regression anchors: `tests/browser/llmVisualLoopLocalPlayerCompletion.test.mjs` pins retry behavior after all three failed action classes; `tests/browser/coverageReport.test.mjs` proves a high-ranked replacement cannot falsely resolve a gap displaced below the display cap.
+- Behavior delta: the local player retries work that did not happen, and rerun comparisons describe all open proof work even when reports remain concise.
+
+## 2026-07-13 - Immutable evidence must close its own reference graph
+
+- Surfaced by: independent artifact audit opened older pass snapshots and found their JSON `bundlePath` still resolved to the newest canonical bundle, their `screenshotFile` values pointed to mutable canonical steps, and their pass directories contained no screenshots. A byte comparison showed 161 of 161 old visual references had silently become the newer run.
+- Failure mode: copying a report file does not make the evidence immutable when paths inside that report escape to a mutable directory. A durable proof packet must archive every referenced leaf and rewrite both machine and human-readable entry points to the closed packet; missing leaves must fail atomically.
+- Fix commit: `fix: harden recursive Farm Notes proof` snapshots the replay bundle and every referenced step image, rewrites bundle and absolute screenshot paths, regenerates stable Markdown/HTML from the rewritten run, exposes screenshot/report artifacts in the pass manifest, and removes partial directories on failure.
+- Regression anchors: `tests/browser/recursivePass.test.mjs` replaces canonical JSON, report, bundle, and screenshot bytes after snapshotting and proves the immutable run still resolves only the original bundle/session and image; a missing referenced image rejects the snapshot and leaves no pass directory.
+- Behavior delta: each recursive pass can be reviewed later without trusting whatever files happen to be named `latest` at that time.
+
+## 2026-07-13 - Persisted numeric identifiers need safe-integer exhaustion behavior
+
+- Surfaced by: persistence hardening review set the Farm Notes counter near JavaScript's exact-integer boundary and supplied forged records with unsafe indices. Incrementing a merely finite integer could repeat rounded values, collide with an existing id, or make delete/edit target a different note.
+- Failure mode: `Number.isInteger` permits values beyond `Number.MAX_SAFE_INTEGER`, where adding one is not guaranteed to produce a distinct number. Persisted allocators also need collision checks because storage is untrusted and older versions may leave sparse or duplicate-looking sequences.
+- Fix commit: `fix: harden recursive Farm Notes proof` accepts only safe positive indices, sanitizes the persisted next counter, skips occupied ids, and wraps to the first available safe slot at exhaustion.
+- Regression anchors: `tests/persistence/localAnnotations.test.ts` rejects unsafe record indices and proves allocation remains unique at the safe-integer ceiling and in collision-filled stores.
+- Behavior delta: forged or exhausted local counters cannot create ambiguous Farm Note identities.
+
 ## 2026-07-13 - Debug artifacts are persisted untrusted input
 
 - Surfaced by: independent correctness review forged an otherwise plausible `farm.annotations.v1` record with markup in `capture.farmState.tick`, then removed `capture.pick.camera`; the shallow bundle check admitted both, allowing raw panel interpolation in one path and a View crash in the other.

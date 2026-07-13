@@ -416,8 +416,8 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('Select the visible Storage tool');
     expect(source).toContain('Select the visible Land tool');
     expect(source).toContain('Select the visible Bulldoze tool');
-    expect(source).toContain('Click Undo after a visible plot placement');
-    expect(source).toContain('Click Redo after undoing the visible plot placement');
+    expect(source).toContain('Undo the plot immediately after painting it');
+    expect(source).toContain('Redo the just-undone plot before any other gameplay command');
     expect(source).toContain('Resize to a compact desktop viewport');
     expect(source).toContain('terminalOpenEndedGuidanceVisible');
     expect(source).toContain('openedMixAfterTomato');

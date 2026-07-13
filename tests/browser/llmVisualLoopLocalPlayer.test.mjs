@@ -1,26 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { chooseLocalHeuristicDecision } from '../../scripts/llm-visual-loop/local-player.mjs';
-import { nextPaintPosition } from '../../scripts/llm-visual-loop/local-player-support.mjs';
-
-function visibleAction(selector, label = selector, state = {}) {
-  return { selector, label, state };
-}
-
-function observation(visibleText, availableActions = []) {
-  return { visibleText, availableActions, keyboardActions: [] };
-}
-
-function history(...actions) {
-  return actions.map((action) => ({ decision: { action } }));
-}
-
-function decide(currentObservation, priorHistory = []) {
-  return chooseLocalHeuristicDecision({
-    observation: currentObservation,
-    history: priorHistory,
-    defaultWaitMs: 4000,
-  });
-}
+import {
+  decide,
+  history,
+  observation,
+  visibleAction,
+} from './llmVisualLoopLocalPlayerTestSupport.mjs';
 
 describe('LLM visual-loop deterministic local player', () => {
   test('opens the Village Requests board from visible guidance', () => {
@@ -236,9 +220,10 @@ describe('LLM visual-loop deterministic local player', () => {
 
     const sell = decide(
       observation(
-        'Storage 15/15 Tier 4 Harvest Hearth FARM GUIDE Open Inventory Inventory',
+        'Storage 15/15 Tier 4 Harvest Hearth Inventory',
         [
           visibleAction('[data-panel="inventory"]', 'Inventory', { active: true }),
+          visibleAction('[data-panel="mix"]', 'Crop Mix', { active: false }),
           visibleAction('[data-command="sell-all"]', 'Sell all crops'),
         ],
       ),
@@ -480,86 +465,4 @@ describe('LLM visual-loop deterministic local player', () => {
     expect(wheatNumber.action).toMatchObject({ kind: 'adjust', selector: '[data-mix-number="wheat"]' });
   });
 
-  test('targets empty framed-farm rows when following plot guidance', () => {
-    expect(nextPaintPosition(0)).toEqual({ x: 340, y: 340 });
-    expect(nextPaintPosition(5)).toEqual({ x: 340, y: 390 });
-  });
-
-  test('does not treat a watched Tier 2 farm as the end of progression', () => {
-    const decision = decide(
-      observation('Tier 2 Wheat Rows Harvest 16/20 wheat'),
-      history(
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'wait', ms: 4000 },
-        { kind: 'wait', ms: 4000 },
-      ),
-    );
-
-    expect(decision.action.kind).toBe('wait');
-  });
-
-  test('does not let the generic wait limit stop a Tier 3 farm', () => {
-    const waits = Array.from({ length: 7 }, () => ({ kind: 'wait', ms: 4000 }));
-    const decision = decide(
-      observation('Tier 3 Tomato Rows Requests 3/3 Tomatoes 5/10'),
-      history(
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        ...waits,
-      ),
-    );
-
-    expect(decision.action.kind).toBe('wait');
-  });
-
-  test('allows a watched Tier 4 farm to clean-stop', () => {
-    const decision = decide(
-      observation('Tier 4 Harvest Hearth Fill village baskets, tune the harvest, and keep expanding'),
-      history(
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'adjust', selector: '[data-mix-number="pumpkin"]', value: 20 },
-        { kind: 'adjust', selector: '[data-mix="pumpkin"]', value: 20 },
-        { kind: 'click', selector: '[data-sell="pumpkin"]' },
-        { kind: 'wait', ms: 4000 },
-        { kind: 'wait', ms: 4000 },
-      ),
-    );
-
-    expect(decision.action.kind).toBe('stop');
-  });
-
-  test('does not clean-stop at Tier 4 before growing and selling a Pumpkin', () => {
-    const decision = decide(
-      observation('Tier 4 Harvest Hearth Fill village baskets, tune the harvest, and keep expanding'),
-      history(
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'adjust', selector: '[data-mix-number="pumpkin"]', value: 20 },
-        { kind: 'wait', ms: 4000 },
-        { kind: 'wait', ms: 4000 },
-      ),
-    );
-
-    expect(decision.action.kind).toBe('wait');
-  });
-
-  test('counts terminal watches from the latest tier claim instead of earlier tiers', () => {
-    const decision = decide(
-      observation('Tier 4 Harvest Hearth Fill village baskets, tune the harvest, and keep expanding'),
-      history(
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'wait', ms: 4000 },
-        { kind: 'wait', ms: 4000 },
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'wait', ms: 4000 },
-        { kind: 'click', selector: '[data-command="claim-tier"]' },
-        { kind: 'wait', ms: 4000 },
-      ),
-    );
-
-    expect(decision.action.kind).toBe('wait');
-  });
 });

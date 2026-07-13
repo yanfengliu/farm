@@ -107,7 +107,8 @@ export class FarmAnnotationController implements FarmAnnotationUi {
   }
 
   capturePick(pick: FarmAnnotationPick): boolean {
-    if (!this.#aiming || this.#draft) return false;
+    if (this.#draft) return true;
+    if (!this.#aiming) return false;
     const state = this.#options.getState();
     const canvas = this.#options.shell.canvasHost.querySelector<HTMLCanvasElement>('canvas');
     const enrichedPick: FarmAnnotationPick = {

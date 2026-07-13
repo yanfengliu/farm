@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import { assertImprovementFinding } from 'civ-engine';
 import { coverageLedger, COVERAGE_MIN_SIGHTINGS } from '../../scripts/llm-visual-loop/coverage-report.mjs';
-import { evaluateVisualLoop } from '../../scripts/llm-visual-loop/improvement-report.mjs';
+import {
+  compareVisualLoopRuns,
+  evaluateVisualLoop,
+  summarizeVisualLoopRun,
+} from '../../scripts/llm-visual-loop/improvement-report.mjs';
 import { selectFixCandidate } from '../../scripts/llm-visual-loop/recursive-pass.mjs';
 
 function control(selector, label = selector) {
@@ -146,6 +150,32 @@ describe('coverage-gap findings through evaluateVisualLoop', () => {
     expect(gap.verificationStatus).toBe('verified');
     expect(gap.verificationMethod).toBe('metric');
     expect(() => assertImprovementFinding(gap)).not.toThrow();
+  });
+
+  test('does not false-resolve an open gap displaced below the three-finding display cap', () => {
+    const baselineSteps = Array.from({ length: COVERAGE_MIN_SIGHTINGS }, (_, index) => step(
+      index,
+      ['#a', '#b', '#c', '#d'].map((selector) => control(selector)),
+    ));
+    const baselineRun = baseRun(baselineSteps);
+    baselineRun.findings = evaluateVisualLoop(baselineRun);
+    const previous = summarizeVisualLoopRun(baselineRun);
+
+    const rerunSteps = Array.from({ length: COVERAGE_MIN_SIGHTINGS + 1 }, (_, index) => step(
+      index,
+      [
+        control('#new-high-sighting'),
+        ...(index === 0 ? [] : ['#a', '#b', '#c', '#d'].map((selector) => control(selector))),
+      ],
+    ));
+    const rerun = baseRun(rerunSteps);
+    rerun.findings = evaluateVisualLoop(rerun);
+    const comparison = compareVisualLoopRuns(previous, rerun);
+
+    expect(previous.findingIds).toContain('coverage-gap-c');
+    expect(comparison.current.findingIds).not.toContain('coverage-gap-c');
+    expect(comparison.findings.resolved).not.toContain('coverage-gap-c');
+    expect(comparison.findings.persistent).toContain('coverage-gap-c');
   });
 });
 

@@ -97,6 +97,19 @@ export function createFarmAnnotationStore(): FarmAnnotationStore {
   };
 }
 
+export function nextAvailableFarmAnnotationIndex(
+  records: ReadonlyArray<Pick<FarmAnnotationBundleV1, 'index'>>,
+  preferred: unknown,
+): number {
+  const used = new Set(records.map((record) => record.index).filter(isPositiveInteger));
+  let candidate = isPositiveInteger(preferred) ? preferred : 1;
+  for (let attempt = 0; attempt <= used.size; attempt += 1) {
+    if (!used.has(candidate)) return candidate;
+    candidate = candidate === Number.MAX_SAFE_INTEGER ? 1 : candidate + 1;
+  }
+  throw new Error('Annotation queue has no available safe index.');
+}
+
 export function createFarmAnnotationDraft(input: {
   state: FarmState;
   pick: FarmAnnotationPick;
@@ -131,7 +144,7 @@ export function queueFarmAnnotation(
   if (store.records.length >= FARM_ANNOTATION_LIMIT) {
     throw new Error(`Annotation queue is limited to ${FARM_ANNOTATION_LIMIT} notes.`);
   }
-  const index = store.nextIndex;
+  const index = nextAvailableFarmAnnotationIndex(store.records, store.nextIndex);
   const createdAt = identity.createdAt ?? new Date().toISOString();
   const record: FarmAnnotationBundleV1 = {
     schema: FARM_ANNOTATION_BUNDLE_SCHEMA,
@@ -145,12 +158,16 @@ export function queueFarmAnnotation(
     target: structuredClone(draft.target),
     capture: structuredClone(draft.capture),
   };
+  const records = [...structuredClone(store.records), record];
   return {
     record,
     store: {
       ...structuredClone(store),
-      nextIndex: index + 1,
-      records: [...structuredClone(store.records), record],
+      nextIndex: nextAvailableFarmAnnotationIndex(
+        records,
+        index === Number.MAX_SAFE_INTEGER ? 1 : index + 1,
+      ),
+      records,
     },
   };
 }
@@ -340,7 +357,7 @@ function isBoundedNumber(input: unknown, minimum: number, maximum: number): inpu
 }
 
 function isInteger(input: unknown): input is number {
-  return typeof input === 'number' && Number.isInteger(input);
+  return typeof input === 'number' && Number.isSafeInteger(input);
 }
 
 function isPositiveInteger(input: unknown): input is number {

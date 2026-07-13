@@ -233,4 +233,92 @@ describe('local annotation bundles', () => {
     expect(new Set(loaded.records.map((record) => record.id)).size).toBe(FARM_ANNOTATION_LIMIT);
     expect(loaded.nextIndex).toBe(999);
   });
+
+  test('drops records whose positive index is outside the safe-integer boundary', () => {
+    const storage = new MemoryStorage();
+    const template = queueFarmAnnotation(createFarmAnnotationStore(), annotationDraft(), 'Stored note', {
+      id: 'farm-note-safe-index',
+      createdAt: '2026-07-13T20:00:00.000Z',
+    }).record;
+    const unsafe = {
+      ...structuredClone(template),
+      id: 'farm-note-unsafe-index',
+      index: Number.MAX_SAFE_INTEGER + 1,
+    };
+    storage.setItem(FARM_ANNOTATIONS_STORAGE_KEY, JSON.stringify({
+      schema: 'farm.annotation-store',
+      version: 1,
+      nextIndex: 3,
+      records: [template, unsafe],
+    }));
+
+    const loaded = loadFarmAnnotations(storage);
+    expect(loaded.records.map((record) => record.id)).toEqual(['farm-note-safe-index']);
+    expect(loaded.nextIndex).toBe(3);
+  });
+
+  test('sanitizes an unsafe next index so queued notes remain unique after reload', () => {
+    const storage = new MemoryStorage();
+    const first = queueFarmAnnotation(createFarmAnnotationStore(), annotationDraft(), 'First note', {
+      id: 'farm-note-first',
+      createdAt: '2026-07-13T20:00:00.000Z',
+    });
+    storage.setItem(FARM_ANNOTATIONS_STORAGE_KEY, JSON.stringify({
+      ...first.store,
+      nextIndex: Number.MAX_SAFE_INTEGER + 1,
+    }));
+
+    const loaded = loadFarmAnnotations(storage);
+    expect(loaded.nextIndex).toBe(2);
+    const second = queueFarmAnnotation(loaded, annotationDraft(), 'Second note', {
+      id: 'farm-note-second',
+      createdAt: '2026-07-13T20:01:00.000Z',
+    });
+    const third = queueFarmAnnotation(second.store, annotationDraft(), 'Third note', {
+      id: 'farm-note-third',
+      createdAt: '2026-07-13T20:02:00.000Z',
+    });
+    expect(third.store.records.map((record) => record.index)).toEqual([1, 2, 3]);
+
+    expect(saveFarmAnnotations(third.store, storage)).toBe(true);
+    expect(loadFarmAnnotations(storage).records.map((record) => record.id)).toEqual([
+      'farm-note-first',
+      'farm-note-second',
+      'farm-note-third',
+    ]);
+  });
+
+  test('wraps safely after the largest safe index instead of overflowing the next note', () => {
+    const storage = new MemoryStorage();
+    const first = queueFarmAnnotation(createFarmAnnotationStore(), annotationDraft(), 'First note', {
+      id: 'farm-note-wrap-first',
+      createdAt: '2026-07-13T20:00:00.000Z',
+    });
+    storage.setItem(FARM_ANNOTATIONS_STORAGE_KEY, JSON.stringify({
+      ...first.store,
+      nextIndex: Number.MAX_SAFE_INTEGER,
+    }));
+
+    const loaded = loadFarmAnnotations(storage);
+    const second = queueFarmAnnotation(loaded, annotationDraft(), 'Largest safe note', {
+      id: 'farm-note-wrap-second',
+      createdAt: '2026-07-13T20:01:00.000Z',
+    });
+    const third = queueFarmAnnotation(second.store, annotationDraft(), 'Wrapped note', {
+      id: 'farm-note-wrap-third',
+      createdAt: '2026-07-13T20:02:00.000Z',
+    });
+    expect(third.store.records.map((record) => record.index)).toEqual([
+      1,
+      Number.MAX_SAFE_INTEGER,
+      2,
+    ]);
+
+    expect(saveFarmAnnotations(third.store, storage)).toBe(true);
+    expect(loadFarmAnnotations(storage).records.map((record) => record.id)).toEqual([
+      'farm-note-wrap-first',
+      'farm-note-wrap-second',
+      'farm-note-wrap-third',
+    ]);
+  });
 });

@@ -25,13 +25,17 @@ import {
   summarizeActionHistory,
   tutorialActionFromText,
   typeDecision,
+  visibleStorage,
   viewportDecision,
   visibleTierReady,
   wheelDecision,
 } from './local-player-support.mjs';
 
 export function chooseLocalHeuristicDecision({ observation, history, defaultWaitMs }) {
-  const actionHistory = history.map((step) => step.decision?.action).filter(Boolean);
+  const actionHistory = history
+    .filter((step) => step.execution?.ok !== false)
+    .map((step) => step.decision?.action)
+    .filter(Boolean);
   const lastAction = actionHistory.at(-1);
   const state = summarizeActionHistory(actionHistory);
   const request = requestFlowState(actionHistory);
@@ -45,7 +49,10 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
     adjustedCarrotNumber, adjustedCarrotSlider, adjustedWheatSlider, adjustedWheatNumber,
     adjustedTomatoNumber, adjustedTomatoSlider, adjustedPumpkinNumber, adjustedPumpkinSlider, openedMixAfterTomato,
     openedGoalsAfterTomato, selectedLandAfterTomato, dismissedTutorial, carrotSold, wheatSold, tomatoSold, pumpkinSold, tierClaims,
-    startedAnnotation, capturedAnnotation, typedAnnotation, savedAnnotation, openedAnnotationPanel, viewedAnnotation,
+    startedAnnotation, annotationAimToggleCount, capturedAnnotation, cancelledAnnotationDraft,
+    typedAnnotation, savedAnnotation, openedAnnotationPanel, viewedAnnotation, viewedAnnotationPin,
+    annotationEditStarts, cancelledAnnotationEdit, typedAnnotationEdit, savedAnnotationEdit,
+    copiedAnnotation, copiedAnnotations, exportedAnnotation, exportedAnnotations, deleteAnnotationClicks,
   } = state;
 
   const canvasAction = findAction(observation, 'canvas');
@@ -74,12 +81,26 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   const annotationDraftAction = findAction(observation, '[data-annotation-draft]');
   const saveAnnotationAction = findAction(observation, '[data-command="save-annotation"]');
   const annotationPanelAction = findAction(observation, '[data-panel="annotations"]');
-  const savedAnnotationAction = findAction(observation, '[data-annotation-id=');
+  const viewAnnotationAction = findAction(observation, '[data-command="view-annotation"]');
+  const annotationPinAction = findAction(observation, '[data-annotation-id=');
+  const annotationAimAction = findAction(observation, '[data-command="start-annotation"]');
+  const cancelAnnotationAction = findAction(observation, '[data-command="cancel-annotation"]');
+  const editAnnotationAction = findAction(observation, '[data-command="edit-annotation"]');
+  const annotationEditAction = findAction(observation, '[data-annotation-edit]');
+  const cancelEditAnnotationAction = findAction(observation, '[data-command="cancel-edit-annotation"]');
+  const saveEditAnnotationAction = findAction(observation, '[data-command="save-edit-annotation"]');
+  const copyAnnotationAction = findAction(observation, '[data-command="copy-annotation"]');
+  const copyAnnotationsAction = findAction(observation, '[data-command="copy-annotations"]');
+  const exportAnnotationAction = findAction(observation, '[data-command="export-annotation"]');
+  const exportAnnotationsAction = findAction(observation, '[data-command="export-annotations"]');
+  const deleteAnnotationAction = findAction(observation, '[data-command="delete-annotation"]');
   const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
   const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
   const explicitPaintGuidanceVisible = /FARM GUIDE Paint Empty Land|Paint plots on empty land/i.test(observation.visibleText);
   const terminalOpenEndedGuidanceVisible = /Tune mix, expand land, upgrade workers|All crops are unlocked/i.test(observation.visibleText);
   const urgentStorageGuidanceVisible = /FARM GUIDE Open Inventory|Storage is almost full/i.test(observation.visibleText);
+  const storage = visibleStorage(observation.visibleText);
+  const storageAtCapacity = Boolean(storage && storage.used >= storage.capacity);
   const guidedPaintAction = selectGuidedPaintAction({
     plotToolAction,
     canvasAction,
@@ -87,6 +108,14 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
     selectedPlotGuideVisible,
     recentlyUsedCanvas: recentlyUsedCanvas(actionHistory),
   });
+
+  const latestActionPaintedCanvas = lastAction?.kind === 'click' && lastAction.selector === 'canvas';
+  if (canvasClickedAfterPlotShortcut && latestActionPaintedCanvas && undoAction && !usedUndo) {
+    return clickDecision(undoAction, 'Undo the plot immediately after painting it so history coverage cannot roll back a later gameplay command.');
+  }
+  if (usedUndo && lastAction?.kind === 'click' && lastAction.selector === '[data-command="undo"]' && redoAction && !usedRedo) {
+    return clickDecision(redoAction, 'Redo the just-undone plot before any other gameplay command changes the history target.');
+  }
 
   const claimAction = findAction(observation, '[data-command="claim-tier"]');
   if (claimAction) return clickDecision(claimAction, 'A visible tier reward is ready, so claim it before watching the farm continue.');
@@ -135,6 +164,12 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
     );
   }
 
+  if (cancelAnnotationAction && capturedAnnotation && !cancelledAnnotationDraft) {
+    return clickDecision(
+      cancelAnnotationAction,
+      'Cancel the first captured draft once so annotation pause cleanup and re-aiming stay in the player rotation.',
+    );
+  }
   if (annotationDraftAction && capturedAnnotation && !typedAnnotation) {
     return typeDecision(
       annotationDraftAction,
@@ -154,10 +189,63 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
       'Open the saved Farm Notes list through its player-facing panel tab so the new pin can be reviewed.',
     );
   }
-  if (savedAnnotationAction && openedAnnotationPanel && !viewedAnnotation) {
+  if (viewAnnotationAction && openedAnnotationPanel && !viewedAnnotation) {
     return clickDecision(
-      savedAnnotationAction,
+      viewAnnotationAction,
       'View the saved note so its camera restoration and highlighted world marker enter the visual replay.',
+    );
+  }
+  if (annotationPinAction && viewedAnnotation && !viewedAnnotationPin) {
+    return clickDecision(
+      annotationPinAction,
+      'Click the world pin after using View so both player-facing ways to restore the captured camera are exercised.',
+    );
+  }
+  if (editAnnotationAction && viewedAnnotation && viewedAnnotationPin && annotationEditStarts === 0) {
+    return clickDecision(editAnnotationAction, 'Open the saved note editor through its visible record action.');
+  }
+  if (cancelEditAnnotationAction && annotationEditStarts === 1 && !cancelledAnnotationEdit) {
+    return clickDecision(cancelEditAnnotationAction, 'Cancel one edit so the non-destructive editor exit remains covered.');
+  }
+  if (editAnnotationAction && viewedAnnotation && viewedAnnotationPin && cancelledAnnotationEdit && annotationEditStarts === 1) {
+    return clickDecision(editAnnotationAction, 'Reopen the note editor to complete and save an actual revision.');
+  }
+  if (annotationEditAction && annotationEditStarts >= 2 && !typedAnnotationEdit) {
+    return typeDecision(
+      annotationEditAction,
+      'Revise the saved debugging comment through the visible edit field.',
+      'Edited LLM playtest note: the selected detail and camera framing are verified.',
+    );
+  }
+  if (saveEditAnnotationAction && typedAnnotationEdit && !savedAnnotationEdit) {
+    return clickDecision(saveEditAnnotationAction, 'Save the revised note before exercising its sharing and deletion controls.');
+  }
+  if (copyAnnotationAction && savedAnnotationEdit && !copiedAnnotation) {
+    return clickDecision(copyAnnotationAction, 'Copy the single note bundle through its visible record action.');
+  }
+  if (copyAnnotationsAction && copiedAnnotation && !copiedAnnotations) {
+    return clickDecision(copyAnnotationsAction, 'Copy the complete Farm Notes collection through the bulk action.');
+  }
+  if (exportAnnotationAction && copiedAnnotations && !exportedAnnotation) {
+    return clickDecision(exportAnnotationAction, 'Export the single note after its clipboard path has been exercised.');
+  }
+  if (exportAnnotationsAction && exportedAnnotation && !exportedAnnotations) {
+    return clickDecision(exportAnnotationsAction, 'Export the complete note collection through the bulk action.');
+  }
+  if (deleteAnnotationAction && exportedAnnotations && deleteAnnotationClicks < 2) {
+    return clickDecision(
+      deleteAnnotationAction,
+      deleteAnnotationClicks === 0
+        ? 'Start the guarded note deletion so the confirmation state enters the visual replay.'
+        : 'Confirm the already-requested note deletion through the second explicit click.',
+    );
+  }
+  if (annotationAimAction && startedAnnotation && !capturedAnnotation && annotationAimToggleCount < 2) {
+    return clickDecision(
+      annotationAimAction,
+      annotationAimToggleCount === 0
+        ? 'Stop aiming once so the annotation mode cancel path is exercised before choosing a target.'
+        : 'Restart aiming from the Notes panel so target selection can continue after cancellation.',
     );
   }
   if (canvasAction && startedAnnotation && !capturedAnnotation) {
@@ -197,7 +285,7 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
       'Storage is visibly full, so open Inventory before returning to late-game planning controls.',
     );
   }
-  if (!request.pending && urgentStorageGuidanceVisible && sellAllAction) {
+  if (!request.pending && (urgentStorageGuidanceVisible || storageAtCapacity) && sellAllAction) {
     return clickDecision(
       sellAllAction,
       'Clear the visibly full storage bin so workers can resume harvesting before more crop-mix tuning.',
@@ -241,8 +329,6 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (selectedPlotFromShortcut && canvasAction && !canvasClickedAfterPlotShortcut && selectedPlotGuideVisible) {
     return clickDecision(canvasAction, 'The Plot shortcut already selected the tool, so continue by clicking the farm canvas instead of re-clicking the toolbar.', { x: 410, y: 290 });
   }
-  if (canvasClickedAfterPlotShortcut && undoAction && !usedUndo) return clickDecision(undoAction, 'Click Undo after a visible plot placement so the history control is exercised on a real change.');
-  if (usedUndo && redoAction && !usedRedo) return clickDecision(redoAction, 'Click Redo after undoing the visible plot placement so history recovery is covered too.');
   if (canvasAction && !draggedCanvas && !selectedPlotGuideVisible && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {
     return dragDecision(canvasAction, 'Drag across visible farm tiles with the selected Plot tool so drag-painting is covered like a player action.', { x: 410, y: 290 }, { deltaX: 72, deltaY: 0 });
   }

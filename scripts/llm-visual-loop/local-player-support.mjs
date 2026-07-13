@@ -131,8 +131,17 @@ export function summarizeActionHistory(actionHistory) {
   const annotationStartIndex = actionHistory.findIndex((action) => (
     action.kind === 'click' && action.selector === '[data-command="toggle-annotations"]'
   ));
-  const annotationCanvasIndex = annotationStartIndex < 0 ? -1 : actionHistory.findIndex((action, index) => (
-    index > annotationStartIndex && action.kind === 'click' && action.selector === 'canvas'
+  const annotationSaveIndex = actionHistory.findIndex((action) => (
+    action.kind === 'click' && action.selector === '[data-command="save-annotation"]'
+  ));
+  const annotationCanvasIndexes = new Set(actionHistory.flatMap((action, index) => (
+    annotationStartIndex >= 0 && index > annotationStartIndex &&
+    (annotationSaveIndex < 0 || index < annotationSaveIndex) &&
+    action.kind === 'click' && action.selector === 'canvas' ? [index] : []
+  )));
+  const annotationCanvasCount = annotationCanvasIndexes.size;
+  const cancelledAnnotationDraft = actionHistory.some((action) => (
+    action.kind === 'click' && action.selector === '[data-command="cancel-annotation"]'
   ));
   const pauseClickIndex = actionHistory.findIndex((action) => action.kind === 'click' && action.selector === '[data-command="pause"]');
   const speed2Index = actionHistory.findIndex((action) => action.kind === 'click' && action.selector === '[data-speed="2"]');
@@ -153,10 +162,14 @@ export function summarizeActionHistory(actionHistory) {
   return {
     clickedSelectors,
     canvasClickCount: actionHistory.filter((action, index) => (
-      action.kind === 'click' && action.selector === 'canvas' && index !== annotationCanvasIndex
+      action.kind === 'click' && action.selector === 'canvas' && !annotationCanvasIndexes.has(index)
     )).length,
     startedAnnotation: annotationStartIndex >= 0,
-    capturedAnnotation: annotationCanvasIndex >= 0,
+    annotationAimToggleCount: actionHistory.filter((action) => (
+      action.kind === 'click' && action.selector === '[data-command="start-annotation"]'
+    )).length,
+    capturedAnnotation: annotationCanvasCount >= (cancelledAnnotationDraft ? 2 : 1),
+    cancelledAnnotationDraft,
     typedAnnotation: actionHistory.some((action) => (
       action.kind === 'type' && action.selector === '[data-annotation-draft]'
     )),
@@ -165,8 +178,30 @@ export function summarizeActionHistory(actionHistory) {
     )),
     openedAnnotationPanel: clickedSelectors.has('[data-panel="annotations"]'),
     viewedAnnotation: actionHistory.some((action) => (
+      action.kind === 'click' && action.selector === '[data-command="view-annotation"]'
+    )),
+    viewedAnnotationPin: actionHistory.some((action) => (
       action.kind === 'click' && action.selector?.startsWith('[data-annotation-id=')
     )),
+    annotationEditStarts: actionHistory.filter((action) => (
+      action.kind === 'click' && action.selector === '[data-command="edit-annotation"]'
+    )).length,
+    cancelledAnnotationEdit: actionHistory.some((action) => (
+      action.kind === 'click' && action.selector === '[data-command="cancel-edit-annotation"]'
+    )),
+    typedAnnotationEdit: actionHistory.some((action) => (
+      action.kind === 'type' && action.selector === '[data-annotation-edit]'
+    )),
+    savedAnnotationEdit: actionHistory.some((action) => (
+      action.kind === 'click' && action.selector === '[data-command="save-edit-annotation"]'
+    )),
+    copiedAnnotation: clickedSelectors.has('[data-command="copy-annotation"]'),
+    copiedAnnotations: clickedSelectors.has('[data-command="copy-annotations"]'),
+    exportedAnnotation: clickedSelectors.has('[data-command="export-annotation"]'),
+    exportedAnnotations: clickedSelectors.has('[data-command="export-annotations"]'),
+    deleteAnnotationClicks: actionHistory.filter((action) => (
+      action.kind === 'click' && action.selector === '[data-command="delete-annotation"]'
+    )).length,
     pannedCamera: actionHistory.some((action) => action.kind === 'press' && action.key === 'ArrowRight'),
     zoomedCamera: actionHistory.some((action) => action.kind === 'wheel' && action.selector === 'canvas'),
     hoveredPanelTab: actionHistory.some((action) => action.kind === 'hover' && action.selector === '[data-panel="inventory"]'),

@@ -17,6 +17,14 @@
 // elements share a selector ("Sell 1"/"Sell 5" share [data-sell="carrot"]).
 export const COVERAGE_MIN_SIGHTINGS = 3;
 
+export function coverageGapFindingId(selector) {
+  return `coverage-gap-${String(selector)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80)}`;
+}
+
 export function coverageLedger(steps) {
   const offered = new Map();
   const exercised = new Set();

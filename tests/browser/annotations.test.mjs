@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import process from 'node:process';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createServer } from 'vite';
+import { createFarmGame, getFarmSnapshot } from '../../src/game/simulation/farmGame';
 
 let server;
 let browser;
@@ -176,6 +177,110 @@ describe('farm annotations', () => {
       expect(await page.evaluate(() => globalThis.__farmDebug.getAnnotations().records.length)).toBe(0);
       expect(await page.evaluate(() => globalThis.annotationXss)).toBeUndefined();
       expect(pageErrors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  }, 20000);
+
+  test('an active draft consumes farm clicks and keeps the simulation pause locked', async () => {
+    const savedState = getFarmSnapshot(createFarmGame({ seed: 'annotation-draft-isolation' }));
+    savedState.tier = {
+      level: 2,
+      label: 'Wheat Rows',
+      unlockedCrops: ['carrot', 'wheat'],
+      nextMilestone: 'Harvest 20 wheat',
+    };
+    savedState.cropMix = { ...savedState.cropMix, carrot: 0.75, wheat: 0.25 };
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript((state) => {
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
+    }, savedState);
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      const canvas = page.locator('#game-canvas canvas');
+      await page.click('[data-tool="plot"]');
+      const dismiss = page.locator('[data-command="dismiss-tutorial"]');
+      if (await dismiss.isVisible()) await dismiss.click();
+      const tilePosition = async (tileX, tileY) => canvas.evaluate((element, tile) => {
+        const tileSize = 32;
+        const framedWidth = 19 * tileSize;
+        const framedHeight = 13 * tileSize;
+        const zoom = Math.max(1.05, Math.min(2, element.clientWidth / framedWidth, element.clientHeight / framedHeight));
+        return {
+          x: element.clientWidth / 2 + ((tile.x + 0.5) * tileSize - 6 * tileSize) * zoom,
+          y: element.clientHeight / 2 + ((tile.y + 0.5) * tileSize - 5 * tileSize) * zoom,
+        };
+      }, { x: tileX, y: tileY });
+      await canvas.click({ position: await tilePosition(3, 1) });
+      await expect.poll(async () => page.evaluate(() => globalThis.__farmDebug.getState().tiles['3,1']?.kind))
+        .toBe('plot');
+      await canvas.focus();
+      await page.keyboard.press('n');
+      await page.keyboard.press('Enter');
+      await page.locator('[data-annotation-draft]').waitFor();
+
+      const before = await page.evaluate(() => {
+        const state = globalThis.__farmDebug.getState();
+        return {
+          emptyTile: state.tiles['2,1'],
+          paintedTile: state.tiles['3,1'],
+          cropMix: state.cropMix,
+          farmId: state.farmId,
+          history: state.history,
+          tick: state.tick,
+        };
+      });
+      expect(before.emptyTile?.kind).toBe('empty');
+      expect(before.paintedTile?.kind).toBe('plot');
+
+      await canvas.click({ position: await tilePosition(2, 1) });
+      await page.click('[data-command="undo"]');
+      await canvas.focus();
+      expect(await canvas.evaluate((element) => element === globalThis.document.activeElement)).toBe(true);
+      await page.keyboard.press('Tab');
+      expect(await canvas.evaluate((element) => element === globalThis.document.activeElement)).toBe(false);
+      await canvas.focus();
+      await page.keyboard.press('Space');
+      await page.keyboard.press('z');
+      await page.keyboard.press('y');
+      await page.keyboard.press('Shift+r');
+      await page.keyboard.press('2');
+      await page.keyboard.press('-');
+      await page.click('[data-panel="mix"]');
+      const wheatMix = page.locator('[data-mix-number="wheat"]');
+      await wheatMix.fill('50');
+      await wheatMix.dispatchEvent('change');
+      await wheatMix.blur();
+      await page.waitForTimeout(350);
+      expect(await page.evaluate(() => globalThis.__farmDebug.getState().tick)).toBe(before.tick);
+      await page.click('[data-panel="annotations"]');
+      await page.click('[data-command="cancel-annotation"]');
+      await page.waitForTimeout(350);
+
+      const after = await page.evaluate(() => {
+        const state = globalThis.__farmDebug.getState();
+        return {
+          emptyTile: state.tiles['2,1'],
+          paintedTile: state.tiles['3,1'],
+          cropMix: state.cropMix,
+          farmId: state.farmId,
+          history: state.history,
+          speed: globalThis.localStorage.getItem('farm-speed-v1'),
+          tick: state.tick,
+        };
+      });
+      expect(after.emptyTile).toEqual(before.emptyTile);
+      expect(after.paintedTile).toEqual(before.paintedTile);
+      expect(after.cropMix).toEqual(before.cropMix);
+      expect(after.farmId).toBe(before.farmId);
+      expect(after.history).toEqual(before.history);
+      expect(after.tick).toBeGreaterThan(before.tick);
+      expect(after.speed).toBeNull();
+      await expect.poll(async () => page.locator('#hud').textContent()).not.toContain('Paused');
+      expect(await page.locator('[data-tool="plot"]').getAttribute('class')).toContain('active');
     } finally {
       await context.close();
     }

@@ -4,6 +4,7 @@ import {
   FARM_ANNOTATION_VERSION,
   createFarmAnnotationStore,
   isFarmAnnotationBundle,
+  nextAvailableFarmAnnotationIndex,
   type FarmAnnotationStore,
 } from '../annotations/farmAnnotations';
 import { isFarmState } from './localSave';
@@ -36,10 +37,13 @@ export function loadFarmAnnotations(storage: AnnotationStorage = localStorage): 
           return true;
         }).slice(0, FARM_ANNOTATION_LIMIT).map((record) => structuredClone(record))
       : [];
-    const minimumNextIndex = records.reduce((maximum, record) => Math.max(maximum, record.index + 1), 1);
-    const nextIndex = typeof payload.nextIndex === 'number' && Number.isInteger(payload.nextIndex)
+    const largestIndex = records.reduce((maximum, record) => Math.max(maximum, record.index), 0);
+    const minimumNextIndex = largestIndex === Number.MAX_SAFE_INTEGER ? 1 : largestIndex + 1;
+    const requestedNextIndex = typeof payload.nextIndex === 'number' &&
+      Number.isSafeInteger(payload.nextIndex) && payload.nextIndex > 0
       ? Math.max(minimumNextIndex, payload.nextIndex)
       : minimumNextIndex;
+    const nextIndex = nextAvailableFarmAnnotationIndex(records, requestedNextIndex);
     return {
       schema: FARM_ANNOTATION_STORE_SCHEMA,
       version: FARM_ANNOTATION_VERSION,

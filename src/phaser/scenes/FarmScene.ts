@@ -16,6 +16,7 @@ export interface FarmSceneBridge {
   applyTool(x: number, y: number): void;
   canDragTool(): boolean;
   captureAnnotation(pick: FarmAnnotationPick): boolean;
+  isAnnotationDrafting(): boolean;
 }
 
 const PAN_SPEED = 420;
@@ -51,7 +52,7 @@ export class FarmScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.HOME,
     ]);
     this.input.keyboard!.on('keydown-HOME', () => {
-      if (!domControlOwnsKeyboard()) this.recenter();
+      if (!this.#bridge.isAnnotationDrafting() && !domControlOwnsKeyboard()) this.recenter();
     });
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -67,6 +68,7 @@ export class FarmScene extends Phaser.Scene {
     });
     this.input.on('pointerup', () => { this.#pointerCapturedAnnotation = false; });
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _objects: Phaser.GameObjects.GameObject[], _dx: number, dy: number) => {
+      if (this.#bridge.isAnnotationDrafting()) return;
       const camera = this.cameras.main;
       camera.setZoom(Phaser.Math.Clamp(camera.zoom + (dy > 0 ? -0.08 : 0.08), this.minimumCameraZoom(), 2.8));
       this.#cameraMoved = true;
@@ -164,7 +166,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private updateCamera(delta: number): void {
-    if (domControlOwnsKeyboard()) return;
+    if (this.#bridge.isAnnotationDrafting() || domControlOwnsKeyboard()) return;
     const camera = this.cameras.main;
     const distance = (PAN_SPEED * delta) / 1000 / camera.zoom;
     let moved = false;

@@ -1,6 +1,12 @@
-import { readFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { assertImprovementRunManifest } from 'civ-engine';
+import {
+  snapshotPassArtifacts,
+  writePassManifest,
+} from '../../scripts/llm-visual-loop/pass-artifacts.mjs';
 import {
   buildPassManifest,
   passOutcome,
@@ -19,6 +25,45 @@ function finding(id, severity, nextAction, overrides = {}) {
     verificationStatus: 'unverified',
     nextAction,
     ...overrides,
+  };
+}
+
+function visualRunFixture({ rootDir, outputDir, runId, screenshotName = '00-step-0.png' }) {
+  const screenshot = `steps/${screenshotName}`;
+  const screenshotFile = path.join(outputDir, 'steps', screenshotName);
+  return {
+    generatedAt: '2026-07-13T12:00:00.000Z',
+    url: 'http://127.0.0.1:5175/',
+    decisionProvider: 'local-heuristic',
+    actionBoundary: 'browser-only',
+    bundlePath: path.relative(rootDir, path.join(outputDir, 'latest.bundle.json')),
+    improvementRun: { id: runId },
+    findings: [],
+    steps: [{
+      index: 0,
+      observation: {
+        label: 'step 0',
+        screenshot,
+        screenshotFile,
+        visibleText: 'A small farm',
+        availableActions: [],
+        keyboardActions: [],
+      },
+      decision: {
+        action: { kind: 'wait', ms: 100 },
+        rationale: 'Watch the farm.',
+        expectedResult: 'The farm advances.',
+      },
+      execution: { ok: true },
+    }],
+    finalObservation: {
+      label: 'final',
+      screenshot,
+      screenshotFile,
+      visibleText: 'A small farm',
+      availableActions: [],
+      keyboardActions: [],
+    },
   };
 }
 
@@ -74,6 +119,7 @@ describe('buildPassManifest', () => {
         supportsBroadQualityClaim: false,
       },
       verification: { ok: true, checkedSegments: 1, skippedSegments: 0 },
+      replayCoverage: { startTick: 4096, endTick: 4160, durationTicks: 64, partial: true },
       runId: 'run-1',
       artifacts: [{ kind: 'run', path: 'output/playwright/llm-visual-loop/latest.json' }],
     });
@@ -94,6 +140,7 @@ describe('buildPassManifest', () => {
       broaderGoalStatus: 'in-progress',
       nextAction: 'fix-candidate',
       verification: { ok: true },
+      replayCoverage: { startTick: 4096, endTick: 4160, durationTicks: 64, partial: true },
     });
   });
 
@@ -125,10 +172,168 @@ describe('buildPassManifest', () => {
 });
 
 describe('playtest-recursive script wiring', () => {
-  test('uses the Harvest Hearth budget by default and normalizes explicit bounds', () => {
+  test('keeps pass artifacts and its immutable manifest stable after latest files are replaced', async () => {
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'farm-recursive-pass-'));
+    const outputDir = path.join(rootDir, 'output', 'playwright', 'llm-visual-loop');
+    const historyDir = path.join(rootDir, 'output', 'playwright', 'llm-visual-loop-history');
+    const passId = 'farm-recursive-original';
+
+    try {
+      await mkdir(path.join(outputDir, 'steps'), { recursive: true });
+      const originalRun = visualRunFixture({ rootDir, outputDir, runId: 'run-original' });
+      await writeFile(
+        path.join(outputDir, 'latest.json'),
+        `${JSON.stringify(originalRun)}\n`,
+      );
+      await writeFile(path.join(outputDir, 'latest.md'), '# run-original\n');
+      await writeFile(path.join(outputDir, 'latest.html'), '<p>run-original</p>\n');
+      await writeFile(
+        path.join(outputDir, 'latest.bundle.json'),
+        `${JSON.stringify({ metadata: { sessionId: 'bundle-original' } })}\n`,
+      );
+      await writeFile(path.join(outputDir, 'steps', '00-step-0.png'), 'original screenshot');
+
+      const replayCoverage = {
+        startTick: 4096,
+        endTick: 4160,
+        durationTicks: 64,
+        partial: true,
+      };
+      const snapshot = await snapshotPassArtifacts({
+        rootDir,
+        outputDir,
+        historyDir,
+        passId,
+        bundlePath: path.join(outputDir, 'latest.bundle.json'),
+      });
+      const manifest = buildPassManifest({
+        id: passId,
+        startedAt: '2026-07-13T12:00:00.000Z',
+        completedAt: '2026-07-13T12:01:00.000Z',
+        candidate: null,
+        runId: 'run-original',
+        replayCoverage,
+        artifacts: snapshot.artifacts,
+      });
+      const ledgerPath = path.join(historyDir, 'passes.jsonl');
+      await writePassManifest({
+        manifest,
+        latestManifestPath: path.join(outputDir, 'latest.pass-manifest.json'),
+        immutableManifestPath: snapshot.passManifestPath,
+        ledgerPath,
+      });
+
+      await rename(path.join(outputDir, 'latest.json'), path.join(outputDir, 'previous.json'));
+      await rename(path.join(outputDir, 'latest.md'), path.join(outputDir, 'previous.md'));
+      await rename(
+        path.join(outputDir, 'latest.bundle.json'),
+        path.join(outputDir, 'previous.bundle.json'),
+      );
+      await rename(path.join(outputDir, 'steps'), path.join(outputDir, 'previous-steps'));
+      await writeFile(
+        path.join(outputDir, 'latest.json'),
+        `${JSON.stringify(visualRunFixture({ rootDir, outputDir, runId: 'run-replacement' }))}\n`,
+      );
+      await writeFile(path.join(outputDir, 'latest.md'), '# run-replacement\n');
+      await writeFile(
+        path.join(outputDir, 'latest.bundle.json'),
+        `${JSON.stringify({ metadata: { sessionId: 'bundle-replacement' } })}\n`,
+      );
+      await mkdir(path.join(outputDir, 'steps'));
+      await writeFile(path.join(outputDir, 'steps', '00-step-0.png'), 'replacement screenshot');
+
+      const immutableManifest = JSON.parse(await readFile(snapshot.passManifestPath, 'utf8'));
+      const ledgerManifest = JSON.parse((await readFile(ledgerPath, 'utf8')).trim());
+      expect(immutableManifest.artifacts).toEqual(snapshot.artifacts);
+      expect(ledgerManifest.artifacts).toEqual(snapshot.artifacts);
+      expect(immutableManifest.data.runId).toBe('run-original');
+      expect(ledgerManifest.data.runId).toBe('run-original');
+      expect(immutableManifest.data.replayCoverage).toEqual(replayCoverage);
+      expect(ledgerManifest.data.replayCoverage).toEqual(replayCoverage);
+
+      for (const artifact of ledgerManifest.artifacts) {
+        await expect(access(path.resolve(rootDir, artifact.path))).resolves.toBeUndefined();
+      }
+      const stableRunArtifact = ledgerManifest.artifacts.find((artifact) => artifact.kind === 'run');
+      const stableRun = JSON.parse(
+        await readFile(path.resolve(rootDir, stableRunArtifact.path), 'utf8'),
+      );
+      expect(stableRun.improvementRun.id).toBe('run-original');
+      const stableBundleArtifact = ledgerManifest.artifacts.find(
+        (artifact) => artifact.kind === 'bundle',
+      );
+      expect(path.resolve(rootDir, stableRun.bundlePath))
+        .toBe(path.resolve(rootDir, stableBundleArtifact.path));
+      const stableScreenshot = path.resolve(
+        path.dirname(path.resolve(rootDir, stableRunArtifact.path)),
+        stableRun.steps[0].observation.screenshot,
+      );
+      expect(stableRun.steps[0].observation.screenshotFile).toBe(stableScreenshot);
+      expect(stableRun.finalObservation.screenshotFile).toBe(stableScreenshot);
+      expect(await readFile(stableScreenshot, 'utf8')).toBe('original screenshot');
+      const stableReportArtifact = ledgerManifest.artifacts.find(
+        (artifact) => artifact.kind === 'report',
+      );
+      expect(await readFile(path.resolve(rootDir, stableReportArtifact.path), 'utf8'))
+        .toContain(`Screenshot file: ${stableScreenshot}`);
+      const stableHtmlArtifact = ledgerManifest.artifacts.find(
+        (artifact) => artifact.kind === 'report-html',
+      );
+      expect(await readFile(path.resolve(rootDir, stableHtmlArtifact.path), 'utf8'))
+        .toContain('steps/00-step-0.png');
+      const stableBundle = JSON.parse(
+        await readFile(path.resolve(rootDir, stableBundleArtifact.path), 'utf8'),
+      );
+      expect(stableBundle.metadata.sessionId).toBe('bundle-original');
+      expect(JSON.parse(await readFile(path.join(outputDir, 'latest.json'), 'utf8')).improvementRun.id)
+        .toBe('run-replacement');
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects missing visual evidence without leaving a pass artifact directory', async () => {
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'farm-recursive-pass-failure-'));
+    const outputDir = path.join(rootDir, 'output', 'playwright', 'llm-visual-loop');
+    const historyDir = path.join(rootDir, 'output', 'playwright', 'llm-visual-loop-history');
+    const passId = 'farm-recursive-incomplete';
+
+    try {
+      await mkdir(path.join(outputDir, 'steps'), { recursive: true });
+      await writeFile(
+        path.join(outputDir, 'latest.json'),
+        `${JSON.stringify(visualRunFixture({
+          rootDir,
+          outputDir,
+          runId: 'run-incomplete',
+          screenshotName: 'missing.png',
+        }))}\n`,
+      );
+      await writeFile(path.join(outputDir, 'latest.md'), '# run-incomplete\n');
+      await writeFile(path.join(outputDir, 'latest.html'), '<p>run-incomplete</p>\n');
+      await writeFile(
+        path.join(outputDir, 'latest.bundle.json'),
+        `${JSON.stringify({ metadata: { sessionId: 'bundle-incomplete' } })}\n`,
+      );
+      await expect(snapshotPassArtifacts({
+        rootDir,
+        outputDir,
+        historyDir,
+        passId,
+        bundlePath: path.join(outputDir, 'latest.bundle.json'),
+      }))
+        .rejects.toThrow();
+      await expect(access(path.join(historyDir, 'pass-artifacts', passId)))
+        .rejects.toThrow();
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test('uses the Harvest Hearth plus Farm Notes budget by default and normalizes explicit bounds', () => {
     expect(recursiveVisualLoopEnvironment({ PATH: 'farm-path' })).toMatchObject({
       PATH: 'farm-path',
-      FARM_VISUAL_LOOP_STEPS: '140',
+      FARM_VISUAL_LOOP_STEPS: '160',
     });
     expect(recursiveVisualLoopEnvironment({ FARM_VISUAL_LOOP_STEPS: '72' })).toMatchObject({
       FARM_VISUAL_LOOP_STEPS: '72',
@@ -137,7 +342,7 @@ describe('playtest-recursive script wiring', () => {
       FARM_VISUAL_LOOP_STEPS: '160',
     });
     expect(recursiveVisualLoopEnvironment({ FARM_VISUAL_LOOP_STEPS: 'bogus' })).toMatchObject({
-      FARM_VISUAL_LOOP_STEPS: '140',
+      FARM_VISUAL_LOOP_STEPS: '160',
     });
   });
 
@@ -156,5 +361,9 @@ describe('playtest-recursive script wiring', () => {
     const source = await readFile('scripts/playtest-recursive.mjs', 'utf8');
     expect(source).toContain('latest.pass-manifest.json');
     expect(source).toContain('passes.jsonl');
+    expect(source).toContain('bundlePath: runPacket.bundlePath');
+    expect(source).toContain('replayCoverage: runPacket?.replayCoverage');
+    expect(source).toContain("resolvedOutcome = 'run-failed'");
+    expect(source).toContain('resolvedExitCode = 1');
   });
 });
