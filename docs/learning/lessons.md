@@ -1,5 +1,29 @@
 # Engineering Lessons
 
+## 2026-07-13 - Debug artifacts are persisted untrusted input
+
+- Surfaced by: independent correctness review forged an otherwise plausible `farm.annotations.v1` record with markup in `capture.farmState.tick`, then removed `capture.pick.camera`; the shallow bundle check admitted both, allowing raw panel interpolation in one path and a View crash in the other.
+- Failure mode: a debugging bundle can feel internal because the app created it, but localStorage, copied JSON, devtools, extensions, and older versions can all change it. Validating only the outer record leaves every nested field that rendering, camera restore, or export assumes as an untrusted crash or injection surface. Output escaping is still required even after validation because display strings are intentionally user-authored.
+- Fix commit: `51228fa` reuses the canonical `FarmState` validator, validates every nested coordinate/camera/viewport/interaction/history field and a bounded real PNG data URL, filters invalid records before cloning, and escapes capture metadata at the panel boundary.
+- Regression anchors: `tests/persistence/localAnnotations.test.ts` rejects forged tick, missing camera, script-like preview, duplicate, over-limit, and malformed JSON records; `tests/browser/annotations.test.mjs` corrupts a valid saved record, reloads the real app, and proves no record, page error, or injected global survives.
+- Behavior delta: malformed notes now fail closed to the remaining valid queue, while valid user comments stay visibly literal and copyable instead of being treated as markup.
+
+## 2026-07-13 - Evidence markers must follow the transformed sample, not its nominal center
+
+- Surfaced by: independent visual review clicked near a canvas edge and compared the resulting evidence crop with the world target. The crop window clamped against the source boundary, but the crosshair stayed at the preview center, pointing at a different pixel than the recorded click.
+- Failure mode: centering a marker is correct only while the sample window can remain centered. Once cropping, camera bounds, or viewport clipping shifts that window, the marker must transform the original point through the final clamped source rectangle or the debugging evidence contradicts its own coordinates.
+- Fix commit: `51228fa` computes one explicit crop geometry, clamps its source rectangle first, and maps the selected drawing-buffer point into preview coordinates before drawing the crosshair.
+- Regression anchors: `tests/annotations/farmAnnotationCapture.test.ts` pins both top-left and bottom-right clamped cases, while `tests/browser/annotations.test.mjs` proves exact normalized pointer and keyboard-center coordinates in live captures.
+- Behavior delta: evidence previews now mark the selected detail even at every canvas edge instead of silently drifting toward the preview center.
+
+## 2026-07-13 - Agent control contracts need kind compatibility and successful execution evidence
+
+- Surfaced by: independent loop review showed an external provider could return `adjust` for a visible textarea and pass selector normalization; the coverage ledger then counted any attempted selector as exercised even when browser execution failed. UI review separately showed annotation text could be lost when the panel rerendered after switching tabs.
+- Failure mode: a selector proves which element was named, not which operations it supports or whether an operation completed. Likewise, the live DOM is not durable editor state when a panel is rebuilt. Treating attempts as coverage turns failed automation into false proof, while treating a textarea node as the source of truth loses unsaved user intent on ordinary rerenders.
+- Fix commit: `51228fa` enforces an observed action-hint/kind matrix, bounds nonblank textarea input, counts coverage only after `execution.ok`, labels textareas semantically, and keeps draft/edit buffers in the annotation controller while focused editors suppress replacement.
+- Regression anchors: `tests/browser/llmVisualLoopAnnotations.test.mjs` rejects click/adjust/blank type actions against a textarea and bounds valid text; `tests/browser/coverageReport.test.mjs` keeps failed controls uncovered; `tests/browser/annotations.test.mjs` switches panels during draft and edit, exposes inline validation, and clears a focused draft safely on reset. Targeted run `farm-visual-loop-2026-07-13T21-05-26-586Z` then executed the six-action note curriculum with zero action failures.
+- Behavior delta: the LLM can type only through a compatible observed text control, failed actions remain visible as coverage gaps, and a player's unfinished comment survives panel navigation until explicitly saved, cancelled, or reset.
+
 ## 2026-07-13 - Decorative anchors are not visual clearance contracts
 
 - Surfaced by: independent hardening review of the living-hedgerow diff after the 1280x800 and 1024x720 browser captures. The review traced the western elder and willow crowns beyond their placement anchors and found three to five visible pixels could clip at the default recenter; it also found southern permanent plants crossing two to three pixels into buildable land while a later render layer happened to conceal the overlap.
