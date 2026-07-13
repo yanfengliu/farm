@@ -6,6 +6,8 @@ import {
   renderFarmToText,
   submitFarmCommand,
 } from '../../src/game/simulation/farmGame';
+import { FARM_HISTORY_LIMIT } from '../../src/game/simulation/farmHistory';
+import { tierState } from '../../src/game/simulation/farmState';
 
 function runStarterFarm(ticks: number) {
   const game = createFarmGame({ seed: 'starter-loop' });
@@ -24,6 +26,22 @@ function advanceUntil(
 }
 
 describe('farm simulation', () => {
+  test('bounds undo history during rapid crop-mix edits', () => {
+    const tierTwoState = getFarmSnapshot(createFarmGame({ seed: 'bounded-history' }));
+    tierTwoState.tier = tierState(2);
+    const game = createFarmGame({ seed: 'bounded-history', state: tierTwoState });
+    for (let index = 0; index < FARM_HISTORY_LIMIT + 25; index += 1) {
+      submitFarmCommand(game, {
+        type: 'setCropMix',
+        mix: index % 2 === 0
+          ? { carrot: 0.99, wheat: 0.01 }
+          : { carrot: 1, wheat: 0 },
+      });
+      advanceFarm(game, 1);
+    }
+
+    expect(getFarmSnapshot(game).history.undo).toHaveLength(FARM_HISTORY_LIMIT);
+  });
   test('starter farm autonomously plants, waters, harvests, and stores crops', () => {
     const state = runStarterFarm(900);
 
@@ -127,7 +145,7 @@ describe('farm simulation', () => {
 
   test('alerts the player when workers are waiting for buyable seeds', () => {
     const stalled = getFarmSnapshot(createFarmGame({ seed: 'seed-guidance' }));
-    stalled.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0 };
+    stalled.inventory.seeds = { carrot: 0, wheat: 0, tomato: 0, pumpkin: 0 };
     stalled.coins = stalled.crops.carrot.seedPrice * 2;
 
     const game = createFarmGame({ seed: 'seed-guidance', state: stalled });
@@ -140,8 +158,8 @@ describe('farm simulation', () => {
 
   test('alerts the player when workers have seeds but no empty plots', () => {
     const stalled = getFarmSnapshot(createFarmGame({ seed: 'plot-guidance' }));
-    stalled.inventory.seeds = { carrot: 5, wheat: 0, tomato: 0 };
-    stalled.cropMix = { carrot: 1, wheat: 0, tomato: 0 };
+    stalled.inventory.seeds = { carrot: 5, wheat: 0, tomato: 0, pumpkin: 0 };
+    stalled.cropMix = { carrot: 1, wheat: 0, tomato: 0, pumpkin: 0 };
     for (const tile of Object.values(stalled.tiles)) {
       if (tile.kind === 'plot') {
         tile.plot = { cropId: 'carrot', growth: 1, water: 100 };

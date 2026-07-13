@@ -147,5 +147,6 @@ vite.config.ts.timestamp-*
 
 # Local verification artifacts
 output/playwright/
+tmp/
 tmp-*.log
 tmp-*.pid

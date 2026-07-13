@@ -64,4 +64,25 @@ describe('speed preference', () => {
       await context.close();
     }
   }, 15000);
+
+  test('Space activates a focused button without also pausing the farm', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript(() => globalThis.localStorage.clear());
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.locator('[data-panel="goals"]').focus();
+      await page.keyboard.press('Space');
+      await page.waitForSelector('#panel-content h2');
+
+      const speedText = await page.evaluate(() => Array.from(globalThis.document.querySelectorAll('#hud div')).find((item) => (
+        item.querySelector('strong')?.textContent?.trim() === 'Speed'
+      ))?.querySelector('span')?.textContent?.trim());
+      expect(speedText).not.toBe('Paused');
+      expect(await page.locator('#panel-content h2').textContent()).toMatch(/Tier/);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
 });

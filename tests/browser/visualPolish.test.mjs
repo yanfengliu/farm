@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createServer } from 'vite';
 import { FARM_TIERS } from '../../src/game/content/tiers';
 import { createFarmGame, getFarmSnapshot } from '../../src/game/simulation/farmGame';
+import { registerVisualPolishControlCases } from './visualPolishControlCases.mjs';
 
 let server;
 let browser;
@@ -35,7 +36,7 @@ describe('visual polish', () => {
     await server?.close();
   });
 
-  test('canvas backdrop uses warm charcoal instead of flat black', async () => {
+  test('canvas backdrop uses a readable meadow instead of flat black', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const page = await context.newPage();
 
@@ -52,7 +53,8 @@ describe('visual polish', () => {
 
       expect(backdropPixel).not.toBeNull();
       expect(backdropPixel.r).toBeGreaterThanOrEqual(22);
-      expect(backdropPixel.r).toBeGreaterThan(backdropPixel.b);
+      expect(backdropPixel.g).toBeGreaterThan(backdropPixel.r);
+      expect(backdropPixel.g).toBeGreaterThan(backdropPixel.b);
     } finally {
       await context.close();
     }
@@ -326,7 +328,17 @@ describe('visual polish', () => {
     try {
       await page.goto(url, { waitUntil: 'networkidle' });
       await page.click('[data-panel="inspect"]');
-      await page.locator('canvas').click({ position: { x: 390, y: 300 } });
+      const wellScreen = await page.locator('canvas').evaluate((canvas) => {
+        const tileSize = 32;
+        const framedWidth = 19 * tileSize;
+        const framedHeight = 13 * tileSize;
+        const zoom = Math.max(1.05, Math.min(2, canvas.clientWidth / framedWidth, canvas.clientHeight / framedHeight));
+        return {
+          x: canvas.clientWidth / 2 + (2.5 * tileSize - 6 * tileSize) * zoom,
+          y: canvas.clientHeight / 2 + (2.5 * tileSize - 5 * tileSize) * zoom,
+        };
+      });
+      await page.locator('canvas').click({ position: wellScreen });
 
       await expect.poll(async () => (
         page.locator('#panel-content').textContent()
@@ -340,33 +352,7 @@ describe('visual polish', () => {
     }
   }, 15000);
 
-  test('crop mix sliders expose readable action labels', async () => {
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
-    const page = await context.newPage();
-
-    try {
-      await page.goto(url, { waitUntil: 'networkidle' });
-      await page.click('[data-panel="mix"]');
-      await page.waitForSelector('[data-mix="carrot"]');
-
-      const sliderLabels = await page.evaluate(() => (
-        Array.from(globalThis.document.querySelectorAll('input[type="range"][data-mix]'))
-          .map((input) => ({
-            id: input.getAttribute('data-mix'),
-            ariaLabel: input.getAttribute('aria-label') ?? '',
-            title: input.getAttribute('title') ?? '',
-          }))
-      ));
-
-      expect(sliderLabels).toEqual([
-        { id: 'carrot', ariaLabel: 'Set Carrot crop mix', title: 'Set Carrot crop mix' },
-        { id: 'wheat', ariaLabel: 'Set Wheat crop mix', title: 'Set Wheat crop mix' },
-        { id: 'tomato', ariaLabel: 'Set Tomato crop mix', title: 'Set Tomato crop mix' },
-      ]);
-    } finally {
-      await context.close();
-    }
-  }, 15000);
+  registerVisualPolishControlCases(() => ({ browser, url }));
 
   test('crop mix rows explain seed stock and planting readiness', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'crop-mix-context' }));
@@ -476,7 +462,7 @@ describe('visual polish', () => {
 
   test('terminal tier goals card explains open-ended tuning', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'terminal-tier-copy' }));
-    savedState.tier = FARM_TIERS[3];
+    savedState.tier = FARM_TIERS[4];
 
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     await context.addInitScript((state) => {
@@ -488,7 +474,7 @@ describe('visual polish', () => {
     try {
       await page.goto(url, { waitUntil: 'networkidle' });
       const hudObjective = await page.locator('.hud-alert').textContent();
-      expect(hudObjective).toContain('Tune mix, expand land, upgrade workers');
+      expect(hudObjective).toContain('Fill village baskets');
 
       await page.click('[data-panel="goals"]');
       await page.waitForSelector('.tier-current-card');
@@ -496,8 +482,8 @@ describe('visual polish', () => {
       const panelText = await page.locator('#panel-content').textContent();
       const cardText = await page.locator('.tier-current-card').textContent();
       const normalizedCardText = cardText?.toLowerCase() ?? '';
-      expect(panelText).toContain('Tune mix, expand land, upgrade workers');
-      expect(cardText).toContain('All MVP crops are unlocked');
+      expect(panelText).toContain('Fill village baskets');
+      expect(cardText).toContain('All crops are unlocked');
       expect(normalizedCardText).toContain('tune crop mix');
       expect(normalizedCardText).not.toContain('claim the next tier');
     } finally {
@@ -505,100 +491,4 @@ describe('visual polish', () => {
     }
   }, 15000);
 
-  test('compact desktop toolbar avoids truncated labels', async () => {
-    const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
-    const page = await context.newPage();
-
-    try {
-      await page.goto(url, { waitUntil: 'networkidle' });
-      await page.waitForSelector('.toolbar .tool-button');
-
-      const metrics = await page.evaluate(() => (
-        Array.from(globalThis.document.querySelectorAll('.toolbar .tool-button'))
-          .map((button) => {
-            const label = button.querySelector('.label');
-            return {
-              ariaLabel: button.getAttribute('aria-label') ?? '',
-              visibleLabelWidth: label?.getBoundingClientRect().width ?? 0,
-              buttonRight: button.getBoundingClientRect().right,
-            };
-          })
-      ));
-
-      expect(metrics.every((item) => item.ariaLabel.length > 0)).toBe(true);
-      expect(Math.max(...metrics.map((item) => item.visibleLabelWidth))).toBeLessThanOrEqual(1);
-      expect(Math.max(...metrics.map((item) => item.buttonRight))).toBeLessThanOrEqual(1024);
-
-      await page.hover('[data-speed="4"]');
-      await expect.poll(async () => page.locator('[data-speed="4"]').evaluate((button) => (
-        Number.parseFloat(globalThis.getComputedStyle(button, '::after').opacity)
-      ))).toBeGreaterThan(0.9);
-      const tooltip = await page.locator('[data-speed="4"]').evaluate((button) => {
-        const style = globalThis.getComputedStyle(button, '::after');
-        return {
-          content: style.content,
-          pointerEvents: style.pointerEvents,
-          whiteSpace: style.whiteSpace,
-        };
-      });
-      expect(tooltip.content).toContain('4x speed');
-      expect(tooltip.pointerEvents).toBe('none');
-      expect(tooltip.whiteSpace).toBe('nowrap');
-    } finally {
-      await context.close();
-    }
-  }, 15000);
-
-  test('crop mix number inputs rebalance unlocked crops to one hundred percent', async () => {
-    const savedState = getFarmSnapshot(createFarmGame({ seed: 'crop-mix-number-input' }));
-    savedState.tier = {
-      level: 2,
-      label: 'Wheat Rows',
-      unlockedCrops: ['carrot', 'wheat'],
-      nextMilestone: 'Harvest 20 wheat',
-    };
-    savedState.cropMix = { carrot: 0.75, wheat: 0.25, tomato: 0 };
-
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
-    await context.addInitScript((state) => {
-      globalThis.localStorage.clear();
-      globalThis.localStorage.setItem('farm.autosave.v1', JSON.stringify(state));
-    }, savedState);
-    const page = await context.newPage();
-
-    try {
-      await page.goto(url, { waitUntil: 'networkidle' });
-      await page.click('[data-panel="mix"]');
-      await page.waitForSelector('[data-mix-number="wheat"]');
-
-      await page.locator('[data-mix-number="wheat"]').fill('40');
-
-      await expect.poll(async () => page.evaluate(() => {
-        const values = Object.fromEntries(
-          Array.from(globalThis.document.querySelectorAll('[data-mix-number]'))
-            .map((input) => [input.getAttribute('data-mix-number'), Number(input.value)]),
-        );
-        return {
-          carrot: values.carrot,
-          wheat: values.wheat,
-          tomato: values.tomato,
-          total: Object.values(values).reduce((sum, value) => sum + value, 0),
-          summary: globalThis.document.querySelector('.crop-mix-allocation')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
-        };
-      })).toEqual({
-        carrot: 60,
-        wheat: 40,
-        tomato: 0,
-        total: 100,
-        summary: '100% allocated across unlocked crops',
-      });
-
-      const debugMix = await page.evaluate(() => globalThis.__farmDebug.getState().cropMix);
-      expect(Math.round(debugMix.carrot * 100)).toBe(60);
-      expect(Math.round(debugMix.wheat * 100)).toBe(40);
-      expect(Math.round(debugMix.tomato * 100)).toBe(0);
-    } finally {
-      await context.close();
-    }
-  }, 15000);
 });

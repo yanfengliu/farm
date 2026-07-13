@@ -1,23 +1,9 @@
 import { readFile } from 'node:fs/promises';
-import {
-  assertImprovementFinding,
-  improvementFindingToVisualPlaytestFinding,
-  minimalImprovementFindingSchemaVersion,
-} from 'civ-engine';
+import { assertImprovementFinding, improvementFindingToVisualPlaytestFinding, minimalImprovementFindingSchemaVersion } from 'civ-engine';
 import { coverageLedger } from './coverage-report.mjs';
-
 export const FARM_VISUAL_LOOP_OBJECTIVE = 'Play Farm like a real desktop player and find player-facing pain points.';
 const SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
-const CATEGORIES = new Set([
-  'visual',
-  'usability',
-  'rules',
-  'performance',
-  'accessibility',
-  'regression',
-  'bug',
-  'opportunity',
-]);
+const CATEGORIES = new Set(['visual', 'usability', 'rules', 'performance', 'accessibility', 'regression', 'bug', 'opportunity']);
 
 export async function loadPreviousRunSummary(filePath) {
   try {
@@ -53,11 +39,8 @@ export function createImprovementRunManifest(run) {
   });
 }
 
-// Deterministic findings (computed from run artifacts) author as claims and
-// are upgraded to verified-by-metric ONLY when the run's replay self-check is
-// strong: ok, at least one checked segment, and zero skipped segments. A
-// vacuous or divergent replay keeps everything unverified. LLM-authored
-// engine findings are never auto-verified.
+// Artifact-computed findings verify only after a strong replay self-check;
+// vacuous/divergent replays and LLM-authored findings remain unverified.
 export function strongReplayVerification(verification) {
   if (!verification || verification.ok !== true) return false;
   // Tolerate both shapes: the loop normalizes skippedSegments to a count,
@@ -460,7 +443,7 @@ function actionCountDelta(previous, current) {
 }
 
 function hasActionableGuidance(visibleText) {
-  return /FARM GUIDE (Open Goals|Buy Seeds|Claim|Tune Crop Mix|Add Tomatoes To Mix|Open Inventory|Sell Crops|Select Plot|Paint Empty Land)|Restock seeds|Paint plots on empty land|Tier \d+ ready/i.test(visibleText);
+  return /FARM GUIDE (Open Goals|Buy Seeds|Claim|Tune Crop Mix|Add (?:Tomatoes|Pumpkins) To Mix|Open Inventory|Sell Crops|Select Plot|Paint Empty Land|Meet The Village|Pin A Neighbor Basket)|Restock seeds|Paint plots on empty land|Tier \d+ ready|Active basket|Harvest the missing crops/i.test(visibleText);
 }
 
 function stepEvidence(step, extra = []) {

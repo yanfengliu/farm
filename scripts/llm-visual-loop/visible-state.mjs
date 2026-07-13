@@ -8,9 +8,10 @@ const CROP_LABELS = {
   carrot: 'Carrot',
   wheat: 'Wheat',
   tomato: 'Tomato',
+  pumpkin: 'Pumpkin',
 };
 
-const ZERO_SEED_PRIORITY = ['tomato', 'wheat', 'carrot'];
+const ZERO_SEED_PRIORITY = ['pumpkin', 'tomato', 'wheat', 'carrot'];
 
 export function visibleSeedStock(visibleText, cropId) {
   const label = CROP_LABELS[cropId];

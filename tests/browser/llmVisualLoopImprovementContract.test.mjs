@@ -146,6 +146,25 @@ describe('LLM visual loop improvement contracts', () => {
     });
   });
 
+  test('does not report a capped active village basket as a clean run', () => {
+    const steps = Array.from({ length: 4 }, (_, index) => ({ ...baseStep, index }));
+    const findings = evaluateVisualLoop(makeRun({
+      steps,
+      finalObservation: {
+        screenshot: 'steps/final.png',
+        screenshotFile: 'C:/tmp/farm/steps/final.png',
+        visibleText: 'Active basket Harvest the missing crops, then return here.',
+        availableActions: [],
+        keyboardActions: [],
+      },
+    }));
+
+    expect(findings.find((finding) => finding.id === 'visual-loop-ended-with-guidance')).toMatchObject({
+      nextAction: 'manualFix',
+      verificationStatus: 'unverified',
+    });
+  });
+
   test('flips deterministic findings to verified-by-metric only under strong replay verification', () => {
     const run = makeRun({
       bundleSessionId: 'farm-session-1',

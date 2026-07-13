@@ -1,4 +1,4 @@
-export type CropId = 'carrot' | 'wheat' | 'tomato';
+export type CropId = 'carrot' | 'wheat' | 'tomato' | 'pumpkin';
 
 export interface CropDefinition {
   id: CropId;
@@ -38,6 +38,15 @@ export const CROPS: Record<CropId, CropDefinition> = {
     seedPrice: 3,
     seedReturnChance: 0.25,
   },
+  pumpkin: {
+    id: 'pumpkin',
+    label: 'Pumpkin',
+    growTicks: 500,
+    waterTicks: 330,
+    sellPrice: 12,
+    seedPrice: 5,
+    seedReturnChance: 0.2,
+  },
 };
 
-export const CROP_IDS: CropId[] = ['carrot', 'wheat', 'tomato'];
+export const CROP_IDS: CropId[] = ['carrot', 'wheat', 'tomato', 'pumpkin'];

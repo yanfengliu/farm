@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Added a Village Request Board with twelve authored neighbor baskets, deterministic two-offer rotations, pin/abandon/deliver actions, premium rewards, progress guidance, history support, and migration-safe request state.
+- Extended progression to Tier 4 Harvest Hearth with pumpkins, a fourth farmhand, a three-request plus ten-tomato milestone, and open-ended harvest goals.
+- Rebuilt the farm presentation as a layered sunlit pixel meadow with a creek and bridge, cottage, fencing, trees, richer soil and crop stages, pumpkin vines, distinct farmhands, task props, ambient glints, and placement brackets.
+- Shifted the HUD and panels to warm espresso, cream, and harvest-gold chrome and split the simulation, UI, scene, renderer, and CSS into focused modules.
+- Added deterministic simulation, persistence, browser interaction, guide, compact-layout, and canvas-palette coverage for the new content and art direction.
+- Preserved native Space-key button activation without also pausing the farm and added an announced completion label to the Village Request stamp.
+- Bounded Undo/Redo history, hardened save validation for map connectivity, worker paths, item counts, and duplicate progression counters, and made localStorage failures visible without stopping or resetting the running farm.
+- Kept Crop Mix fields stable during typing and real pointer drags, bounded the camera to the illustrated meadow, added Home recentering, and moved creek, well, and glint animation onto presentation time so the cozy scene stays alive while paused.
+- Moved permanent cottage, sign, path, and grove scenery outside the buyable grid so a fully expanded farm cannot paint over its landmarks.
+
 ## 0.1.0 - 2026-07-04
 
 - Established the initial project scaffold, product design, architecture, and workflow expectations.

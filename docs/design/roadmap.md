@@ -29,11 +29,18 @@
 - Tune early pacing so the first worker visibly plants, waters, harvests, and sells in a short session.
 - Keep the MVP silent.
 
+## Milestone 4: Village Harvest
+
+- Add a deterministic Village Request Board with authored neighbor baskets, premium delivery rewards, and no timers or failure penalties.
+- Extend progression through Harvest Hearth with pumpkins, a fourth farmhand, and an open-ended Tier 4 loop.
+- Replace the sparse dark-stage presentation with a layered sunlit meadow, creek, bridge, cottage, richer crop stages, distinct workers, ambient effects, and warm harvest UI chrome.
+- Expand migration, deterministic replay, browser layout, canvas-art, and recursive LLM playtest coverage for the new content.
+
 ## Later
 
 - Weather and seasons.
 - Accessibility settings.
-- Decorations.
+- Player-placeable decorations.
 - Processing and crafting chains.
 - Offline progress.
 - Desktop packaging or overlay mode.

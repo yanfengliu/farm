@@ -1,0 +1,203 @@
+.tutorial-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.tutorial-tip {
+  position: fixed;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 28px;
+  gap: 10px;
+  width: 348px;
+  min-height: 176px;
+  padding: 13px;
+  border: 1px solid var(--line-bright);
+  border-radius: 6px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06)),
+    rgba(0, 0, 0, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 18px 40px rgba(0, 0, 0, 0.36);
+  -webkit-backdrop-filter: blur(18px) saturate(1.16);
+  backdrop-filter: blur(18px) saturate(1.16);
+  pointer-events: auto;
+}
+
+.tutorial-tip.above {
+  transform: translateY(-100%);
+}
+
+.tutorial-tip.side-left {
+  transform: translateY(-50%);
+}
+
+.tutorial-tip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid var(--line-bright);
+  border-bottom: 1px solid var(--line-bright);
+  background: rgba(24, 24, 24, 0.95);
+}
+
+.tutorial-tip.below::after {
+  top: -6px;
+  transform: translateX(-50%) rotate(225deg);
+}
+
+.tutorial-tip.above::after {
+  bottom: -6px;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.tutorial-tip.side-left::after {
+  right: -6px;
+  left: auto;
+  top: 50%;
+  transform: translateY(-50%) rotate(315deg);
+}
+
+.tutorial-callout-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-callout-icon .button-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.tutorial-copy {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.tutorial-kicker,
+.tutorial-detail-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tutorial-tip strong {
+  display: block;
+  font-size: 17px;
+  line-height: 1.15;
+}
+
+.tutorial-tip p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.tutorial-summary {
+  color: var(--text);
+}
+
+.tutorial-details {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.tutorial-detail {
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.tutorial-detail p {
+  color: var(--text);
+}
+
+.tutorial-close {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  align-self: start;
+  font-size: 12px;
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+  height: 14px;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  width: 13px;
+  height: 13px;
+  margin-top: -5px;
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(255, 255, 255, 0.24);
+  appearance: none;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+@media (max-width: 1100px) {
+  .toolbar {
+    grid-template-columns: repeat(12, minmax(54px, 68px));
+  }
+
+  .tool-button {
+    grid-template-columns: 1fr;
+    grid-template-rows: 24px 14px;
+    grid-template-areas:
+      "icon"
+      "key";
+    justify-items: center;
+    column-gap: 0;
+    min-height: 44px;
+    padding-inline: 4px;
+  }
+
+  .tool-button .label {
+    display: none;
+  }
+
+  .tool-button .button-icon {
+    justify-self: center;
+  }
+}

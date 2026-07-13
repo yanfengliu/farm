@@ -44,7 +44,7 @@ describe('inventory controls', () => {
         sellAll: globalThis.document.querySelector('button[data-command="sell-all"]')?.disabled ?? false,
       }));
 
-      expect(disabledStates.sellButtons).toHaveLength(6);
+      expect(disabledStates.sellButtons).toHaveLength(8);
       expect(disabledStates.sellButtons.every(Boolean)).toBe(true);
       expect(disabledStates.sellAll).toBe(true);
     } finally {

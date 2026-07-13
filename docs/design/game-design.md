@@ -4,7 +4,7 @@
 
 `farm` is a desktop-first browser idle farming game about planning a small, readable, top-down pixel farm and watching tiny autonomous farmhands keep it alive. The player controls layout, crop mix, expansion, selling, and upgrades. Workers decide concrete tasks themselves.
 
-The first screen is the playable farm, not a landing page. The tone is plain cozy farm: carrots, wheat, tomatoes, wells, bins, and tiny farmhands. No magic, no heavy story, no industrial theme, and no decorative-only build items in the MVP.
+The first screen is the playable farm, not a landing page. The tone is plain cozy farm: carrots, wheat, tomatoes, pumpkins, wells, bins, village basket notes, and tiny farmhands. No magic, no heavy story, and no industrial theme.
 
 ## Platform
 
@@ -20,8 +20,9 @@ Idle progress runs only while the tab/window is open. There is no offline simula
 4. Crops and seeds are tracked in inventory. Storage buildings increase shared capacity.
 5. Workers must physically haul crops to storage drop-off points before those crops enter the shared inventory.
 6. The player manually sells crops, and crop overflow auto-sells at normal price when crop storage is full.
-7. Milestones make the next tier claimable, and the player manually unlocks that tier from the Goals panel to receive more crops, workers, buildings, and tool upgrades.
-8. The player expands adjacent land tile by tile, tunes layout, adjusts crop mix, and watches the farm improve.
+7. From Tier 2 onward, the player may pin one of two deterministic Village Request baskets, retain its requested crop mix instead of selling immediately, and deliver the complete basket for a premium with no deadline or failure penalty.
+8. Milestones make the next tier claimable, and the player manually unlocks that tier from the Goals panel to receive more crops, workers, buildings, and tool upgrades.
+9. The player expands adjacent land tile by tile, tunes layout, adjusts crop mix, fulfills new village rotations, and watches the farm improve.
 
 ## Player Controls
 
@@ -38,6 +39,7 @@ The player can:
 - Adjust crop mix percentages with sliders or direct numeric percentage fields.
 - Claim the next milestone tier once its requirement is met.
 - Sell a selected crop amount or sell all sellable crops.
+- Pin one Village Request, abandon it without penalty, or deliver it once every requested crop is in storage.
 - Pause and set 1x, 2x, or 4x speed.
 - Undo and redo player-issued farm edits, upgrade purchases, and tier claims.
 - Pan and zoom the camera with mouse and keyboard.
@@ -45,7 +47,7 @@ The player can:
 
 ## Farming Rules
 
-Crops use simple tiers. Early crops are fast and low value; later crops are slower and more valuable. Exact crop list and tier thresholds are implementation-tuned, but the first authored examples should resemble carrots, wheat, and tomatoes.
+Crops use simple tiers. Early crops are fast and low value; later crops are slower and more valuable. The authored progression is carrot, wheat, tomato, then pumpkin.
 
 Crop states are visible on plots:
 
@@ -92,7 +94,9 @@ Placement tools are non-overwriting. A plot, well, or storage bin remains in tha
 
 The economy uses coins, crops, seeds, and milestone stats. Processing and crafting buildings are not in MVP.
 
-Progression uses linear milestone tiers. Completing a milestone makes the next tier available, but the player must claim the tier manually from the Goals panel before rewards apply. Tier claims are part of the same undo/redo history as other direct player commands. The game has no win condition; content can run out, but the farm should feel open-ended.
+Progression uses four linear milestone tiers. Completing a milestone makes the next tier available, but the player must claim the tier manually from the Goals panel before rewards apply. Tier claims and Village Request actions are part of the same undo/redo history as other direct player commands. Tier 4, Harvest Hearth, unlocks pumpkins and a fourth farmhand before switching the farm to an open-ended festival harvest.
+
+The Village Request Board unlocks with Tier 2. Each tier has four authored neighbor notes and exposes a deterministic rotating pair; pinning one hides the alternative until the active basket is delivered or abandoned. A completed request consumes exactly its listed crops, pays its authored premium, advances the rotation, and increments lifetime request stats. Requests never expire and never punish the player, so the decision is about short-term cash versus a better planned return. Harvest Hearth requires three completed requests plus ten harvested tomatoes, which prevents diligent Tier 2 request play from skipping the tomato chapter.
 
 Milestones should teach and pace the game through goals like:
 
@@ -138,6 +142,7 @@ Side panels provide:
 - Inventory and manual selling, with locked seed purchases labeled clearly until their crop tier is unlocked.
 - Crop mix percentages, with per-crop seed stock and planting readiness so players understand when a target crop is blocked by locked tiers, missing seeds, or lack of empty plots.
 - Tier/milestone details and manual tier claiming.
+- Village Request offers, active basket progress, delivery reward, completed count, and a clear Tier 1 lock explanation.
 - Terminal-tier HUD and Goals copy should clearly switch from "claim the next tier" language to open-ended tuning actions such as crop mix, land expansion, and worker upgrades.
 - Contextual seed-restock guidance when workers are waiting for buyable seeds. If one buyable seed crop matches the active milestone, that restock action should appear first and identify itself as the goal crop.
 - Upgrades and unlocks.
@@ -149,7 +154,7 @@ The side panel can be collapsed for more playfield space or resized from its inn
 
 Long side-panel content should visibly advertise its scroll state with a lightweight rail or edge fade, and bottom content should remain comfortably readable above the toolbar when scrolled to the end.
 
-The UI chrome should feel elegant and desktop-first: black and white, semi-transparent, glassy, icon-led, and compact but readable. The farm itself can stay colorful and cozy, but the surrounding HUD, panels, toolbar, and non-playfield backdrop should avoid a green theme. A warm-charcoal stage is acceptable for depth as long as it stays clearly outside the green farm palette.
+The UI chrome should feel elegant and desktop-first: warm espresso glass, cream text, harvest-gold highlights, colorful pixel icons, and compact but readable controls. The chrome should frame the colorful farm without competing with it or becoming a green-on-green theme.
 
 UI icons should use colorful, crisp pixel-art glyphs rather than generic line icons so the chrome still belongs to the top-down pixel farm without turning the surrounding panels green.
 
@@ -159,7 +164,11 @@ The current icon direction is informed by the generated concept sheet at `docs/d
 
 ## Art
 
-The MVP uses top-down pixel art. The grid should be readable, farm objects should be visually distinct, and tiny workers should be charming but simple.
+The visual identity is a sunlit patchwork farm rendered as crisp code-native pixel art. The farm sits inside a living meadow rather than a dark void: a creek and bridge, cottage, hedges, trees, stones, reeds, flowers, fencing, and small deterministic glints make the world feel inhabited while keeping the playable grid readable.
+
+Rendering uses distinct backdrop, ground, object, actor, effect, and interaction layers. Raised soil beds have timber edges, furrows, and dry/moist variants. Crops show recognizable growth stages, with pumpkin vines and orange fruit reading distinctly from carrot tops, wheat heads, and tomato stakes. Workers have stable outfit palettes, hats, directional walk poses, cargo, and task props. Selection uses pixel corner brackets and placement previews rather than a generic outline.
+
+All decorative variation comes from coordinate or entity hashes so screenshots remain stable. Presentation animation never enters deterministic simulation or save state. The camera frames the owned farm on load and resize while preserving explicit player pan and zoom.
 
 The MVP is silent for now.
 

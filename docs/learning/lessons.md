@@ -1,5 +1,37 @@
 # Engineering Lessons
 
+## 2026-07-12 - Additive save migrations must normalize command history too
+
+- Surfaced by: the Village Request and pumpkin implementation added current-state defaults, but a legacy undo snapshot could still restore a three-crop state with no `community` object.
+- Failure mode: normalizing only the loaded top-level snapshot makes startup look healthy while Undo later replaces it with an unnormalized historical snapshot, erasing new fields or leaving crop-indexed records incomplete.
+- Fix commit: `feat: add village harvest and sunlit farm`; `normalizeFarmSnapshot` now runs across restored undo and redo entries as well as the active state.
+- Regression anchors: `tests/persistence/localSave.test.ts` loads a legacy three-crop save with old history and proves Undo restores pumpkin/community defaults; `tests/simulation/communityRequests.test.ts` pins request history behavior.
+- Behavior delta: legacy saves and their command history now enter the same four-crop, request-aware schema before any player command can restore them.
+
+## 2026-07-12 - Player-editable controls cannot be rebuilt every render frame
+
+- Surfaced by: adversarial UI review followed by real-browser Crop Mix typing and pointer-drag tests.
+- Failure mode: replacing the panel `innerHTML` on every snapshot detached the focused number or range input between input events, so multi-digit edits and continuous drags could commit partial values or lose focus.
+- Fix commit: the Village Harvest feature commit; focused Crop Mix controls now render an in-place preview and dispatch one simulation command on `change`/blur before ordinary panel replacement resumes.
+- Regression anchors: `tests/browser/visualPolish.test.mjs` enters a multi-digit value without losing focus; `tests/browser/visualPolishControlCases.mjs` drives a real 30-step pointer drag and proves a single committed command.
+- Behavior delta: number edits and slider drags now behave like continuous native controls while Undo history records only the committed crop-mix change.
+
+## 2026-07-12 - Save validation must protect graph and actor invariants
+
+- Surfaced by: independent persistence review of values that passed the former field-presence checks but could not form a playable farm.
+- Failure mode: disconnected owned tiles, duplicate coordinates, off-map worker paths, fractional inventory, or overlapping spawned workers could enter deterministic systems and cause unreachable jobs, invalid economy math, or invisible actors.
+- Fix commit: the Village Harvest feature commit; the persistence boundary validates connected owned land, unique/bounded coordinates, worker and task occupancy, and integer item counts, while tier claims choose a free owned walkable spawn.
+- Regression anchors: `tests/persistence/localSave.test.ts` rejects malformed graph, path, and quantity payloads; `tests/simulation/communityRequests.test.ts` pins safe fourth-worker spawning and deterministic replay through the Tier 4 claim.
+- Behavior delta: impossible saves fail closed to a fresh valid farm, and a valid crowded farm never creates a new worker on an occupied or blocked tile.
+
+## 2026-07-12 - Ambient pixels belong to presentation time
+
+- Surfaced by: art-direction review of creek shimmer and well sparkle while the simulation was paused or running at different speed settings.
+- Failure mode: deriving ambience from the deterministic farm tick froze the world when paused and made decorative motion change speed with the economy.
+- Fix commit: the Village Harvest feature commit; environment effects consume Phaser presentation time while worker locomotion and crop state remain simulation-bound.
+- Regression anchors: `tests/browser/cozyArtDirection.test.mjs` samples creek and well pixels across a real paused browser interval and proves that the scene changes while the simulation tick does not.
+- Behavior delta: the farm remains gently alive at every simulation speed without contaminating saves, replays, or deterministic outcomes.
+
 ## 2026-07-10 - Guided canvas actions must bind the intended tool
 
 - Surfaced by: `npm run playtest:recursive` repeatedly emitted the verified `visual-loop-ended-with-guidance` candidate; the controlled failing baseline is archived at `output/playwright/llm-visual-loop-history/2026-07-10T17-29-33-569Z/latest.json`.

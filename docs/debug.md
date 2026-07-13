@@ -8,6 +8,8 @@ The game exposes:
 - `window.advanceTime(ms)` for deterministic simulation advancement.
 - `window.__farmDebug.getState()` for structured snapshots.
 
+`render_game_to_text()` includes the current Village Request title and basket progress plus lifetime completed-request count, so a headless player can reason about retain-versus-sell decisions without reading private state.
+
 These are public test/debug surfaces. Keep them stable or update this document and tests in the same change.
 
 ## civ-engine Debugging

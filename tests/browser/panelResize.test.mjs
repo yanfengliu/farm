@@ -26,6 +26,24 @@ describe('side panel resizing', () => {
     await server?.close();
   });
 
+  test('fresh profiles start at the documented 340 pixel panel width', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    await context.addInitScript(() => globalThis.localStorage.clear());
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('[data-panel-resizer]');
+      const metrics = await page.evaluate(() => ({
+        panelWidth: globalThis.document.querySelector('.side-panel')?.getBoundingClientRect().width ?? 0,
+        ariaValue: Number(globalThis.document.querySelector('[data-panel-resizer]')?.getAttribute('aria-valuenow') ?? 0),
+      }));
+      expect(metrics).toEqual({ panelWidth: 340, ariaValue: 340 });
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('dragging the panel edge widens the panel and persists the preference', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const page = await context.newPage();

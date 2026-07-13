@@ -1,7 +1,14 @@
-import { readFile } from 'node:fs/promises';
 import { describe, expect, test } from 'vitest';
+import { readFile, readFileFromDisk, VISUAL_LOOP_MODULES } from './llmVisualLoopSource.mjs';
 
 describe('LLM visual loop harness contract', () => {
+  test('visual loop entry point and extracted driver modules stay reviewable', async () => {
+    for (const modulePath of VISUAL_LOOP_MODULES) {
+      const source = await readFileFromDisk(modulePath, 'utf8');
+      expect(source.split(/\r?\n/).length, modulePath).toBeLessThanOrEqual(500);
+    }
+  });
+
   test('package exposes the step-by-step visual loop command', async () => {
     const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 
@@ -187,7 +194,7 @@ describe('LLM visual loop harness contract', () => {
 
     expect(source).toContain('NEXT CLICK Tune Crop Mix');
     expect(source).toContain('FARM GUIDE Tune Crop Mix');
-    expect(source).toContain('FARM GUIDE Add Tomatoes To Mix');
+    expect(source).toContain('FARM GUIDE Add (?:Tomatoes|Pumpkins) To Mix');
     expect(source).toContain("findAction(observation, '[data-panel=\"mix\"]')");
   });
 
@@ -283,7 +290,7 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('state: controlStateFor(element)');
     expect(source).toContain('function controlStateFor(element)');
     expect(source).toContain('state.value = element.value');
-    expect(source).toContain("state.active = element.classList.contains('active')");
+    expect(source).toContain("const state = { active: element.classList.contains('active') }");
     expect(source).toContain('formatActionState(action.state)');
   });
 
@@ -326,7 +333,7 @@ describe('LLM visual loop harness contract', () => {
   test('visual loop does not count panel wheel scrolling as camera zoom coverage', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toMatch(/const zoomedCamera = actionHistory\.some\(\(action\) => \(\s*action\.kind === 'wheel' &&\s*action\.selector === 'canvas'/s);
+    expect(source).toContain("zoomedCamera: actionHistory.some((action) => action.kind === 'wheel' && action.selector === 'canvas')");
   });
 
   test('visual loop observations enumerate keyboard-only camera controls', async () => {
@@ -337,6 +344,8 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('Pan camera right');
     expect(source).toContain("key: 'ArrowRight'");
     expect(source).toContain("alternateKeys: ['D']");
+    expect(source).toContain('Recenter camera');
+    expect(source).toContain("key: 'Home'");
   });
 
   test('visual loop observations enumerate visible toolbar keyboard shortcuts', async () => {

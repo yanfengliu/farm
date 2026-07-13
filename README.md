@@ -2,7 +2,7 @@
 
 Why play another farming desktop idle game when you can build one.
 
-`farm` is a desktop-first browser idle farming game. Tiny autonomous farmhands plant, fetch water, harvest, haul crops to storage, sell overflow, and unlock new tiers while the player plans the farm layout.
+`farm` is a desktop-first browser idle farming game. Tiny autonomous farmhands plant, fetch water, harvest, and haul crops while the player shapes a sunlit pixel farm, balances crop mix, fulfills cozy Village Requests, and grows from carrot rows to the pumpkin-filled Harvest Hearth.
 
 ## Run
 
@@ -48,6 +48,7 @@ npm run build
 | `-` | 2x speed |
 | `=` | 4x speed |
 | Arrow keys / `WASD` | Pan camera |
+| `Home` | Recenter the farm |
 | Mouse wheel | Zoom |
 
 ## Debug API
