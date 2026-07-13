@@ -8,6 +8,12 @@ describe('LLM visual loop harness contract', () => {
     expect(packageJson.scripts['playtest:llm:visual-loop']).toBe('node scripts/llm-visual-loop.mjs');
   });
 
+  test('workflow lint includes the playtest scripts it executes', async () => {
+    const packageJson = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
+
+    expect(packageJson.scripts.lint).toContain('scripts');
+  });
+
   test('farm dev and playtest defaults avoid the AoE localhost port', async () => {
     const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
     const deprecatedPlaytest = await readFile('scripts/llm-playtest.mjs', 'utf8');

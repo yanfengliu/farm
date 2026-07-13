@@ -81,3 +81,7 @@
 - Standardized canonical visual-loop self-improvement artifacts on `civ-engine` improvement findings, including run manifests, fix/proposal classification, visual-finding bridging, and before/after rerun comparison.
 - Made Farm Guide cards sticky until the player follows the suggested action or dismisses the card, and raised desktop HUD, panel, toolbar, and guide text/control scale for readability.
 - Fixed recursive visual passes that capped on actionable guidance: ordinary runs now default to 80 decisions, recursive passes use the 120-step ceiling, and guided paint actions reselect Plot before clicking the canvas after another tool was active.
+- Rejected malformed or partial version-1 autosaves before they can crash simulation startup, while preserving valid saves and known additive migrations.
+- Made seed restock buttons disclose the exact quantity and total price for each click instead of showing an ambiguous single-seed price.
+- Switched the browser simulation adapter to the public `civ-engine/browser` export, synchronized the local engine lock metadata, and brought playtest scripts under the normal lint gate.
+- Corrected the README development port and tool shortcuts and documented the sibling-engine build prerequisite.

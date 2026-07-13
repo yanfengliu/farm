@@ -6,12 +6,21 @@ Why play another farming desktop idle game when you can build one.
 
 ## Run
 
+`farm` currently consumes the sibling `../civ-engine` package. Build that package before installing Farm dependencies:
+
+```bash
+cd ../civ-engine
+npm install
+npm run build
+cd ../farm
+```
+
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173/`.
+Open `http://127.0.0.1:5175/`.
 
 ## Verify
 
@@ -28,10 +37,9 @@ npm run build
 |---|---|
 | `I` | Inspect |
 | `1` | Paint plots |
-| `2` | Paint paths |
-| `3` | Place well |
-| `4` | Place storage |
-| `5` | Buy adjacent land |
+| `2` | Place well |
+| `3` | Place storage |
+| `4` | Buy adjacent land |
 | `B` | Bulldoze |
 | `Z` | Undo |
 | `Y` | Redo |
@@ -50,3 +58,4 @@ The browser exposes:
 - `window.advanceTime(ms)`
 - `window.__farmDebug.getState()`
 - `window.__farmDebug.reset()`
+- `window.__farmDebug.exportBundle()` in development builds

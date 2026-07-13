@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import './styles.css';
 import { CROP_IDS, CROPS, type CropId } from './game/content/crops';
+import { seedPurchaseQuote } from './game/content/economy';
 import { FARM_TIERS, FARM_TIER_LIST, type TierLevel } from './game/content/tiers';
 import { UPGRADE_IDS, UPGRADES, type UpgradeId } from './game/content/upgrades';
 import {
@@ -1144,16 +1145,18 @@ function inventoryRow(state: FarmState, cropId: CropId): string {
 
 function seedRow(state: FarmState, cropId: CropId): string {
   const locked = !state.tier.unlockedCrops.includes(cropId);
-  const unaffordable = state.coins < CROPS[cropId].seedPrice;
+  const quote = seedPurchaseQuote(state.coins, cropId);
+  const unaffordable = quote.amount === 0;
   const disabled = locked || unaffordable;
   const label = CROPS[cropId].label;
-  const actionLabel = locked ? `${label} seeds locked` : `Buy ${label} seeds`;
+  const coinLabel = quote.cost === 1 ? 'coin' : 'coins';
+  const actionLabel = locked ? `${label} seeds locked` : `Buy ${quote.amount} ${label} seeds for ${quote.cost} ${coinLabel}`;
   const title = locked ? `Unlock ${label} before buying seeds` : actionLabel;
-  const buttonLabel = locked ? 'Locked' : `${CROPS[cropId].seedPrice}c`;
+  const buttonLabel = locked ? 'Locked' : `+${quote.amount} · ${quote.cost}c`;
   return `
     <div class="row">
       <span class="row-label">${iconSvg(cropIcon(cropId))}${label} seeds: ${state.inventory.seeds[cropId]}</span>
-      <button data-buy-seeds="${cropId}" ${disabled ? 'disabled' : ''} title="${title}" aria-label="${actionLabel}">${buttonContent('seed', buttonLabel)}</button>
+      <button data-buy-seeds="${cropId}" data-buy-seeds-amount="${quote.amount}" ${disabled ? 'disabled' : ''} title="${title}" aria-label="${actionLabel}">${buttonContent('seed', buttonLabel)}</button>
     </div>
   `;
 }
@@ -1219,14 +1222,15 @@ function seedGuidanceRow(state: FarmState): string {
       <div class="seed-actions">
         ${buyableCrops.map((cropId) => {
           const isMilestoneCrop = cropId === milestoneCrop;
+          const quote = seedPurchaseQuote(state.coins, cropId);
           const label = isMilestoneCrop
-            ? `${CROPS[cropId].label} goal ${CROPS[cropId].seedPrice}c`
-            : `${CROPS[cropId].label} ${CROPS[cropId].seedPrice}c`;
+            ? `${CROPS[cropId].label} goal +${quote.amount} · ${quote.cost}c`
+            : `${CROPS[cropId].label} +${quote.amount} · ${quote.cost}c`;
           const actionLabel = isMilestoneCrop
-            ? `Buy ${CROPS[cropId].label} seeds for current milestone`
-            : `Buy ${CROPS[cropId].label} seeds`;
+            ? `Buy ${quote.amount} ${CROPS[cropId].label} seeds for ${quote.cost} coins for current milestone`
+            : `Buy ${quote.amount} ${CROPS[cropId].label} seeds for ${quote.cost} coins`;
           return `
-          <button data-buy-seeds="${cropId}" data-seed-guidance-action="${cropId}" title="${actionLabel}" aria-label="${actionLabel}">
+          <button data-buy-seeds="${cropId}" data-buy-seeds-amount="${quote.amount}" data-seed-guidance-action="${cropId}" title="${actionLabel}" aria-label="${actionLabel}">
             ${buttonContent(cropIcon(cropId), label)}
           </button>
         `;
@@ -1875,7 +1879,11 @@ document.addEventListener('click', (event) => {
 
   const buySeeds = target.closest<HTMLElement>('[data-buy-seeds]');
   if (buySeeds?.dataset.buySeeds) {
-    submitFarmCommand(farmGame, { type: 'buySeeds', cropId: buySeeds.dataset.buySeeds as CropId, amount: 5 });
+    submitFarmCommand(farmGame, {
+      type: 'buySeeds',
+      cropId: buySeeds.dataset.buySeeds as CropId,
+      amount: Number(buySeeds.dataset.buySeedsAmount ?? 0),
+    });
   }
 
   const buyUpgrade = target.closest<HTMLElement>('[data-buy-upgrade]');

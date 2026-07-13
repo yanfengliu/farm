@@ -466,7 +466,7 @@ describe('visual polish', () => {
       const tipAction = await page.locator('[data-tutorial-tip="buy-needed-seeds"] .tutorial-detail p').first().textContent();
 
       expect(actions.map((action) => action.cropId)).toEqual(['wheat', 'carrot']);
-      expect(actions[0]?.label).toMatch(/Wheat goal 2c/i);
+      expect(actions[0]?.label).toMatch(/Wheat goal \+5 · 10c/i);
       expect(actions[0]?.left).toBeLessThan(actions[1]?.left ?? Number.POSITIVE_INFINITY);
       expect(tipAction).toMatch(/Wheat goal seed/i);
     } finally {

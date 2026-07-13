@@ -85,6 +85,33 @@ describe('inventory controls', () => {
     }
   }, 15000);
 
+  test('seed-buy controls disclose the exact quantity and total cost for the click', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForSelector('[data-buy-seeds="carrot"]');
+
+      const button = page.locator('[data-buy-seeds="carrot"]').first();
+      const label = await button.getAttribute('aria-label');
+      const text = await button.textContent();
+      expect(label).toMatch(/Buy 5 Carrot seeds for 5 coins/i);
+      expect(text).toMatch(/\+5/);
+      expect(text).toMatch(/5c/i);
+
+      const before = await page.evaluate(() => globalThis.__farmDebug.getState());
+      await button.click();
+      await page.waitForFunction((coins) => globalThis.__farmDebug.getState().coins < coins, before.coins);
+      const after = await page.evaluate(() => globalThis.__farmDebug.getState());
+
+      expect(after.inventory.seeds.carrot - before.inventory.seeds.carrot).toBe(5);
+      expect(before.coins - after.coins).toBe(5);
+    } finally {
+      await context.close();
+    }
+  }, 15000);
+
   test('locked seed purchases explain their disabled state', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     await context.addInitScript(() => {
@@ -113,7 +140,7 @@ describe('inventory controls', () => {
       const wheat = seedRows.find((row) => row.cropId === 'wheat');
       const tomato = seedRows.find((row) => row.cropId === 'tomato');
 
-      expect(carrot?.text).toContain('1c');
+      expect(carrot?.text).toContain('+5 · 5c');
       expect(wheat?.disabled).toBe(true);
       expect(wheat?.ariaLabel).toBe('Wheat seeds locked');
       expect(wheat?.title).toContain('Unlock Wheat');

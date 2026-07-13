@@ -14,7 +14,7 @@ These are public test/debug surfaces. Keep them stable or update this document a
 
 Use `civ-engine` snapshots, session recording, replay, and structured debug tools when a headless simulation issue cannot be explained from a normal test failure.
 
-The browser bundle imports `civ-engine` through `src/game/simulation/civEngine.ts`. Keep this adapter narrow. Importing from the root package in browser-facing code can pull in Node-only replay/file modules and break Vite builds.
+The browser bundle imports `civ-engine/browser` through `src/game/simulation/civEngine.ts`. Keep this adapter narrow and use the public browser export instead of sibling `dist` paths or the Node-oriented root entry.
 
 ## Deprecated LLM Playtest Entrypoint
 

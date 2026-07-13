@@ -59,7 +59,7 @@ export interface FarmWorker {
 }
 
 export interface FarmTier {
-  level: number;
+  level: TierLevel;
   label: string;
   unlockedCrops: CropId[];
   nextMilestone: string;
@@ -868,6 +868,9 @@ function tierState(level: TierLevel): FarmTier {
 
 function normalizeFarmState(state: FarmState): FarmState {
   for (const tile of Object.values(state.tiles)) {
+    if ((tile as { plot?: PlotState | null }).plot === null) {
+      delete tile.plot;
+    }
     const legacyKind = (tile as { kind: string }).kind;
     if (legacyKind === 'path') {
       tile.kind = 'empty';
@@ -879,6 +882,8 @@ function normalizeFarmState(state: FarmState): FarmState {
     }
   }
   normalizeStarterUtilityStorage(state);
+  state.crops = CROPS;
+  state.tier = tierState(state.tier.level);
   state.upgrades = { ...zeroUpgradeRecord(), ...(state.upgrades ?? {}) };
   state.stats.lifetimeUpgradePurchases ??= 0;
   reconcileStorageCapacity(state);
