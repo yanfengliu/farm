@@ -403,7 +403,7 @@ function makeFinding(run, fields) {
 // metric only when the replay self-check is strong AND the run exported a
 // bundle to anchor the evidence; otherwise an honest 'unverified'.
 function deterministicStatusFields(run, verification) {
-  if (!strongReplayVerification(verification) || !run.bundleSessionId) {
+  if (!strongReplayVerification(verification) || !run.bundleSessionId || run.replayCoverage?.partial !== false) {
     return { verificationStatus: 'unverified' };
   }
   return { verificationStatus: 'verified', verificationMethod: 'metric' };

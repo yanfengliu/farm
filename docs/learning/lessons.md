@@ -5,8 +5,8 @@
 - Surfaced by: the first full 120-decision Village Harvest recursive shift reached `120-final.png` but ended `run-failed` with Node `ERR_STRING_TOO_LONG` in Playwright's pipe transport while exporting the in-page session bundle.
 - Failure mode: the recorder captured a whole accelerated browser lifetime, and Farm's per-tick deterministic state diffs accumulated into one protocol response even though each PNG remained under 275 kB. Screenshot size was unrelated to the failure.
 - Fix commit: `fix: bound browser replay evidence`; development recording now seals every 64 ticks and returns the most recent non-empty window, including when export lands exactly on a rotation boundary.
-- Regression anchors: `tests/simulation/farmReplayWindow.test.ts` builds long command history, asserts the exported JSON stays below 32 MB, runs a strong `SessionReplayer.selfCheck()`, and pins exact-boundary fallback behavior.
-- Behavior delta: the complete screenshots and action log still describe the whole player journey, while the deterministic bundle provides recent bounded replay proof instead of crashing the recursive pass after all actions finish.
+- Regression anchors: `tests/simulation/farmReplayWindow.test.ts` builds long command history, asserts the exported JSON stays below 32 MB, runs a strong `SessionReplayer.selfCheck()`, and pins exact-boundary fallback behavior; `tests/browser/llmVisualLoopImprovementContract.test.mjs` keeps earlier findings unverified under a strong partial suffix.
+- Behavior delta: the complete screenshots and action log still describe the whole player journey, while the deterministic bundle provides recent bounded replay proof instead of crashing the recursive pass after all actions finish or overclaiming which observations that suffix verifies.
 
 ## 2026-07-12 - Additive save migrations must normalize command history too
 

@@ -15,10 +15,13 @@ export class FarmReplayWindow {
   #game: FarmGame;
   #recorder: SessionRecorder | null = null;
   #lastCompleteBundle: SessionBundle | null = null;
+  #coverageInvalidated = false;
+  readonly #coverageOriginTick: number;
   readonly #enabled: boolean;
 
   constructor(game: FarmGame, enabled: boolean) {
     this.#game = game;
+    this.#coverageOriginTick = game.tick;
     this.#enabled = enabled;
     this.#attach();
   }
@@ -47,6 +50,7 @@ export class FarmReplayWindow {
   replaceGame(game: FarmGame): void {
     this.dispose();
     this.#lastCompleteBundle = null;
+    this.#coverageInvalidated = true;
     this.#game = game;
     this.#attach();
   }
@@ -57,6 +61,11 @@ export class FarmReplayWindow {
     recorder.disconnect();
     const currentBundle = recorder.toBundle();
     const bundle = recorder.tickCount > 0 ? currentBundle : this.#lastCompleteBundle;
+    if (bundle) {
+      const coversWholeRecording = !this.#coverageInvalidated
+        && bundle.metadata.startTick === this.#coverageOriginTick;
+      bundle.metadata.sourceLabel = `farm-terminal-replay-window:${coversWholeRecording ? 'full' : 'partial'}`;
+    }
     this.#recorder = null;
     this.#lastCompleteBundle = null;
     this.#attach();

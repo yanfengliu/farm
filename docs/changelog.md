@@ -12,6 +12,7 @@
 - Kept Crop Mix fields stable during typing and real pointer drags, bounded the camera to the illustrated meadow, added Home recentering, and moved creek, well, and glint animation onto presentation time so the cozy scene stays alive while paused.
 - Moved permanent cottage, sign, path, and grove scenery outside the buyable grid so a fully expanded farm cannot paint over its landmarks.
 - Bounded development replay evidence to a rolling 64-tick terminal window so a complete accelerated recursive shift stays strongly replayable without overflowing Playwright's protocol transport.
+- Recorded replay-window coverage explicitly, kept findings outside a partial terminal window unverified, and taught the local player to open Inventory when an active Village Request is stalled by seed guidance.
 
 ## 0.1.0 - 2026-07-04
 

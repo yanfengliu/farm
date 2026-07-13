@@ -100,7 +100,11 @@ describe('coverage-gap findings through evaluateVisualLoop', () => {
   });
 
   test('verifies coverage gaps by metric when the replay self-check is strong and a bundle exists', () => {
-    const run = { ...runWithGap(), bundleSessionId: 'bundle-99' };
+    const run = {
+      ...runWithGap(),
+      bundleSessionId: 'bundle-99',
+      replayCoverage: { startTick: 0, endTick: 64, durationTicks: 64, partial: false },
+    };
     const verification = { ok: true, checkedSegments: 2, skippedSegments: [] };
     const findings = evaluateVisualLoop(run, { verification });
     const gap = findings.find((finding) => finding.data?.class === 'coverage-gap:#goals');

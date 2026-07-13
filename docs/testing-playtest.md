@@ -96,7 +96,7 @@ The replay inspector opens the saved civ-engine `SessionBundle` (defaulting to t
 
 The replay bundle is a deterministic debugging aid. It can use the simulation directly because it is not the player-facing browser control path.
 
-The bundle intentionally covers only the most recent non-empty 64-tick recording window. The screenshots, observations, and action trace cover the complete visual playtest; bounding the deterministic bundle prevents a long 4x-speed shift from exceeding Playwright's protocol string limit as per-tick state diffs accumulate. A proof still requires `selfCheckStrongOk`: at least one checked segment, zero skipped segments, and no divergence. `tests/simulation/farmReplayWindow.test.ts` pins both long-session size and exact-rotation-boundary behavior.
+The bundle intentionally covers only the most recent non-empty 64-tick recording window. The screenshots, observations, and action trace cover the complete visual playtest; bounding the deterministic bundle prevents a long 4x-speed shift from exceeding Playwright's protocol string limit as per-tick state diffs accumulate. `replayCoverage` records the window's start/end ticks and `partial` status. A proof still requires `selfCheckStrongOk`: at least one checked segment, zero skipped segments, and no divergence, but a partial terminal window cannot globally verify deterministic findings whose screenshot evidence may precede it. `tests/simulation/farmReplayWindow.test.ts` pins both long-session size and exact-rotation-boundary behavior, while the improvement contract pins the partial-evidence honesty rule.
 
 ## Manual Smoke Checklist
 

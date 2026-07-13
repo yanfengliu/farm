@@ -161,6 +161,7 @@ try {
     await fs.writeFile(bundlePath, `${JSON.stringify(bundle)}\n`);
     run.bundleSessionId = bundle.metadata?.sessionId ?? null;
     run.bundlePath = path.relative(cwd, bundlePath);
+    run.replayCoverage = replayCoverageFromBundle(bundle);
     verification = await verifyBundleWithReplaySelfCheck(bundle, server);
     run.summary.replayVerification = verification;
   }
@@ -249,4 +250,16 @@ function boundedNumber(value, fallback, min, max) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(max, Math.max(min, Math.round(parsed)));
+}
+
+function replayCoverageFromBundle(bundle) {
+  const startTick = Number(bundle.metadata?.startTick ?? 0);
+  const endTick = Number(bundle.metadata?.endTick ?? startTick);
+  const sourceLabel = String(bundle.metadata?.sourceLabel ?? '');
+  return {
+    startTick,
+    endTick,
+    durationTicks: Math.max(0, endTick - startTick),
+    partial: sourceLabel.endsWith(':partial'),
+  };
 }

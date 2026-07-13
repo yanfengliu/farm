@@ -89,6 +89,9 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (seedAction && hasExplicitSeedGuidance(observation.visibleText)) {
     return clickDecision(seedAction, 'Workers need seeds and the visible guidance offers a direct seed-buying action.');
   }
+  if (request.pending && inventoryAction && !inventoryAction.state?.active && hasExplicitSeedGuidance(observation.visibleText)) {
+    return clickDecision(inventoryAction, 'The pinned basket is stalled by visible seed guidance, so open Inventory before waiting for crops that cannot be planted.');
+  }
 
   const speedAction = findAction(observation, '[data-speed="4"]');
   if (speedAction && !clickedSelectors.has(speedAction.selector)) return clickDecision(speedAction, 'Use the visible 4x speed control so idle farming progress can be observed in real browser time.');

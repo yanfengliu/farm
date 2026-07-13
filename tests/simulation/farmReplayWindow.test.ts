@@ -27,6 +27,7 @@ describe('farm replay evidence window', () => {
 
     expect(bundle?.metadata.durationTicks).toBe(FARM_REPLAY_WINDOW_TICKS);
     expect(bundle?.ticks).toHaveLength(FARM_REPLAY_WINDOW_TICKS);
+    expect(bundle?.metadata.sourceLabel).toBe('farm-terminal-replay-window:full');
   });
 
   test('keeps a long interactive session export bounded and strongly replayable', () => {
@@ -49,6 +50,7 @@ describe('farm replay evidence window', () => {
     replayWindow.dispose();
     expect(bundle.metadata.durationTicks).toBeGreaterThan(0);
     expect(bundle.metadata.durationTicks).toBeLessThanOrEqual(FARM_REPLAY_WINDOW_TICKS);
+    expect(bundle.metadata.sourceLabel).toBe('farm-terminal-replay-window:partial');
     expect(JSON.stringify(bundle).length).toBeLessThan(32 * 1024 * 1024);
 
     const replayer = SessionReplayer.fromBundle<

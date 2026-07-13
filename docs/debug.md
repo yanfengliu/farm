@@ -14,7 +14,7 @@ The game exposes:
 
 These are public test/debug surfaces. Keep them stable or update this document and tests in the same change.
 
-The development recorder rolls every 64 simulation ticks. `exportBundle()` therefore returns the most recent non-empty deterministic window rather than the entire browser lifetime. This keeps long accelerated playtests below browser-protocol payload limits while preserving a non-vacuous initial-to-terminal replay segment; the visual-loop report must still run `SessionReplayer.selfCheck()` before treating that evidence as verified.
+The development recorder rolls every 64 simulation ticks. `exportBundle()` therefore returns the most recent non-empty deterministic window rather than the entire browser lifetime. This keeps long accelerated playtests below browser-protocol payload limits while preserving a non-vacuous initial-to-terminal replay segment; the visual-loop report records its start/end ticks and whether it covers the full run, then runs `SessionReplayer.selfCheck()`. A strong partial terminal window remains useful replay evidence but must not globally verify findings from earlier screenshots.
 
 ## civ-engine Debugging
 

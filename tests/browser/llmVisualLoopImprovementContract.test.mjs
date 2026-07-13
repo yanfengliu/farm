@@ -168,6 +168,7 @@ describe('LLM visual loop improvement contracts', () => {
   test('flips deterministic findings to verified-by-metric only under strong replay verification', () => {
     const run = makeRun({
       bundleSessionId: 'farm-session-1',
+      replayCoverage: { startTick: 0, endTick: 64, durationTicks: 64, partial: false },
       summary: {
         consoleErrors: ['Uncaught TypeError: broken HUD'],
         pageErrors: [],
@@ -210,6 +211,32 @@ describe('LLM visual loop improvement contracts', () => {
       verification: { ok: false, checkedSegments: 2, skippedSegments: [] },
     });
     expect(divergent.find((finding) => finding.id === 'browser-errors').verificationStatus).toBe('unverified');
+  });
+
+  test('does not use a strong terminal replay window to verify findings from the full visual run', () => {
+    const run = makeRun({
+      bundleSessionId: 'farm-terminal-window',
+      replayCoverage: {
+        startTick: 4096,
+        endTick: 4160,
+        durationTicks: 64,
+        partial: true,
+      },
+      summary: {
+        consoleErrors: ['Uncaught TypeError: early HUD failure'],
+        pageErrors: [],
+        maxSteps: 120,
+        visualLoop: { ok: true, stopReason: 'maxSteps', stepsRun: 120, traceEntries: 120, engineFindings: 0 },
+      },
+    });
+
+    const findings = evaluateVisualLoop(run, {
+      verification: { ok: true, checkedSegments: 1, skippedSegments: [] },
+    });
+    const browserErrors = findings.find((finding) => finding.id === 'browser-errors');
+
+    expect(browserErrors).toMatchObject({ verificationStatus: 'unverified' });
+    expect(browserErrors.evidence.some((ref) => ref.kind === 'bundle')).toBe(false);
   });
 
   test('creates a run manifest and visual-finding bridge from improvement findings', () => {

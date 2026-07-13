@@ -81,6 +81,21 @@ describe('LLM visual-loop deterministic local player', () => {
     expect(decision.action.kind).toBe('wait');
   });
 
+  test('opens Inventory when an active basket is stalled by visible seed guidance', () => {
+    const decision = decide(
+      observation(
+        'Restock seeds to keep farmers planting. Active basket 0/6 Wheat Harvest the missing crops, then return here.',
+        [visibleAction('[data-panel="inventory"]', 'Inventory', { active: false })],
+      ),
+      history(
+        { kind: 'hover', selector: '[data-panel="inventory"]' },
+        { kind: 'click', selector: '[data-accept-request="mill-morning"]' },
+      ),
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-panel="inventory"]' });
+  });
+
   test('dismisses a later tutorial after proving the request flow', () => {
     const decision = decide(
       observation(
