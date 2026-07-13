@@ -93,3 +93,5 @@ DOM-only UI preferences, such as side-panel width, selected speed, and first-tim
 ## Debug Boundary
 
 The debug surface provides text and structured snapshots that tests can inspect without reading private module internals.
+
+Development replay recording uses a rolling 64-tick terminal window. Every completed window has an initial and terminal snapshot, the most recent completed window is retained when export lands exactly on a rotation boundary, and long accelerated browser sessions never attempt to serialize their entire lifetime through Playwright. This window is replay evidence for recent deterministic behavior, not a claim that the complete visual trajectory is encoded in one bundle; screenshots and the decision log remain the full player-journey record.

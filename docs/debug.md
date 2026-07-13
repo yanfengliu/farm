@@ -7,10 +7,14 @@ The game exposes:
 - `window.render_game_to_text()` for compact state summaries.
 - `window.advanceTime(ms)` for deterministic simulation advancement.
 - `window.__farmDebug.getState()` for structured snapshots.
+- `window.__farmDebug.reset()` for a fresh deterministic farm.
+- `window.__farmDebug.exportBundle()` in development builds for recent replay evidence.
 
 `render_game_to_text()` includes the current Village Request title and basket progress plus lifetime completed-request count, so a headless player can reason about retain-versus-sell decisions without reading private state.
 
 These are public test/debug surfaces. Keep them stable or update this document and tests in the same change.
+
+The development recorder rolls every 64 simulation ticks. `exportBundle()` therefore returns the most recent non-empty deterministic window rather than the entire browser lifetime. This keeps long accelerated playtests below browser-protocol payload limits while preserving a non-vacuous initial-to-terminal replay segment; the visual-loop report must still run `SessionReplayer.selfCheck()` before treating that evidence as verified.
 
 ## civ-engine Debugging
 
@@ -37,6 +41,7 @@ Use `npm run playtest:llm:replay` only to reopen one of those legacy bundles wit
 - `output/playwright/llm-visual-loop/latest.md`
 - `output/playwright/llm-visual-loop/latest.json`
 - `output/playwright/llm-visual-loop/latest.html`
+- `output/playwright/llm-visual-loop/latest.bundle.json`
 - `output/playwright/llm-visual-loop/steps/`
 
 The visual loop does not rely on browser debug APIs for decisions. Each decision step stores the screenshot path, visible text, available controls, player-visible control state, the decision rationale, the player action executed, and any execution error. It captures one screenshot per decision step or intentional wait rather than every animation frame. Use `latest.html` when debugging why an LLM or heuristic chose an action; use `latest.json` when comparing selectors, bounds, canvas coordinates, current input values, active controls, or prompt payloads.

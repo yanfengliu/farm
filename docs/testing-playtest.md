@@ -53,7 +53,7 @@ The visual loop writes:
 - `output/playwright/llm-visual-loop/latest.md`
 - `output/playwright/llm-visual-loop/latest.json`
 - `output/playwright/llm-visual-loop/latest.html`
-- `output/playwright/llm-visual-loop/latest.bundle.json` (the replayable `civ-engine` session bundle exported from the in-page dev recorder)
+- `output/playwright/llm-visual-loop/latest.bundle.json` (the replayable recent 64-tick terminal window exported from the in-page dev recorder)
 - `output/playwright/llm-visual-loop/steps/`
 
 Runs are append-only: instead of destroying the previous run, the harness archives it under `output/playwright/llm-visual-loop-history/<timestamp>/` and appends each run's improvement manifest to `output/playwright/llm-visual-loop-history/ledger.jsonl`, so cross-run audits have more than one run of memory.
@@ -95,6 +95,8 @@ npm run playtest:llm:replay -- output/playwright/llm-visual-loop/latest.bundle.j
 The replay inspector opens the saved civ-engine `SessionBundle` (defaulting to the live visual loop's `latest.bundle.json`), runs `SessionReplayer.selfCheck()`, reports both the raw `ok` and a `selfCheckStrongOk` that refuses vacuous zero-segment passes, samples marker ticks, and writes `latest.replay-inspect.md` beside the bundle.
 
 The replay bundle is a deterministic debugging aid. It can use the simulation directly because it is not the player-facing browser control path.
+
+The bundle intentionally covers only the most recent non-empty 64-tick recording window. The screenshots, observations, and action trace cover the complete visual playtest; bounding the deterministic bundle prevents a long 4x-speed shift from exceeding Playwright's protocol string limit as per-tick state diffs accumulate. A proof still requires `selfCheckStrongOk`: at least one checked segment, zero skipped segments, and no divergence. `tests/simulation/farmReplayWindow.test.ts` pins both long-session size and exact-rotation-boundary behavior.
 
 ## Manual Smoke Checklist
 

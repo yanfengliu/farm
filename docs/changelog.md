@@ -11,6 +11,7 @@
 - Bounded Undo/Redo history, hardened save validation for map connectivity, worker paths, item counts, and duplicate progression counters, and made localStorage failures visible without stopping or resetting the running farm.
 - Kept Crop Mix fields stable during typing and real pointer drags, bounded the camera to the illustrated meadow, added Home recentering, and moved creek, well, and glint animation onto presentation time so the cozy scene stays alive while paused.
 - Moved permanent cottage, sign, path, and grove scenery outside the buyable grid so a fully expanded farm cannot paint over its landmarks.
+- Bounded development replay evidence to a rolling 64-tick terminal window so a complete accelerated recursive shift stays strongly replayable without overflowing Playwright's protocol transport.
 
 ## 0.1.0 - 2026-07-04
 

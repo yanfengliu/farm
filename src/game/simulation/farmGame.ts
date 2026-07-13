@@ -52,7 +52,7 @@ export type {
 } from './farmTypes';
 
 
-const FARM_TPS = 10;
+export const FARM_TPS = 10;
 const LAND_COST = 5;
 
 type FarmEvents = Record<string, never>;
@@ -100,8 +100,11 @@ export function advanceFarm(game: FarmGame, ticks: number): void {
 }
 
 export function advanceFarmByMs(game: FarmGame, ms: number): void {
-  const ticks = Math.max(0, Math.floor((ms / 1000) * FARM_TPS));
-  advanceFarm(game, ticks);
+  advanceFarm(game, farmTicksForMs(ms));
+}
+
+export function farmTicksForMs(ms: number): number {
+  return Math.max(0, Math.floor((ms / 1000) * FARM_TPS));
 }
 
 export function getFarmSnapshot(game: FarmGame): FarmState {

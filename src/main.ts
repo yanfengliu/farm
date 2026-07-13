@@ -1,37 +1,23 @@
 import Phaser from 'phaser';
 import './styles.css';
 import { installFarmDebug } from './debug/installFarmDebug';
+import { FarmReplayWindow } from './debug/farmReplayWindow';
 import {
-  advanceFarm,
-  advanceFarmByMs,
   createFarmGame,
   getFarmSnapshot,
   renderFarmToText,
   submitFarmCommand,
   type FarmGame,
 } from './game/simulation/farmGame';
-import { SessionRecorder, type SessionBundle } from './game/simulation/civEngine';
+import type { SessionBundle } from './game/simulation/civEngine';
 import { FarmScene } from './phaser/scenes/FarmScene';
 import { clearFarmSave, loadSavedFarmState, saveFarmState } from './persistence/localSave';
 import { FarmUiController } from './ui/farmUiController';
 
 let farmGame: FarmGame = createFarmGame({ state: loadSavedFarmState() ?? undefined });
-let farmRecorder: SessionRecorder | null = null;
+const farmReplayWindow = new FarmReplayWindow(farmGame, import.meta.env.DEV);
 let simulationRemainderMs = 0;
 let lastSavedAt = 0;
-
-function attachFarmRecorder(): void {
-  if (!import.meta.env.DEV) return;
-  try {
-    farmRecorder?.disconnect();
-  } catch {
-    // The previous recorder may already be disconnected or its world gone.
-  }
-  farmRecorder = new SessionRecorder({ world: farmGame });
-  farmRecorder.connect();
-}
-
-attachFarmRecorder();
 
 const ui = new FarmUiController({
   getState: () => getFarmSnapshot(farmGame),
@@ -70,7 +56,7 @@ new Phaser.Game({
 installFarmDebug({
   renderText: () => renderFarmToText(farmGame),
   advanceTime: (ms) => {
-    advanceFarmByMs(farmGame, ms);
+    farmReplayWindow.advanceByMs(ms);
     persistFarm();
   },
   getState: () => getFarmSnapshot(farmGame),
@@ -96,14 +82,14 @@ function advanceRealtime(ms: number): void {
   simulationRemainderMs += ms;
   const ticks = Math.floor(simulationRemainderMs / 100);
   if (ticks <= 0) return;
-  advanceFarm(farmGame, ticks);
+  farmReplayWindow.advance(ticks);
   simulationRemainderMs -= ticks * 100;
 }
 
 function resetFarm(): void {
   const saveCleared = clearFarmSave();
   farmGame = createFarmGame({ seed: 'farm' });
-  attachFarmRecorder();
+  farmReplayWindow.replaceGame(farmGame);
   simulationRemainderMs = 0;
   farmScene.recenter();
   ui.setPersistenceWarning(saveCleared
@@ -113,12 +99,5 @@ function resetFarm(): void {
 }
 
 function exportFarmBundle(): SessionBundle | null {
-  if (!farmRecorder) return null;
-  // Disconnect first so the bundle includes its terminal snapshot, then
-  // attach a fresh recorder so playtest recording continues after export.
-  const recorder = farmRecorder;
-  recorder.disconnect();
-  const bundle = recorder.toBundle();
-  attachFarmRecorder();
-  return bundle;
+  return farmReplayWindow.exportBundle();
 }
