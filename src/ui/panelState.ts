@@ -2,8 +2,7 @@ import { CROP_IDS, type CropId } from '../game/content/crops';
 import { UPGRADE_IDS } from '../game/content/upgrades';
 import { claimableTierLevel, type FarmState } from '../game/simulation/farmGame';
 import { cropMixPercentages } from './cropMixPanel';
-
-type Panel = 'inventory' | 'requests' | 'goals' | 'mix' | 'inspect';
+import type { Panel } from './appShell';
 
 export function storedCropCount(state: FarmState): number {
   return Object.values(state.inventory.crops).reduce((sum, count) => sum + count, 0);

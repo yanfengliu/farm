@@ -1,5 +1,6 @@
 import type { SessionBundle } from '../game/simulation/civEngine';
 import type { FarmState } from '../game/simulation/farmGame';
+import type { FarmAnnotationStore } from '../annotations/farmAnnotations';
 
 export interface FarmDebugBridge {
   renderText(): string;
@@ -7,6 +8,10 @@ export interface FarmDebugBridge {
   getState(): FarmState;
   reset(): void;
   exportBundle(): SessionBundle | null;
+  getAnnotations(): FarmAnnotationStore;
+  getAnnotationContext(): string;
+  exportAnnotation(id: string): string | null;
+  exportAnnotations(): string;
 }
 
 declare global {
@@ -17,6 +22,10 @@ declare global {
       getState: () => FarmState;
       reset: () => void;
       exportBundle: () => SessionBundle | null;
+      getAnnotations: () => FarmAnnotationStore;
+      getAnnotationContext: () => string;
+      exportAnnotation: (id: string) => string | null;
+      exportAnnotations: () => string;
     };
   }
 }
@@ -28,5 +37,9 @@ export function installFarmDebug(bridge: FarmDebugBridge): void {
     getState: () => bridge.getState(),
     reset: () => bridge.reset(),
     exportBundle: () => bridge.exportBundle(),
+    getAnnotations: () => bridge.getAnnotations(),
+    getAnnotationContext: () => bridge.getAnnotationContext(),
+    exportAnnotation: (id) => bridge.exportAnnotation(id),
+    exportAnnotations: () => bridge.exportAnnotations(),
   };
 }

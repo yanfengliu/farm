@@ -2,7 +2,7 @@ import { buttonContent, iconSvg, type IconName } from './pixelIcons';
 import { PANEL_WIDTH_DEFAULT, PANEL_WIDTH_MAX, PANEL_WIDTH_MIN } from './panelResize';
 
 export type Tool = 'inspect' | 'plot' | 'well' | 'storage' | 'land' | 'bulldoze';
-export type Panel = 'inventory' | 'requests' | 'goals' | 'mix' | 'inspect';
+export type Panel = 'inventory' | 'requests' | 'goals' | 'mix' | 'inspect' | 'annotations';
 
 export interface ToolDefinition {
   id: Tool;
@@ -66,6 +66,7 @@ export function mountFarmShell(): FarmShellElements {
             <button data-panel="goals" title="Goals" aria-label="Goals">${buttonContent('flag', 'Goals')}</button>
             <button data-panel="mix" title="Crop Mix" aria-label="Crop Mix">${buttonContent('sliders', 'Mix')}</button>
             <button data-panel="inspect" title="Inspect" aria-label="Inspect">${buttonContent('inspect', 'Inspect')}</button>
+            <button data-panel="annotations" title="Farm Notes" aria-label="Farm Notes">${buttonContent('note', 'Notes')}<span class="annotation-tab-count" hidden>0</span></button>
             <button class="panel-toggle" data-command="toggle-panel" title="Collapse panel" aria-label="Collapse panel">${iconSvg('redo')}</button>
           </div>
           <div

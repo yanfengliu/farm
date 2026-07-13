@@ -29,7 +29,7 @@ const outputDir = path.join(cwd, 'output', 'playwright', 'llm-visual-loop');
 const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
-const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
+const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], textarea, [role="button"], [role="separator"], [data-player-scroll], canvas';
 const maxSteps = normalizeVisualLoopSteps(process.env.FARM_VISUAL_LOOP_STEPS, ORDINARY_DEFAULT_VISUAL_LOOP_STEPS);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
@@ -85,7 +85,7 @@ try {
     url,
     mode: 'step-by-step-visual-loop',
     decisionProvider: providerCommand ? 'external-command' : 'local-heuristic',
-    actionBoundary: 'Each decision receives screenshot path, visible text, visible controls, and keyboard controls; execution is limited to click, hover, drag, adjust, wheel, listed-keyboard press, wait, viewport, or stop.',
+    actionBoundary: 'Each decision receives screenshot path, visible text, visible controls, and keyboard controls; execution is limited to click, hover, drag, adjust, bounded text entry, wheel, listed-keyboard press, wait, viewport, or stop.',
     summary: { consoleErrors, pageErrors, maxSteps, defaultWaitMs, visualLoop: null },
     steps: [],
     finalObservation: null,

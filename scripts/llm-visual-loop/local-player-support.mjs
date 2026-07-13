@@ -128,6 +128,12 @@ export function requestFlowState(actionHistory) {
 
 export function summarizeActionHistory(actionHistory) {
   const clickedSelectors = new Set(actionHistory.filter((action) => action.kind === 'click').map((action) => action.selector));
+  const annotationStartIndex = actionHistory.findIndex((action) => (
+    action.kind === 'click' && action.selector === '[data-command="toggle-annotations"]'
+  ));
+  const annotationCanvasIndex = annotationStartIndex < 0 ? -1 : actionHistory.findIndex((action, index) => (
+    index > annotationStartIndex && action.kind === 'click' && action.selector === 'canvas'
+  ));
   const pauseClickIndex = actionHistory.findIndex((action) => action.kind === 'click' && action.selector === '[data-command="pause"]');
   const speed2Index = actionHistory.findIndex((action) => action.kind === 'click' && action.selector === '[data-speed="2"]');
   const inspectToolIndex = actionHistory.findIndex((action) => (
@@ -146,7 +152,21 @@ export function summarizeActionHistory(actionHistory) {
   const afterTomato = tomatoAdjustIndex >= 0 ? actionHistory.slice(tomatoAdjustIndex + 1) : [];
   return {
     clickedSelectors,
-    canvasClickCount: actionHistory.filter((action) => action.kind === 'click' && action.selector === 'canvas').length,
+    canvasClickCount: actionHistory.filter((action, index) => (
+      action.kind === 'click' && action.selector === 'canvas' && index !== annotationCanvasIndex
+    )).length,
+    startedAnnotation: annotationStartIndex >= 0,
+    capturedAnnotation: annotationCanvasIndex >= 0,
+    typedAnnotation: actionHistory.some((action) => (
+      action.kind === 'type' && action.selector === '[data-annotation-draft]'
+    )),
+    savedAnnotation: actionHistory.some((action) => (
+      action.kind === 'click' && action.selector === '[data-command="save-annotation"]'
+    )),
+    openedAnnotationPanel: clickedSelectors.has('[data-panel="annotations"]'),
+    viewedAnnotation: actionHistory.some((action) => (
+      action.kind === 'click' && action.selector?.startsWith('[data-annotation-id=')
+    )),
     pannedCamera: actionHistory.some((action) => action.kind === 'press' && action.key === 'ArrowRight'),
     zoomedCamera: actionHistory.some((action) => action.kind === 'wheel' && action.selector === 'canvas'),
     hoveredPanelTab: actionHistory.some((action) => action.kind === 'hover' && action.selector === '[data-panel="inventory"]'),
@@ -256,6 +276,14 @@ export function adjustDecision(action, rationale, value) {
     rationale,
     action: { kind: 'adjust', selector: action.selector, label: action.label, value },
     expectedResult: `The visible control "${action.label}" should change to ${value} and the next screenshot should show a rebalanced crop mix.`,
+  };
+}
+
+export function typeDecision(action, rationale, text) {
+  return {
+    rationale,
+    action: { kind: 'type', selector: action.selector, label: action.label, text },
+    expectedResult: `The visible text control "${action.label}" should contain the debugging comment without submitting it yet.`,
   };
 }
 

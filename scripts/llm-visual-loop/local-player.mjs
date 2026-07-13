@@ -24,6 +24,7 @@ import {
   shouldSellVisibleCrops,
   summarizeActionHistory,
   tutorialActionFromText,
+  typeDecision,
   viewportDecision,
   visibleTierReady,
   wheelDecision,
@@ -44,11 +45,13 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
     adjustedCarrotNumber, adjustedCarrotSlider, adjustedWheatSlider, adjustedWheatNumber,
     adjustedTomatoNumber, adjustedTomatoSlider, adjustedPumpkinNumber, adjustedPumpkinSlider, openedMixAfterTomato,
     openedGoalsAfterTomato, selectedLandAfterTomato, dismissedTutorial, carrotSold, wheatSold, tomatoSold, pumpkinSold, tierClaims,
+    startedAnnotation, capturedAnnotation, typedAnnotation, savedAnnotation, openedAnnotationPanel, viewedAnnotation,
   } = state;
 
   const canvasAction = findAction(observation, 'canvas');
   const panelScrollAction = findAction(observation, '[data-player-scroll="side-panel"]');
   const inventoryAction = findAction(observation, '[data-panel="inventory"]');
+  const sellAllAction = findAction(observation, '[data-command="sell-all"]');
   const requestsAction = findAction(observation, '[data-panel="requests"]');
   const goalsAction = findAction(observation, '[data-panel="goals"]');
   const mixAction = findAction(observation, '[data-panel="mix"]');
@@ -67,10 +70,23 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   const undoAction = findAction(observation, '[data-command="undo"]');
   const redoAction = findAction(observation, '[data-command="redo"]');
   const dismissTutorialAction = findAction(observation, '[data-command="dismiss-tutorial"]');
+  const annotationToggleAction = findAction(observation, '[data-command="toggle-annotations"]');
+  const annotationDraftAction = findAction(observation, '[data-annotation-draft]');
+  const saveAnnotationAction = findAction(observation, '[data-command="save-annotation"]');
+  const annotationPanelAction = findAction(observation, '[data-panel="annotations"]');
+  const savedAnnotationAction = findAction(observation, '[data-annotation-id=');
   const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
   const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
   const explicitPaintGuidanceVisible = /FARM GUIDE Paint Empty Land|Paint plots on empty land/i.test(observation.visibleText);
   const terminalOpenEndedGuidanceVisible = /Tune mix, expand land, upgrade workers|All crops are unlocked/i.test(observation.visibleText);
+  const urgentStorageGuidanceVisible = /FARM GUIDE Open Inventory|Storage is almost full/i.test(observation.visibleText);
+  const guidedPaintAction = selectGuidedPaintAction({
+    plotToolAction,
+    canvasAction,
+    explicitPaintGuidanceVisible,
+    selectedPlotGuideVisible,
+    recentlyUsedCanvas: recentlyUsedCanvas(actionHistory),
+  });
 
   const claimAction = findAction(observation, '[data-command="claim-tier"]');
   if (claimAction) return clickDecision(claimAction, 'A visible tier reward is ready, so claim it before watching the farm continue.');
@@ -111,6 +127,81 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   }
   if (dismissTutorialAction && !dismissedTutorial && /FARM GUIDE Paint Empty Land/i.test(observation.visibleText)) {
     return clickDecision(dismissTutorialAction, 'Dismiss the canvas-blocking paint card before following its guidance on the farm itself.');
+  }
+  if (dismissTutorialAction && guidedPaintAction?.kind === 'paint') {
+    return clickDecision(
+      dismissTutorialAction,
+      'Dismiss the current guide card before following separate visible paint guidance on the canvas.',
+    );
+  }
+
+  if (annotationDraftAction && capturedAnnotation && !typedAnnotation) {
+    return typeDecision(
+      annotationDraftAction,
+      'Write a bounded debugging comment through the same visible field available to the player.',
+      'LLM playtest note: verify the selected detail and camera framing.',
+    );
+  }
+  if (saveAnnotationAction && typedAnnotation && !savedAnnotation) {
+    return clickDecision(
+      saveAnnotationAction,
+      'Pin the completed debugging note so its marker, list row, persistence, and debug bundle enter the visual replay.',
+    );
+  }
+  if (annotationPanelAction && savedAnnotation && !openedAnnotationPanel) {
+    return clickDecision(
+      annotationPanelAction,
+      'Open the saved Farm Notes list through its player-facing panel tab so the new pin can be reviewed.',
+    );
+  }
+  if (savedAnnotationAction && openedAnnotationPanel && !viewedAnnotation) {
+    return clickDecision(
+      savedAnnotationAction,
+      'View the saved note so its camera restoration and highlighted world marker enter the visual replay.',
+    );
+  }
+  if (canvasAction && startedAnnotation && !capturedAnnotation) {
+    return clickDecision(
+      canvasAction,
+      'Choose a visible farm detail for the annotation using an exact canvas coordinate.',
+      { x: 560, y: 300 },
+    );
+  }
+  if (annotationToggleAction && !startedAnnotation) {
+    return clickDecision(
+      annotationToggleAction,
+      'Open Farm Notes so the LLM-player proves the debugging annotation flow end to end.',
+    );
+  }
+
+  const recentlyCheckedRequest = actionHistory.slice(-4).some((action) => (
+    action.kind === 'click' && action.selector === '[data-panel="requests"]'
+  ));
+  if (
+    request.pending &&
+    recentlyCheckedRequest &&
+    !fulfillRequestAction &&
+    !requestSeedAction &&
+    !explicitPaintGuidanceVisible &&
+    !hasExplicitSeedGuidance(observation.visibleText)
+  ) {
+    return {
+      rationale: 'The pinned basket was just checked and is not ready, so let autonomous workers harvest before reopening panels.',
+      action: { kind: 'wait', ms: defaultWaitMs },
+      expectedResult: 'The watched interval should advance crops and workers without spending the action budget on panel thrashing.',
+    };
+  }
+  if (!request.pending && urgentStorageGuidanceVisible && inventoryAction && !inventoryAction.state?.active) {
+    return clickDecision(
+      inventoryAction,
+      'Storage is visibly full, so open Inventory before returning to late-game planning controls.',
+    );
+  }
+  if (!request.pending && urgentStorageGuidanceVisible && sellAllAction) {
+    return clickDecision(
+      sellAllAction,
+      'Clear the visibly full storage bin so workers can resume harvesting before more crop-mix tuning.',
+    );
   }
 
   const speedAction = findAction(observation, '[data-speed="4"]');
@@ -248,12 +339,10 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (!request.pending && tierClaims >= 3 && pumpkinSeedAction && !clickedSelectors.has(pumpkinSeedAction.selector)) {
     return clickDecision(pumpkinSeedAction, 'Buy one visible Pumpkin seed bundle after reaching Tier 4 so its late-game Inventory control is exercised even while starter stock remains.');
   }
-  const sellAllAction = findAction(observation, '[data-command="sell-all"]');
   if (!request.pending && sellAllAction && hasVisibleSellableCrops(observation.visibleText) && shouldSellVisibleCrops(observation.visibleText)) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
   }
 
-  const guidedPaintAction = selectGuidedPaintAction({ plotToolAction, canvasAction, explicitPaintGuidanceVisible, selectedPlotGuideVisible, recentlyUsedCanvas: recentlyUsedCanvas(actionHistory) });
   if (guidedPaintAction?.kind === 'select-plot') return clickDecision(guidedPaintAction.action, 'Reselect the Plot tool before following visible paint guidance.');
   if (guidedPaintAction?.kind === 'paint') return clickDecision(guidedPaintAction.action, 'Visible plot guidance is still active, so place another plot instead of ending the run.', nextPaintPosition(canvasClickCount));
   if (canvasAction && canvasClickCount < 2 && !selectedPlotGuideVisible && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {

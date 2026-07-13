@@ -1,0 +1,429 @@
+.annotation-overlay {
+  position: absolute;
+  z-index: 12;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#game-canvas.annotation-aiming canvas {
+  cursor: crosshair;
+}
+
+.annotation-aim {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  display: none;
+  width: 84px;
+  height: 84px;
+  translate: -50% -50%;
+  color: #ffe2a0;
+  filter: drop-shadow(0 2px 0 rgba(35, 21, 14, 0.9));
+}
+
+.annotation-overlay.aiming {
+  cursor: crosshair;
+  background: radial-gradient(circle at center, transparent 0 58px, rgba(22, 15, 10, 0.06) 140px, rgba(22, 15, 10, 0.22));
+}
+
+.annotation-overlay.aiming .annotation-aim {
+  display: block;
+}
+
+.annotation-overlay.aiming .annotation-pin {
+  pointer-events: none;
+}
+
+.annotation-aim span,
+.annotation-aim span::before,
+.annotation-aim span::after {
+  position: absolute;
+  content: "";
+  background: currentColor;
+}
+
+.annotation-aim span {
+  top: 40px;
+  left: 30px;
+  width: 24px;
+  height: 4px;
+  box-shadow: -18px 0 0 currentColor, 18px 0 0 currentColor;
+}
+
+.annotation-aim span::before {
+  top: -30px;
+  left: 10px;
+  width: 4px;
+  height: 24px;
+  box-shadow: 0 40px 0 currentColor;
+}
+
+.annotation-aim span::after {
+  top: -2px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgba(45, 28, 18, 0.9);
+  background: #fff3c4;
+}
+
+.annotation-aim strong {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  width: max-content;
+  max-width: 220px;
+  translate: -50% 0;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 226, 160, 0.56);
+  border-radius: 4px;
+  background: rgba(37, 23, 15, 0.9);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.annotation-pin {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  margin: -34px 0 0 -14px;
+  padding: 0;
+  border: 2px solid #5a3923;
+  border-radius: 50%;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 42%),
+    #efb55f;
+  color: #2b1c15;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 24px;
+  text-align: center;
+  pointer-events: auto;
+  box-shadow: 0 4px 0 rgba(47, 30, 19, 0.34), 0 8px 18px rgba(22, 13, 8, 0.32);
+}
+
+.annotation-pin::after {
+  position: absolute;
+  z-index: -1;
+  bottom: -5px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #5a3923;
+  border-bottom: 2px solid #5a3923;
+  background: #efb55f;
+  content: "";
+  rotate: 45deg;
+}
+
+.annotation-pin:hover,
+.annotation-pin:focus-visible,
+.annotation-pin.pulse {
+  z-index: 4;
+  border-color: #fff1bb;
+  background-color: #ffd77e;
+  filter: brightness(1.12) drop-shadow(0 0 5px rgba(255, 231, 148, 0.52));
+}
+
+.annotation-pin.pulse {
+  animation: annotation-pin-pulse 700ms steps(2, end) infinite;
+}
+
+@keyframes annotation-pin-pulse {
+  50% { filter: drop-shadow(0 0 9px rgba(255, 231, 148, 0.92)); }
+}
+
+.annotation-tab-count {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border: 1px solid rgba(61, 37, 23, 0.92);
+  border-radius: 8px;
+  background: #e8ad58;
+  color: #2b1c15;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 12px;
+}
+
+.annotation-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.annotation-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.annotation-heading h2,
+.annotation-heading p {
+  margin: 0;
+}
+
+.annotation-heading h2 span,
+.annotation-section h3 span {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.annotation-kicker {
+  color: #d9a96a;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.annotation-new {
+  flex: 0 0 auto;
+  border-color: rgba(231, 190, 122, 0.5);
+  background: rgba(231, 190, 122, 0.12);
+}
+
+.annotation-warning,
+.annotation-editor-warning,
+.annotation-status,
+.annotation-aim-card,
+.annotation-empty,
+.annotation-draft-card,
+.annotation-record {
+  margin: 0;
+  border: 1px solid rgba(231, 190, 122, 0.24);
+  border-radius: 6px;
+  background:
+    linear-gradient(145deg, rgba(255, 236, 192, 0.07), transparent 58%),
+    rgba(20, 13, 9, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.annotation-warning,
+.annotation-editor-warning,
+.annotation-status {
+  padding: 8px;
+  font-size: 12px;
+}
+
+.annotation-warning,
+.annotation-editor-warning {
+  border-color: rgba(241, 132, 99, 0.5);
+  color: #ffd0b8;
+}
+
+.annotation-status {
+  border-color: rgba(153, 211, 132, 0.45);
+  color: #d9efba;
+}
+
+.annotation-aim-card,
+.annotation-empty {
+  padding: 15px 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.annotation-aim-card strong,
+.annotation-empty strong {
+  display: block;
+  margin: 4px 0;
+  color: var(--text);
+}
+
+.annotation-aim-card p,
+.annotation-empty p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.annotation-aim-pixel {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #5a3923;
+  background: #efb55f;
+  box-shadow: 10px 0 0 #efb55f, -10px 0 0 #efb55f, 0 10px 0 #efb55f, 0 -10px 0 #efb55f;
+}
+
+.annotation-draft-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-color: rgba(255, 220, 151, 0.48);
+}
+
+.annotation-draft-target {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.annotation-draft-target span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.annotation-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 2px solid rgba(255, 226, 174, 0.34);
+  border-radius: 4px;
+  image-rendering: pixelated;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+.annotation-draft-card label,
+.annotation-record label {
+  color: #f0d7a3;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.annotation-panel textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid rgba(255, 226, 174, 0.34);
+  border-radius: 4px;
+  padding: 8px;
+  background: rgba(12, 9, 7, 0.58);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.annotation-panel textarea:focus-visible {
+  border-color: #f0c776;
+  outline: 2px solid rgba(240, 199, 118, 0.25);
+}
+
+.annotation-editor-actions,
+.annotation-bulk-actions,
+.annotation-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.annotation-editor-actions .primary {
+  border-color: rgba(255, 226, 174, 0.58);
+  background: rgba(231, 171, 87, 0.24);
+}
+
+.annotation-section h3 {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 0 6px;
+  color: #ead3aa;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.annotation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.annotation-record {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  transition: border-color 100ms ease, background-color 100ms ease;
+}
+
+.annotation-record.selected {
+  border-color: rgba(255, 222, 151, 0.72);
+  background-color: rgba(231, 171, 87, 0.09);
+}
+
+.annotation-record-focus {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 7px;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.annotation-index {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #8c5b32;
+  border-radius: 4px;
+  background: #d69b4e;
+  color: #2a1a13;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.annotation-record-meta {
+  display: grid;
+  min-width: 0;
+}
+
+.annotation-record-meta strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-record-meta small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.annotation-message {
+  margin: 0;
+  color: rgba(255, 247, 225, 0.9);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.annotation-record-actions button,
+.annotation-bulk-actions button,
+.annotation-editor-actions button {
+  min-height: 28px;
+  padding: 4px 7px;
+  font-size: 11px;
+}
+
+.annotation-record-actions .danger {
+  color: #f4b09d;
+}
+
+.annotation-bulk-actions {
+  padding-top: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.annotation-help {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .annotation-pin.pulse { animation: none; }
+}

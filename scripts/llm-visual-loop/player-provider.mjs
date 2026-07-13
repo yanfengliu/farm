@@ -20,13 +20,14 @@ async function chooseWithExternalProvider(command, payload) {
     schema: {
       rationale: 'short explanation',
       action: {
-        kind: 'click | hover | drag | adjust | wheel | press | wait | viewport | stop',
-        selector: 'required for click, hover, drag, adjust, and wheel; optional for press unless the listed keyboard control requires focus',
+        kind: 'click | hover | drag | adjust | type | wheel | press | wait | viewport | stop',
+        selector: 'required for click, hover, drag, adjust, type, and wheel; optional for press unless the listed keyboard control requires focus',
         x: 'optional x coordinate relative to the clicked or dragged element',
         y: 'optional y coordinate relative to the clicked or dragged element',
         deltaX: 'optional horizontal drag distance in pixels',
         deltaY: 'optional vertical drag or wheel distance in pixels',
         value: 'optional adjustment target from 0 to 100 for range or number controls',
+        text: 'required bounded comment text for type actions on a listed textarea',
         key: 'required for press', durationMs: 'optional hold duration for press', ms: 'optional for wait',
         width: 'required for viewport', height: 'required for viewport',
       },
@@ -55,7 +56,7 @@ function runJsonCommand(command, payload) {
   });
 }
 
-function normalizeDecision(decision, observation, provider, defaultWaitMs) {
+export function normalizeDecision(decision, observation, provider, defaultWaitMs) {
   const fallback = {
     rationale: `${provider} returned an unusable action, so the harness will wait and capture another player-visible frame.`,
     action: { kind: 'wait', ms: defaultWaitMs },
@@ -64,14 +65,15 @@ function normalizeDecision(decision, observation, provider, defaultWaitMs) {
   };
   if (!decision || typeof decision !== 'object') return fallback;
   const action = decision.action && typeof decision.action === 'object' ? decision.action : {};
-  const kind = ['click', 'hover', 'drag', 'adjust', 'wheel', 'press', 'wait', 'viewport', 'stop'].includes(action.kind) ? action.kind : 'wait';
+  const kind = ['click', 'hover', 'drag', 'adjust', 'type', 'wheel', 'press', 'wait', 'viewport', 'stop'].includes(action.kind) ? action.kind : 'wait';
   const normalized = {
     rationale: String(decision.rationale || fallback.rationale), action: { kind },
     expectedResult: String(decision.expectedResult || fallback.expectedResult), provider,
   };
-  if (['click', 'hover', 'drag', 'adjust', 'wheel'].includes(kind)) {
+  if (['click', 'hover', 'drag', 'adjust', 'type', 'wheel'].includes(kind)) {
     const visibleAction = observation.availableActions.find((candidate) => candidate.selector === action.selector);
     if (!visibleAction) return fallback;
+    if (!actionHintAllowsKind(visibleAction.actionHint, kind)) return fallback;
     normalized.action.selector = visibleAction.selector;
     normalized.action.label = visibleAction.label;
     if (kind === 'click' && Number.isFinite(Number(action.x)) && Number.isFinite(Number(action.y))) {
@@ -84,6 +86,10 @@ function normalizeDecision(decision, observation, provider, defaultWaitMs) {
       normalized.action.deltaY = boundedNumber(action.deltaY, 0, -220, 220);
     } else if (kind === 'adjust') {
       normalized.action.value = boundedNumber(action.value, 50, 0, 100);
+    } else if (kind === 'type') {
+      const maximum = boundedNumber(visibleAction.state?.maxLength, 500, 1, 2000);
+      normalized.action.text = String(action.text ?? '').slice(0, maximum);
+      if (!normalized.action.text.trim()) return fallback;
     } else if (kind === 'wheel') {
       normalized.action.deltaY = boundedNumber(action.deltaY, -320, -900, 900);
     }
@@ -101,6 +107,15 @@ function normalizeDecision(decision, observation, provider, defaultWaitMs) {
     normalized.action.height = boundedNumber(action.height, 800, 600, 1100);
   }
   return normalized;
+}
+
+function actionHintAllowsKind(actionHint, kind) {
+  if (actionHint === 'scroll') return kind === 'wheel';
+  if (actionHint === 'click-or-drag-canvas-coordinate') return ['click', 'drag', 'wheel'].includes(kind);
+  if (actionHint === 'drag-resize') return kind === 'drag';
+  if (actionHint === 'adjust') return kind === 'adjust';
+  if (actionHint === 'type-text') return kind === 'type';
+  return ['click', 'hover'].includes(kind);
 }
 
 export async function executePlayerDecision(page, decision) {
@@ -136,6 +151,12 @@ export async function executePlayerDecision(page, decision) {
         if (!box) throw new Error(`Cannot adjust ${decision.action.selector}; no visible bounds`);
         await page.mouse.click(box.x + box.width * (decision.action.value / 100), box.y + box.height / 2);
       }
+    } else if (decision.action.kind === 'type') {
+      const locator = page.locator(decision.action.selector).first();
+      await locator.waitFor({ state: 'visible', timeout: 5000 });
+      const isTextArea = await locator.evaluate((element) => element instanceof HTMLTextAreaElement);
+      if (!isTextArea) throw new Error(`Cannot type into ${decision.action.selector}; it is not a visible textarea`);
+      await locator.fill(decision.action.text);
     } else if (decision.action.kind === 'wheel') {
       const locator = page.locator(decision.action.selector).first();
       await locator.waitFor({ state: 'visible', timeout: 5000 });

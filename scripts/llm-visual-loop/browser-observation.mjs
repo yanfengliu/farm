@@ -28,7 +28,7 @@ export async function captureVisualObservation(page, stepIndex, label, options) 
     function buildDecisionPrompt(observation) {
       return [
         'You are playtesting a desktop idle farming game as a real player.',
-        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, hover, drag, adjust, wheel, press, wait, viewport, or stop. Click and canvas drag actions may include x/y coordinates relative to the chosen element. Press actions must use a listed keyboard control; include its selector when the control says it requires focus.',
+        'Use the screenshot, visible controls, and listed keyboard controls only. Pick one action from the schema: click, hover, drag, adjust, type, wheel, press, wait, viewport, or stop. Click and canvas drag actions may include x/y coordinates relative to the chosen element. Type actions may target only a listed text-entry control. Press actions must use a listed keyboard control; include its selector when the control says it requires focus.',
         `Screenshot file to inspect: ${observation.screenshotFile}`,
         JSON.stringify(observation, null, 2),
       ].join('\n\n');
@@ -108,6 +108,7 @@ export async function captureVisualObservation(page, stepIndex, label, options) 
       if (element.matches('canvas')) return 'click-or-drag-canvas-coordinate';
       if (element.matches('[role="separator"]')) return 'drag-resize';
       if (element.matches('input[type="range"], input[type="number"]')) return 'adjust';
+      if (element.matches('textarea')) return 'type-text';
       return 'click';
     }
 
@@ -125,6 +126,10 @@ export async function captureVisualObservation(page, stepIndex, label, options) 
         if (element.max !== '') state.max = element.max;
         if (element.step !== '') state.step = element.step;
       }
+      if (element instanceof HTMLTextAreaElement) {
+        state.value = element.value;
+        state.maxLength = element.maxLength;
+      }
       if (element instanceof HTMLElement && element.matches('[data-player-scroll]')) {
         const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight);
         state.scrollTop = Math.round(element.scrollTop);
@@ -137,7 +142,8 @@ export async function captureVisualObservation(page, stepIndex, label, options) 
     }
 
     function actionLabelFor(element) {
-      return compactLabel(element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent || element.tagName.toLowerCase());
+      const associatedLabel = element instanceof HTMLTextAreaElement ? element.labels?.[0]?.textContent : '';
+      return compactLabel(element.getAttribute('aria-label') || associatedLabel || element.getAttribute('title') || element.textContent || element.tagName.toLowerCase());
     }
     function compactLabel(value) { return value.replace(/\s+/g, ' ').trim().slice(0, 2400); }
     function normalizeVisibleText(value) { return value.replace(/\s+/g, ' ').trim(); }

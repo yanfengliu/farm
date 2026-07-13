@@ -13,6 +13,7 @@ import type { SessionBundle } from './game/simulation/civEngine';
 import { FarmScene } from './phaser/scenes/FarmScene';
 import { clearFarmSave, loadSavedFarmState, saveFarmState } from './persistence/localSave';
 import { FarmUiController } from './ui/farmUiController';
+import { FarmAnnotationController } from './ui/farmAnnotationController';
 
 let farmGame: FarmGame = createFarmGame({ state: loadSavedFarmState() ?? undefined });
 const farmReplayWindow = new FarmReplayWindow(farmGame, import.meta.env.DEV);
@@ -25,6 +26,7 @@ const ui = new FarmUiController({
   resetFarm,
 });
 
+let annotations: FarmAnnotationController | null = null;
 const farmScene = new FarmScene({
   getState: () => getFarmSnapshot(farmGame),
   advance: (delta) => {
@@ -36,7 +38,24 @@ const farmScene = new FarmScene({
   getSelectedCell: () => ui.selectedCell,
   applyTool: (x, y) => ui.applyTool(x, y),
   canDragTool: () => ui.canDragTool(),
+  captureAnnotation: (pick) => annotations?.capturePick(pick) ?? false,
 });
+
+const annotationController = new FarmAnnotationController({
+  shell: ui.shell,
+  getState: () => getFarmSnapshot(farmGame),
+  renderStateText: () => renderFarmToText(farmGame),
+  getInteraction: () => ui.annotationInteraction(),
+  getPaused: () => ui.paused,
+  setPaused: (paused) => ui.setPaused(paused),
+  openPanel: () => ui.openAnnotationPanel(),
+  invalidatePanel: () => ui.invalidateAnnotationPanel(),
+  projectWorld: (point) => farmScene.projectWorldPoint(point),
+  restoreCamera: (camera) => farmScene.restoreAnnotationCamera(camera),
+  captureKeyboardPick: () => farmScene.captureKeyboardAnnotationPick(),
+});
+annotations = annotationController;
+ui.attachAnnotationUi(annotationController);
 
 new Phaser.Game({
   type: Phaser.CANVAS,
@@ -54,7 +73,7 @@ new Phaser.Game({
 });
 
 installFarmDebug({
-  renderText: () => renderFarmToText(farmGame),
+  renderText: () => `${renderFarmToText(farmGame)}\n${annotationController.getContext()}`,
   advanceTime: (ms) => {
     farmReplayWindow.advanceByMs(ms);
     persistFarm();
@@ -62,6 +81,10 @@ installFarmDebug({
   getState: () => getFarmSnapshot(farmGame),
   reset: resetFarm,
   exportBundle: exportFarmBundle,
+  getAnnotations: () => annotationController.getStore(),
+  getAnnotationContext: () => annotationController.getContext(),
+  exportAnnotation: (id) => annotationController.exportAnnotation(id),
+  exportAnnotations: () => annotationController.exportAnnotations(),
 });
 
 function autosave(): void {
@@ -88,6 +111,7 @@ function advanceRealtime(ms: number): void {
 
 function resetFarm(): void {
   const saveCleared = clearFarmSave();
+  annotationController.onFarmReset();
   farmGame = createFarmGame({ seed: 'farm' });
   farmReplayWindow.replaceGame(farmGame);
   simulationRemainderMs = 0;

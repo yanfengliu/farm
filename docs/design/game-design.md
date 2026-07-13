@@ -180,6 +180,12 @@ Wildlife advances with the same deterministic clock as the farm, freezes when pa
 
 The round shapes that appear in the creek are lily pads, sometimes carrying small cream, pink, or lavender blossoms. Their sizes, notches, companion leaves, blossom colors, and positions use stable coordinate hashes and irregular channel spacing, so the creek reads as a natural habitat instead of a repeated decoration while remaining deterministic for screenshots and replays.
 
+## Farm Notes
+
+Press `N` or click Note to enter a separate annotation mode without changing the selected farm tool. Clicking a visible duck, worker, plant, building, creek detail, or tile pauses the farm while a comment is drafted in the Farm Notes panel; keyboard players can press `Enter` while aiming to capture the center of the canvas. `Ctrl`/`Cmd` + `Enter` pins the note and `Escape` cancels or exits aiming. Draft and edit text survives panel changes. Each saved note receives a stable numbered world pin and supports View, Edit, Copy, Export, and two-step Delete; View restores the captured camera composition and highlights the selected pin.
+
+Notes are debugging context rather than farm progress. They persist separately from the farm save, retain the captured tick and exact click-time state, become past-farm records after reset, and never change simulation state or Undo/Redo history.
+
 ## Persistence
 
 The MVP auto-saves to browser `localStorage`. Multiple save slots, manual export/import, and offline progress are later features.
@@ -191,5 +197,7 @@ The game must expose these browser APIs:
 - `window.render_game_to_text()` returns a compact human-readable summary of the farm.
 - `window.advanceTime(ms)` advances deterministic simulation time for tests.
 - `window.__farmDebug.getState()` returns structured state for tests and debugging.
+- `window.__farmDebug.getAnnotations()` and `getAnnotationContext()` return the current Farm Notes queue and compact LLM-readable context.
+- `window.__farmDebug.exportAnnotation(id)` and `exportAnnotations()` return canonical JSON bundles for one or all notes.
 
 `civ-engine` replay bundles are used for deeper bugs when needed.

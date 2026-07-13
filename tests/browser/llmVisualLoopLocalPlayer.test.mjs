@@ -196,6 +196,57 @@ describe('LLM visual-loop deterministic local player', () => {
     expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-panel="requests"]' });
   });
 
+  test('waits after a recent request check instead of thrashing between request and inventory panels', () => {
+    const decision = decide(
+      observation(
+        'Storage 13/15 Inventory Active basket Soup Pot 4/5 Carrot 2/2 Wheat FARM GUIDE Open Inventory',
+        [
+          visibleAction('[data-panel="requests"]', 'Village Requests', { active: false }),
+          visibleAction('[data-panel="inventory"]', 'Inventory', { active: true }),
+        ],
+      ),
+      history(
+        { kind: 'click', selector: '[data-accept-request="soup-pot"]' },
+        { kind: 'click', selector: '[data-panel="requests"]' },
+        { kind: 'click', selector: '[data-panel="inventory"]' },
+        { kind: 'click', selector: '[data-sell="carrot"]' },
+      ),
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'wait' });
+  });
+
+  test('clears urgent storage pressure before reopening late-game crop mix', () => {
+    const tierHistory = history(
+      { kind: 'click', selector: '[data-command="claim-tier"]' },
+      { kind: 'click', selector: '[data-command="claim-tier"]' },
+      { kind: 'click', selector: '[data-command="claim-tier"]' },
+    );
+    const openInventory = decide(
+      observation(
+        'Storage 15/15 Tier 4 Harvest Hearth FARM GUIDE Open Inventory Crop Mix',
+        [
+          visibleAction('[data-panel="inventory"]', 'Inventory', { active: false }),
+          visibleAction('[data-panel="mix"]', 'Crop Mix', { active: true }),
+        ],
+      ),
+      tierHistory,
+    );
+    expect(openInventory.action).toMatchObject({ kind: 'click', selector: '[data-panel="inventory"]' });
+
+    const sell = decide(
+      observation(
+        'Storage 15/15 Tier 4 Harvest Hearth FARM GUIDE Open Inventory Inventory',
+        [
+          visibleAction('[data-panel="inventory"]', 'Inventory', { active: true }),
+          visibleAction('[data-command="sell-all"]', 'Sell all crops'),
+        ],
+      ),
+      tierHistory,
+    );
+    expect(sell.action).toMatchObject({ kind: 'click', selector: '[data-command="sell-all"]' });
+  });
+
   test('prioritizes zero-stock seeds for the missing basket crop over the tier milestone crop', () => {
     const decision = decide(
       observation(
@@ -258,6 +309,22 @@ describe('LLM visual-loop deterministic local player', () => {
         visibleAction('[data-command="dismiss-tutorial"]', 'Dismiss tip'),
       ],
     ));
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-command="dismiss-tutorial"]' });
+  });
+
+  test('dismisses a later guide card before a guided canvas click even after an earlier dismissal', () => {
+    const decision = decide(
+      observation(
+        'Paint plots on empty land so farmers can plant seeds. FARM GUIDE Buy Seeds.',
+        [
+          visibleAction('canvas', 'canvas', { active: false }),
+          visibleAction('[data-tool="plot"]', 'Plot', { active: true }),
+          visibleAction('[data-command="dismiss-tutorial"]', 'Dismiss tip'),
+        ],
+      ),
+      history({ kind: 'click', selector: '[data-command="dismiss-tutorial"]' }),
+    );
 
     expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-command="dismiss-tutorial"]' });
   });

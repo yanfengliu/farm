@@ -53,6 +53,20 @@ describe('coverageLedger', () => {
     expect(coverageLedger(steps).gaps).toEqual([]);
   });
 
+  test('does not count a failed action as exercising its visible control', () => {
+    const steps = [];
+    for (let i = 0; i < COVERAGE_MIN_SIGHTINGS; i++) {
+      const current = step(i, [control('#farm-note')], i === 0
+        ? { kind: 'click', selector: '#farm-note', label: 'Farm note' }
+        : undefined);
+      if (i === 0) current.execution = { ok: false, error: 'intercepted' };
+      steps.push(current);
+    }
+
+    expect(coverageLedger(steps).gaps.map((gap) => gap.key)).toEqual(['#farm-note']);
+    expect(coverageLedger(steps).exercised).toBe(0);
+  });
+
   test('duplicate-selector controls count once per observation, not once per element', () => {
     // "Sell 1 Carrot" and "Sell 5 Carrot" share [data-sell="carrot"]: one
     // step offering both is ONE sighting, so the transient filter and the

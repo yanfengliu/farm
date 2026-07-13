@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { FarmAnnotationPick } from '../../annotations/farmAnnotations';
 import type { FarmState } from '../../game/simulation/farmGame';
 import { FarmRenderer, TILE_SIZE } from '../view/farmRenderer';
 import { buildFarmSceneryLayout, FARM_ENVIRONMENT_MARGIN_TILES } from '../view/farmSceneryLayout';
@@ -14,6 +15,7 @@ export interface FarmSceneBridge {
   getSelectedCell(): Cell | null;
   applyTool(x: number, y: number): void;
   canDragTool(): boolean;
+  captureAnnotation(pick: FarmAnnotationPick): boolean;
 }
 
 const PAN_SPEED = 420;
@@ -25,6 +27,7 @@ export class FarmScene extends Phaser.Scene {
   #wasd!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
   #lastPaintKey = '';
   #cameraMoved = false;
+  #pointerCapturedAnnotation = false;
 
   constructor(bridge: FarmSceneBridge) {
     super('FarmScene');
@@ -33,6 +36,8 @@ export class FarmScene extends Phaser.Scene {
 
   create(): void {
     this.#renderer = new FarmRenderer(this);
+    this.game.canvas.tabIndex = 0;
+    this.game.canvas.setAttribute('aria-label', 'Farm canvas. In Note mode, press Enter to capture the center target.');
     this.cameras.main.setBackgroundColor('#3f5f32');
     this.frameFarm();
     this.#cursors = this.input.keyboard!.createCursorKeys();
@@ -52,12 +57,15 @@ export class FarmScene extends Phaser.Scene {
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.rightButtonDown() || pointer.middleButtonDown()) return;
       this.#lastPaintKey = '';
+      this.#pointerCapturedAnnotation = this.#bridge.captureAnnotation(this.annotationPick(pointer.x, pointer.y));
+      if (this.#pointerCapturedAnnotation) return;
       this.applyPointerTool(pointer);
     });
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.isDown || !this.#bridge.canDragTool()) return;
+      if (!pointer.isDown || this.#pointerCapturedAnnotation || !this.#bridge.canDragTool()) return;
       this.applyPointerTool(pointer);
     });
+    this.input.on('pointerup', () => { this.#pointerCapturedAnnotation = false; });
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _objects: Phaser.GameObjects.GameObject[], _dx: number, dy: number) => {
       const camera = this.cameras.main;
       camera.setZoom(Phaser.Math.Clamp(camera.zoom + (dy > 0 ? -0.08 : 0.08), this.minimumCameraZoom(), 2.8));
@@ -110,6 +118,32 @@ export class FarmScene extends Phaser.Scene {
     this.frameFarm();
   }
 
+  projectWorldPoint(worldPx: { x: number; y: number }): { x: number; y: number; visible: boolean } | null {
+    if (!this.cameras?.main) return null;
+    const camera = this.cameras.main;
+    const x = (worldPx.x - camera.worldView.x) * camera.zoom;
+    const y = (worldPx.y - camera.worldView.y) * camera.zoom;
+    return {
+      x,
+      y,
+      visible: x >= -24 && y >= -24 && x <= camera.width + 24 && y <= camera.height + 24,
+    };
+  }
+
+  restoreAnnotationCamera(snapshot: FarmAnnotationPick['camera']): void {
+    if (!this.cameras?.main) return;
+    const camera = this.cameras.main;
+    camera.setZoom(Phaser.Math.Clamp(snapshot.zoom, this.minimumCameraZoom(), 2.8));
+    camera.setScroll(snapshot.scrollX, snapshot.scrollY);
+    this.#cameraMoved = true;
+  }
+
+  captureKeyboardAnnotationPick(): FarmAnnotationPick | null {
+    if (!this.cameras?.main) return null;
+    const camera = this.cameras.main;
+    return this.annotationPick(camera.width / 2, camera.height / 2);
+  }
+
   private configureCameraBounds(): void {
     const state = this.#bridge.getState();
     const margin = FARM_ENVIRONMENT_MARGIN_TILES * TILE_SIZE;
@@ -149,6 +183,46 @@ export class FarmScene extends Phaser.Scene {
     if (key === this.#lastPaintKey) return;
     this.#lastPaintKey = key;
     this.#bridge.applyTool(x, y);
+  }
+
+  private annotationPick(canvasX: number, canvasY: number): FarmAnnotationPick {
+    const camera = this.cameras.main;
+    const world = camera.getWorldPoint(canvasX, canvasY);
+    const canvas = this.game.canvas;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      clientPx: { x: rect.left + canvasX, y: rect.top + canvasY },
+      canvasPx: {
+        x: canvasX,
+        y: canvasY,
+        normalizedX: rect.width > 0 ? canvasX / rect.width : 0,
+        normalizedY: rect.height > 0 ? canvasY / rect.height : 0,
+      },
+      worldPx: { x: world.x, y: world.y },
+      gridCell: { x: Math.floor(world.x / TILE_SIZE), y: Math.floor(world.y / TILE_SIZE) },
+      camera: {
+        scrollX: camera.scrollX,
+        scrollY: camera.scrollY,
+        zoom: camera.zoom,
+        width: camera.width,
+        height: camera.height,
+        worldView: {
+          x: camera.worldView.x,
+          y: camera.worldView.y,
+          width: camera.worldView.width,
+          height: camera.worldView.height,
+        },
+      },
+      viewport: {
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio,
+        canvasRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+        drawingBuffer: { width: canvas.width, height: canvas.height },
+      },
+      presentationTimeMs: performance.now(),
+      previewDataUrl: null,
+    };
   }
 }
 

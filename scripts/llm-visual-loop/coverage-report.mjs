@@ -31,7 +31,7 @@ export function coverageLedger(steps) {
       offered.set(key, entry);
     }
     const acted = step.decision?.action;
-    if (acted && typeof acted.selector === 'string' && acted.kind !== 'wait') {
+    if (step.execution?.ok === true && acted && typeof acted.selector === 'string' && acted.kind !== 'wait') {
       exercised.add(coverageKey(acted.selector));
     }
   }

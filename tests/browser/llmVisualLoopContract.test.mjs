@@ -250,17 +250,19 @@ describe('LLM visual loop harness contract', () => {
   test('visual loop can execute every visible action hint it offers to an LLM player', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('click, hover, drag, adjust, wheel, press, wait, viewport, or stop');
-    expect(source).toContain("kind: 'click | hover | drag | adjust | wheel | press | wait | viewport | stop'");
-    expect(source).toContain("['click', 'hover', 'drag', 'adjust', 'wheel', 'press', 'wait', 'viewport', 'stop']");
+    expect(source).toContain('click, hover, drag, adjust, bounded text entry, wheel, listed-keyboard press, wait, viewport, or stop');
+    expect(source).toContain("kind: 'click | hover | drag | adjust | type | wheel | press | wait | viewport | stop'");
+    expect(source).toContain("['click', 'hover', 'drag', 'adjust', 'type', 'wheel', 'press', 'wait', 'viewport', 'stop']");
     expect(source).toContain("decision.action.kind === 'drag'");
     expect(source).toContain("decision.action.kind === 'hover'");
     expect(source).toContain("decision.action.kind === 'adjust'");
+    expect(source).toContain("decision.action.kind === 'type'");
     expect(source).toContain("decision.action.kind === 'wheel'");
     expect(source).toContain('await page.locator(decision.action.selector).first().hover');
     expect(source).toContain('page.mouse.down()');
     expect(source).toContain('page.mouse.up()');
     expect(source).toContain('page.mouse.wheel(0, decision.action.deltaY)');
+    expect(source).toContain('await locator.fill(decision.action.text)');
     expect(source).toContain('durationMs');
     expect(source).toContain('Zoom the farm camera');
   });

@@ -44,6 +44,7 @@ function visualActionKindsFor(action) {
   if (action.actionHint === 'scroll') return ['wheel'];
   if (action.actionHint === 'click-or-drag-canvas-coordinate') return ['click', 'drag', 'wheel'];
   if (action.actionHint === 'drag-resize') return ['drag', 'key'];
+  if (action.actionHint === 'type-text') return ['type'];
   if (action.type === 'number') return ['type', 'key'];
   if (action.type === 'range') return ['click', 'key'];
   return ['click', 'hover'];
@@ -58,6 +59,7 @@ export function farmDecisionToVisualAction(decision) {
   if (action.kind === 'hover') return { kind: 'hover', target: action.selector, ...common };
   if (action.kind === 'drag') return { kind: 'drag', target: action.selector, from: { x: action.x, y: action.y }, to: { x: action.x + action.deltaX, y: action.y + action.deltaY }, ...common };
   if (action.kind === 'adjust') return { kind: 'type', target: action.selector, text: String(action.value), ...common };
+  if (action.kind === 'type') return { kind: 'type', target: action.selector, text: action.text, ...common };
   if (action.kind === 'wheel') return { kind: 'wheel', target: action.selector, deltaY: action.deltaY, ...common };
   if (action.kind === 'press') return { kind: 'key', key: action.key, target: action.selector, durationMs: action.durationMs, requiresFocus: action.requiresFocus, ...common };
   if (action.kind === 'wait') return { kind: 'wait', durationMs: action.ms, ...common };
@@ -75,7 +77,11 @@ export function visualActionToFarmDecision(action, defaultWaitMs) {
   if (action.kind === 'click') return { ...base, action: { kind: 'click', selector: target, label: action.label, ...(action.point ? { x: action.point.x, y: action.point.y } : {}) } };
   if (action.kind === 'hover') return { ...base, action: { kind: 'hover', selector: target, label: action.label } };
   if (action.kind === 'drag') return { ...base, action: { kind: 'drag', selector: target, label: action.label, x: action.from.x, y: action.from.y, deltaX: action.to.x - action.from.x, deltaY: action.to.y - action.from.y } };
-  if (action.kind === 'type') return { ...base, action: { kind: 'adjust', selector: target, label: action.label, value: Number(action.text) } };
+  if (action.kind === 'type') {
+    return String(target).startsWith('[data-mix')
+      ? { ...base, action: { kind: 'adjust', selector: target, label: action.label, value: Number(action.text) } }
+      : { ...base, action: { kind: 'type', selector: target, label: action.label, text: String(action.text ?? '') } };
+  }
   if (action.kind === 'wheel') return { ...base, action: { kind: 'wheel', selector: target, label: action.label, deltaY: action.deltaY ?? 0 } };
   if (action.kind === 'key') return { ...base, action: { kind: 'press', key: action.key, selector: target, label: action.label, durationMs: action.durationMs ?? 0, requiresFocus: Boolean(action.requiresFocus) } };
   if (action.kind === 'wait') return { ...base, action: { kind: 'wait', ms: action.durationMs ?? defaultWaitMs } };

@@ -1,6 +1,6 @@
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(12, minmax(62px, min(6.8vw, 92px)));
+  grid-template-columns: repeat(13, minmax(58px, min(6.3vw, 88px)));
   justify-content: center;
   gap: 5px;
   align-items: center;

@@ -2,6 +2,7 @@ import { CROP_IDS, type CropId } from '../game/content/crops';
 import type { VillageRequestId } from '../game/content/communityRequests';
 import { FARM_TIER_LIST } from '../game/content/tiers';
 import { UPGRADE_IDS, type UpgradeId } from '../game/content/upgrades';
+import type { FarmAnnotationInteraction } from '../annotations/farmAnnotations';
 import type { FarmCommand, FarmState } from '../game/simulation/farmGame';
 import { cropMixAllocationMarkup, cropMixPercentages, cropMixRow, rebalanceCropMixPercentages } from './cropMixPanel';
 import { FARM_TOOLS, mountFarmShell, toolLabel, type FarmShellElements, type Panel, type Tool } from './appShell';
@@ -12,6 +13,7 @@ import { PanelResizeController } from './panelResize';
 import { buttonContent, iconSvg, toolbarButtonContent } from './pixelIcons';
 import { villageRequestBoardMarkup } from './requestBoard';
 import { TutorialOverlay } from './tutorialOverlay';
+import type { FarmAnnotationUi } from './farmAnnotationUi';
 
 export interface FarmUiBridge {
   getState(): FarmState;
@@ -40,6 +42,7 @@ export class FarmUiController {
   #lastPanelRenderedAt = 0;
   #lastPanelStateSignature = '';
   #persistenceWarning: string | null = null;
+  #annotations: FarmAnnotationUi | null = null;
 
   constructor(bridge: FarmUiBridge) {
     this.#bridge = bridge;
@@ -69,12 +72,43 @@ export class FarmUiController {
     return this.#speed;
   }
 
+  attachAnnotationUi(annotations: FarmAnnotationUi): void {
+    this.#annotations = annotations;
+    this.invalidateAnnotationPanel();
+  }
+
+  annotationInteraction(): FarmAnnotationInteraction {
+    return {
+      selectedTool: this.#annotations?.isAiming || this.#annotations?.isDrafting ? 'note' : this.#selectedTool,
+      activePanel: this.#activePanel,
+      paused: this.#paused,
+      speed: this.#speed,
+    };
+  }
+
+  setPaused(paused: boolean): void {
+    this.#paused = paused;
+  }
+
+  openAnnotationPanel(): void {
+    this.#activePanel = 'annotations';
+    this.#panelCollapsed = false;
+    this.invalidateAnnotationPanel();
+  }
+
+  invalidateAnnotationPanel(): void {
+    this.#lastPanelMarkup = '';
+    this.#lastRenderedPanel = null;
+    this.#lastPanelStateSignature = '';
+  }
+
   render(): void {
     const state = this.#bridge.getState();
     this.renderHud(state);
     this.renderToolbar();
     this.renderPanel(state);
     this.#tutorial.render(state, this.#activePanel, this.#selectedTool);
+    this.#annotations?.renderOverlay();
   }
 
   applyTool(x: number, y: number): void {
@@ -84,6 +118,7 @@ export class FarmUiController {
   }
 
   canDragTool(): boolean {
+    if (this.#annotations?.isAiming || this.#annotations?.isDrafting) return false;
     return this.#selectedTool !== 'inspect' && this.#selectedTool !== 'well' && this.#selectedTool !== 'storage';
   }
 
@@ -126,7 +161,7 @@ export class FarmUiController {
       <div><strong>Storage</strong><span>${storage}</span></div>
       <div><strong>Workers</strong><span>${state.workers.length}</span></div>
       <div><strong>Tier</strong><span>${state.tier.level} ${state.tier.label}</span></div>
-      <div><strong>Tool</strong><span>${toolLabel(this.#selectedTool)}</span></div>
+      <div><strong>Tool</strong><span>${this.#annotations?.isAiming || this.#annotations?.isDrafting ? 'Note' : toolLabel(this.#selectedTool)}</span></div>
       <div><strong>Speed</strong><span>${this.#paused ? 'Paused' : `${this.#speed}x`}</span></div>
       <div class="hud-alert">${this.#persistenceWarning ?? state.alerts[0] ?? milestoneProgressText(state)}</div>
     `;
@@ -150,7 +185,9 @@ export class FarmUiController {
       `<button class="tool-button ${!this.#paused && this.#speed === 2 ? 'active' : ''}" data-speed="2" title="2x speed (-)" aria-label="2x speed">${toolbarButtonContent('zap', '-', '2x')}</button>`,
       `<button class="tool-button ${!this.#paused && this.#speed === 4 ? 'active' : ''}" data-speed="4" title="4x speed (=)" aria-label="4x speed">${toolbarButtonContent('zap', '=', '4x')}</button>`,
     ].join('');
-    const markup = toolButtons + speedButtons;
+    const annotationActive = Boolean(this.#annotations?.isAiming || this.#annotations?.isDrafting);
+    const annotationButton = `<button class="tool-button ${annotationActive ? 'active' : ''}" data-command="toggle-annotations" title="Farm Notes (N)" aria-label="Farm Notes" aria-pressed="${annotationActive}">${toolbarButtonContent('note', 'N', 'Note')}</button>`;
+    const markup = toolButtons + annotationButton + speedButtons;
     if (markup !== this.#lastToolbarMarkup) {
       this.shell.toolbar.innerHTML = markup;
       this.#lastToolbarMarkup = markup;
@@ -168,16 +205,23 @@ export class FarmUiController {
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-panel]')) {
       button.classList.toggle('active', button.dataset.panel === this.#activePanel);
     }
+    const annotationCount = document.querySelector<HTMLElement>('.annotation-tab-count');
+    if (annotationCount) {
+      annotationCount.textContent = String(this.#annotations?.count ?? 0);
+      annotationCount.hidden = !this.#annotations?.count;
+    }
 
     const now = performance.now();
     const signature = panelStateSignature(state, this.#activePanel);
     const forceRender = this.#activePanel !== this.#lastRenderedPanel ||
       this.#panelCollapsed !== this.#lastRenderedCollapsed ||
       signature !== this.#lastPanelStateSignature;
-    const focusedMixControl = this.#activePanel === 'mix' &&
-      document.activeElement instanceof HTMLInputElement &&
-      Boolean(document.activeElement.dataset.mix || document.activeElement.dataset.mixNumber);
-    if (focusedMixControl) {
+    const activeElement = document.activeElement;
+    const focusedLiveControl = (this.#activePanel === 'mix' &&
+      activeElement instanceof HTMLInputElement &&
+      Boolean(activeElement.dataset.mix || activeElement.dataset.mixNumber)) ||
+      (this.#activePanel === 'annotations' && activeElement instanceof HTMLTextAreaElement);
+    if (focusedLiveControl) {
       this.syncPanelScrollAffordance();
       return;
     }
@@ -221,6 +265,7 @@ export class FarmUiController {
         <p class="small">Set one crop directly. The remaining unlocked crops automatically share the rest.</p>
       `;
     }
+    if (this.#activePanel === 'annotations') return this.#annotations?.panelMarkup(state) ?? '';
     return inspectMarkup(state, this.#selectedCell);
   }
 
@@ -247,12 +292,20 @@ export class FarmUiController {
     if (!(target instanceof Element)) return;
     const clickedTutorialTarget = this.#tutorial.activeTargetContains(target);
     const tool = target.closest<HTMLElement>('[data-tool]')?.dataset.tool as Tool | undefined;
-    if (tool) this.#selectedTool = tool;
+    if (tool) {
+      this.#selectedTool = tool;
+      this.#annotations?.stopAiming();
+    }
 
     const panel = target.closest<HTMLElement>('[data-panel]')?.dataset.panel as Panel | undefined;
     if (panel) {
       this.#activePanel = panel;
       if (panel === 'mix') this.markMixTutorialsSeen();
+    }
+
+    if (this.#annotations?.handleClick(target)) {
+      if (clickedTutorialTarget) this.#tutorial.markActiveTargetSeen();
+      return;
     }
 
     const command = target.closest<HTMLElement>('[data-command]')?.dataset.command;
@@ -287,7 +340,8 @@ export class FarmUiController {
   private handleNamedCommand(command: string | undefined): void {
     if (command === 'undo') this.#bridge.submit({ type: 'undo' });
     if (command === 'redo') this.#bridge.submit({ type: 'redo' });
-    if (command === 'pause') this.#paused = !this.#paused;
+    if (command === 'pause' && !this.#annotations?.isDrafting) this.#paused = !this.#paused;
+    if (command === 'toggle-annotations') this.#annotations?.toggleAiming();
     if (command === 'toggle-panel') this.#panelCollapsed = !this.#panelCollapsed;
     if (command === 'claim-tier') this.#bridge.submit({ type: 'claimNextTier' });
     if (command === 'abandon-request') this.#bridge.submit({ type: 'abandonVillageRequest' });
@@ -297,6 +351,7 @@ export class FarmUiController {
 
   private handleMixPreview(event: Event): void {
     const target = event.target;
+    if (target instanceof Element && this.#annotations?.handleInput(target)) return;
     if (!(target instanceof HTMLInputElement)) return;
     const cropId = (target.dataset.mix ?? target.dataset.mixNumber) as CropId | undefined;
     if (!cropId || (target.dataset.mixNumber && target.value.trim() === '')) return;
@@ -324,6 +379,7 @@ export class FarmUiController {
   }
 
   private handleKeydown(event: KeyboardEvent): void {
+    if (this.#annotations?.handleKeydown(event)) return;
     if (
       event.target instanceof Element &&
       event.target.closest('button, input, select, textarea, [contenteditable="true"], [role="button"]')
@@ -357,7 +413,7 @@ export class FarmUiController {
 
   private setSpeed(next: number): void {
     this.#speed = next === 2 || next === 4 ? next : 1;
-    this.#paused = false;
+    if (!this.#annotations?.isDrafting) this.#paused = false;
     try {
       localStorage.setItem(SPEED_STORAGE_KEY, String(this.#speed));
     } catch {

@@ -1,6 +1,7 @@
 import { CROPS } from '../game/content/crops';
 import { claimableTierLevel, type FarmState } from '../game/simulation/farmGame';
 import { milestoneCropId, seedBuyTargetAvailable, seedRestockNeeded } from './farmPanelRows';
+import type { Panel } from './appShell';
 import { storagePressureInfo } from './panelState';
 import type { IconName } from './pixelIcons';
 
@@ -15,7 +16,7 @@ export type TutorialTip = {
 };
 
 export interface TutorialContext {
-  activePanel: 'inventory' | 'requests' | 'goals' | 'mix' | 'inspect';
+  activePanel: Panel;
   selectedTool: 'inspect' | 'plot' | 'well' | 'storage' | 'land' | 'bulldoze';
   isSeen(id: string): boolean;
 }

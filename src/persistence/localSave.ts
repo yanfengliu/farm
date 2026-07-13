@@ -44,7 +44,7 @@ export function clearFarmSave(): boolean {
   }
 }
 
-function isFarmState(value: unknown): value is FarmState {
+export function isFarmState(value: unknown): value is FarmState {
   if (!isFarmCore(value)) return false;
   return isRecord(value.history) && isHistoryArray(value.history.undo) && isHistoryArray(value.history.redo);
 }
