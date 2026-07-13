@@ -1,8 +1,8 @@
 import type Phaser from 'phaser';
 import type { CreekHabitatId, WildlifeNodeId } from '../../game/content/wildlife';
 import type { FarmDuck, FarmState } from '../../game/simulation/farmGame';
+import { farmTreeShelterAnchor } from './farmBotany';
 import { buildFarmSceneryLayout } from './farmSceneryLayout';
-import { farmGroveAnchors } from './farmEnvironment';
 import { creekCenterX } from './farmWaterside';
 
 interface PixelPoint {
@@ -38,10 +38,8 @@ export function wildlifeNodeWorldPosition(
 ): PixelPoint {
   const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
   if (node === 'tree-shelter-elder' || node === 'tree-shelter-hazel') {
-    const grove = farmGroveAnchors(state, tileSize)[0];
-    const treeIndex = node === 'tree-shelter-elder' ? 0 : 1;
-    const [dx = 0, dy = 0] = grove?.trees[treeIndex] ?? [0, 0];
-    return { x: (grove?.x ?? layout.frame.left) + dx + 7, y: (grove?.y ?? layout.frame.top) + dy + 26 };
+    const shelter = farmTreeShelterAnchor(state, tileSize, node);
+    return { x: shelter.x + 7, y: shelter.y + 26 };
   }
 
   const nodeY: Record<CreekHabitatId, number> = {

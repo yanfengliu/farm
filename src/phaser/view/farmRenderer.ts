@@ -4,7 +4,7 @@ import type { FarmState, FarmTile, FarmWorker } from '../../game/simulation/farm
 import { drawFarmAmbience } from './farmAmbience';
 import { drawFarmEnvironment, drawFarmOverstory, drawFarmScenery, drawWildMeadowCell } from './farmEnvironment';
 import { exponentialApproach } from './farmMotionMath';
-import { drawFlowerClump, drawGrassTuft } from './farmPixelPrimitives';
+import { coordinateHash, drawFlowerClump, drawGrassTuft } from './farmPixelPrimitives';
 import { drawFarmhand } from './farmWorkerArt';
 
 export const TILE_SIZE = 32;
@@ -109,6 +109,9 @@ export class FarmRenderer {
     g.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
     if ((tile.x * 3 + tile.y) % 4 === 0) drawGrassTuft(g, px + 7, py + 19, 0x91bb66);
     if ((tile.x + tile.y * 5) % 7 === 0 && tile.kind === 'empty') drawFlowerClump(g, px + 23, py + 8, tile.x + tile.y);
+    if (tile.kind === 'empty' && coordinateHash(tile.x + 5, tile.y + 17) % 5 === 0) {
+      drawCloverPatch(g, px + 12 + (tile.y % 7), py + 25, tile.x + tile.y);
+    }
     if (tile.kind === 'plot') this.drawSoilBed(tile);
     if (tile.kind === 'well' || tile.kind === 'storage') {
       g.fillStyle(0x42633a, 0.36);
@@ -383,6 +386,19 @@ function workerOffset(id: number): Cell {
 
 function tileVariant(x: number, y: number, colors: number[]): number {
   return colors[Math.abs((x * 17 + y * 31) % colors.length)] ?? colors[0];
+}
+
+function drawCloverPatch(g: Phaser.GameObjects.Graphics, x: number, y: number, variant: number): void {
+  g.fillStyle(0x598548, 1);
+  g.fillRect(x, y - 5, 1, 6);
+  g.fillStyle(0x86b966, 1);
+  g.fillRect(x - 4, y - 6, 4, 3);
+  g.fillRect(x + 1, y - 7, 4, 3);
+  g.fillRect(x - 2, y - 9, 4, 3);
+  if (variant % 3 === 0) {
+    g.fillStyle(0xf0d6df, 1);
+    g.fillRect(x, y - 10, 2, 2);
+  }
 }
 
 function farmGroundSignature(state: FarmState): string {

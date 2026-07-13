@@ -6,7 +6,7 @@ import {
   renderFarmToText,
 } from '../../src/game/simulation/farmGame';
 import { wildlifeTravelProgressPerTick } from '../../src/game/content/wildlife';
-import { buildCreekLilyLayout } from '../../src/phaser/view/farmWaterside';
+import { buildCreekBankPlantLayout, buildCreekLilyLayout } from '../../src/phaser/view/farmWaterside';
 
 function advanceUntil(
   game: ReturnType<typeof createFarmGame>,
@@ -258,5 +258,18 @@ describe('natural creek lily layout', () => {
     expect(new Set(first.map((lily) => `${lily.size}:${lily.notch}:${lily.blossomColor ?? 'none'}`)).size)
       .toBeGreaterThan(2);
     expect(first.every((lily) => Math.abs(lily.y - lily.bridgeY) > 22)).toBe(true);
+  });
+
+  test('builds varied bank plant communities away from the bridge', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'creek-bank-plants' }));
+    const first = buildCreekBankPlantLayout(state, 32);
+    const second = buildCreekBankPlantLayout(state, 32);
+
+    expect(second).toEqual(first);
+    expect(first.length).toBeGreaterThanOrEqual(8);
+    expect(new Set(first.map((plant) => plant.kind))).toEqual(new Set(['cattail', 'iris', 'sedge']));
+    expect(new Set(first.map((plant) => plant.bank))).toEqual(new Set(['left', 'right']));
+    expect(new Set(first.slice(1).map((plant, index) => plant.y - first[index]!.y)).size).toBeGreaterThan(2);
+    expect(first.every((plant) => Math.abs(plant.y - plant.bridgeY) > 34)).toBe(true);
   });
 });

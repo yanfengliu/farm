@@ -13,6 +13,15 @@ export interface CreekLilyLayout {
   bridgeY: number;
 }
 
+export interface CreekBankPlantLayout {
+  x: number;
+  y: number;
+  kind: 'cattail' | 'iris' | 'sedge';
+  bank: 'left' | 'right';
+  variant: number;
+  bridgeY: number;
+}
+
 export function creekCenterX(baseX: number, y: number): number {
   return baseX + Math.round(Math.sin(y / 42) * 6 + Math.sin(y / 91) * 3);
 }
@@ -35,12 +44,38 @@ export function drawCreekBed(g: Phaser.GameObjects.Graphics, state: FarmState, t
     g.fillRect(x + 3, y + 1, layout.creek.width - 7, 2);
   }
 
-  for (let y = top + 34; y < bottom; y += 61) {
-    const x = creekCenterX(layout.creek.centerX, y);
-    drawReeds(g, x - 9, y + 7);
-    drawReeds(g, x + layout.creek.width + 7, y + 22);
-  }
+  for (const plant of buildCreekBankPlantLayout(state, tileSize)) drawCreekBankPlant(g, plant);
   for (const lily of buildCreekLilyLayout(state, tileSize)) drawLilyPad(g, lily);
+}
+
+export function buildCreekBankPlantLayout(state: FarmState, tileSize: number): CreekBankPlantLayout[] {
+  const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
+  const plants: CreekBankPlantLayout[] = [];
+  const kinds = ['cattail', 'iris', 'sedge'] as const;
+  let y = layout.environment.top + 19;
+  let index = 0;
+
+  while (y < layout.environment.bottom - 14) {
+    const hash = coordinateHash(index + 83, state.width * 31 + state.height * 47);
+    y += 43 + (hash % 37);
+    if (Math.abs(y - layout.creek.bridgeY) <= 34) y = layout.creek.bridgeY + 38 + (hash % 17);
+    if (y >= layout.environment.bottom - 10) break;
+    const bank = index % 2 === 0 ? 'left' : 'right';
+    const creekX = creekCenterX(layout.creek.centerX, y);
+    plants.push({
+      x: bank === 'left'
+        ? creekX - 9 - (Math.floor(hash / 13) % 5)
+        : creekX + layout.creek.width + 7 + (Math.floor(hash / 17) % 5),
+      y,
+      kind: kinds[index % kinds.length] ?? 'sedge',
+      bank,
+      variant: hash,
+      bridgeY: layout.creek.bridgeY,
+    });
+    index += 1;
+  }
+
+  return plants;
 }
 
 export function buildCreekLilyLayout(state: FarmState, tileSize: number): CreekLilyLayout[] {
@@ -106,12 +141,36 @@ export function drawCreekShimmer(g: Phaser.GameObjects.Graphics, state: FarmStat
   }
 }
 
-function drawReeds(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
-  g.fillStyle(0x89a951, 1);
-  for (const offset of [0, 4, 8]) g.fillRect(x + offset, y - 9 + (offset % 3), 2, 11);
-  g.fillStyle(0x8b5a35, 1);
-  g.fillRect(x, y - 10, 2, 4);
-  g.fillRect(x + 8, y - 8, 2, 4);
+function drawCreekBankPlant(g: Phaser.GameObjects.Graphics, plant: CreekBankPlantLayout): void {
+  const direction = plant.bank === 'left' ? -1 : 1;
+  if (plant.kind === 'cattail') {
+    g.fillStyle(0x759a4a, 1);
+    for (const offset of [0, direction * 4, direction * 8]) {
+      g.fillRect(plant.x + offset, plant.y - 10 + Math.abs(offset % 3), 2, 12);
+    }
+    g.fillStyle(0x815338, 1);
+    g.fillRect(plant.x, plant.y - 13, 2, 5);
+    g.fillRect(plant.x + direction * 8, plant.y - 10, 2, 4);
+    return;
+  }
+
+  if (plant.kind === 'iris') {
+    g.fillStyle(0x5f8b49, 1);
+    g.fillRect(plant.x, plant.y - 12, 2, 13);
+    g.fillRect(plant.x + direction * 3, plant.y - 8, 1, 9);
+    g.fillStyle(plant.variant % 2 ? 0x8999d3 : 0x9b87c6, 1);
+    g.fillRect(plant.x - 2, plant.y - 15, 6, 3);
+    g.fillRect(plant.x, plant.y - 17, 2, 6);
+    g.fillStyle(0xf0cf6a, 1);
+    g.fillRect(plant.x + 1, plant.y - 14, 1, 2);
+    return;
+  }
+
+  g.fillStyle(plant.variant % 2 ? 0x759c50 : 0x89a951, 1);
+  g.fillRect(plant.x, plant.y - 9, 1, 10);
+  g.fillRect(plant.x + direction * 3, plant.y - 12, 2, 13);
+  g.fillRect(plant.x + direction * 7, plant.y - 7, 1, 8);
+  g.fillRect(plant.x - direction * 3, plant.y - 6, 2, 7);
 }
 
 function drawLilyPad(g: Phaser.GameObjects.Graphics, lily: CreekLilyLayout): void {

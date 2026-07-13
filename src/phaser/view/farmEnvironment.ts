@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import type { FarmState } from '../../game/simulation/farmGame';
+import { drawFarmBotanyGround, drawFarmBotanyOverstory, drawWildMeadowBotany } from './farmBotany';
 import { buildFarmSceneryLayout } from './farmSceneryLayout';
 import { coordinateHash, drawFlowerClump, drawGrassTuft, tileVariant } from './farmPixelPrimitives';
 import { drawCreekBed, drawCreekBridge } from './farmWaterside';
@@ -34,7 +35,7 @@ export function drawFarmEnvironment(g: Phaser.GameObjects.Graphics, state: FarmS
   drawCottageGarden(g, state, tileSize);
   drawTierFlourishes(g, state, tileSize);
   drawSteppingPath(g, state, tileSize);
-  drawGroveTrunks(g, state, tileSize);
+  drawFarmBotanyGround(g, state, tileSize);
   drawFarmSign(g, layout.sign.x, layout.sign.y);
 }
 
@@ -43,21 +44,7 @@ export function drawFarmScenery(g: Phaser.GameObjects.Graphics, state: FarmState
 }
 
 export function drawFarmOverstory(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {
-  const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
-  const groves = farmGroveAnchors(state, tileSize);
-  for (let groveIndex = 0; groveIndex < groves.length; groveIndex += 1) {
-    const grove = groves[groveIndex];
-    if (!grove) continue;
-    for (let treeIndex = 0; treeIndex < grove.trees.length; treeIndex += 1) {
-      const [dx, dy] = grove.trees[treeIndex] ?? [0, 0];
-      drawCanopy(g, grove.x + dx, grove.y + dy, groveIndex + treeIndex);
-    }
-  }
-
-  drawHedge(g, 18, -19, Math.max(6, state.width - 2));
-  drawHedge(g, layout.farm.right + 61, 161, 5);
-  drawForegroundLeaves(g, layout.frame.left + 5, layout.frame.bottom - 30, false);
-  drawForegroundLeaves(g, layout.frame.right - 38, layout.frame.bottom - 24, true);
+  drawFarmBotanyOverstory(g, state, tileSize);
 }
 
 export function drawWildMeadowCell(g: Phaser.GameObjects.Graphics, x: number, y: number, tileSize: number): void {
@@ -66,6 +53,7 @@ export function drawWildMeadowCell(g: Phaser.GameObjects.Graphics, x: number, y:
   g.fillStyle(tileVariant(x, y, [0x4e7640, 0x557d45, 0x496f3d]), 0.62);
   g.fillRect(px, py, tileSize, tileSize);
   if (coordinateHash(x, y) % 4 === 0) drawGrassTuft(g, px + 10, py + 13, 0x7fac5c);
+  drawWildMeadowBotany(g, x, y, tileSize);
   drawSouthernMeadowStory(g, x, y, tileSize);
 }
 
@@ -230,6 +218,16 @@ function drawCottage(g: Phaser.GameObjects.Graphics, x: number, y: number): void
   g.fillStyle(0x9bd1c5, 1);
   g.fillRect(x + 10, y + 33, 6, 6);
   g.fillRect(x + 45, y + 33, 6, 6);
+  for (const [index, windowX] of [8, 43].entries()) {
+    g.fillStyle(0x704229, 1);
+    g.fillRect(x + windowX - 1, y + 41, 12, 4);
+    g.fillStyle(0x5f873d, 1);
+    g.fillRect(x + windowX + 1, y + 39, 4, 3);
+    g.fillRect(x + windowX + 6, y + 38, 4, 4);
+    g.fillStyle(index === 0 ? 0xf4d778 : 0xe9a5a1, 1);
+    g.fillRect(x + windowX + 3, y + 39, 2, 2);
+    g.fillRect(x + windowX + 7, y + 38, 2, 2);
+  }
   g.fillStyle(0xffd879, 1);
   g.fillRect(x + 33, y + 44, 2, 2);
   g.fillStyle(0x754130, 1);
@@ -255,9 +253,16 @@ function drawCottageGarden(g: Phaser.GameObjects.Graphics, state: FarmState, til
   }
   for (let index = 0; index < 6; index += 1) {
     const x = garden.left + 11 + index * 8;
-    drawGrassTuft(g, x, garden.top + 13, index % 2 ? 0x6aa052 : 0x77ad58);
+    drawGrassTuft(g, x, garden.top + 20, index % 2 ? 0x6aa052 : 0x77ad58);
     g.fillStyle(index % 2 ? 0xeaa3a0 : 0xffd66e, 1);
-    g.fillRect(x - 1, garden.top + 8 + (index % 2), 2, 2);
+    g.fillRect(x - 1, garden.top + 15 + (index % 2), 2, 2);
+
+    const cabbageX = x + (index % 2 ? 1 : -1);
+    g.fillStyle(index % 2 ? 0x5f934c : 0x6aa052, 1);
+    g.fillRect(cabbageX - 4, garden.top + 29, 9, 5);
+    g.fillRect(cabbageX - 2, garden.top + 26, 5, 9);
+    g.fillStyle(0x9bc36d, 1);
+    g.fillRect(cabbageX - 1, garden.top + 28, 3, 3);
   }
 
   const lineY = garden.top + 5;
@@ -350,74 +355,6 @@ function drawSteppingPath(g: Phaser.GameObjects.Graphics, state: FarmState, tile
     g.fillStyle(0xb9b48e, 0.8);
     g.fillRect(x + 2, y + 1, 5, 1);
   }
-}
-
-export function farmGroveAnchors(state: FarmState, tileSize: number): Array<{ x: number; y: number; trees: number[][] }> {
-  const { farm } = buildFarmSceneryLayout(state.width, state.height, tileSize);
-  const trees = [[0, 20], [22, 2], [42, 24], [17, 42]];
-  return [
-    { x: -105, y: 11, trees },
-    { x: farm.right + 75, y: 218, trees },
-    { x: -16, y: farm.bottom + 22, trees: [[0, 12], [25, 0], [48, 18]] },
-  ];
-}
-
-function drawGroveTrunks(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {
-  for (const grove of farmGroveAnchors(state, tileSize)) {
-    for (const [dx = 0, dy = 0] of grove.trees) {
-      const x = grove.x + dx;
-      const y = grove.y + dy;
-      g.fillStyle(0x2b4432, 0.35);
-      g.fillRect(x - 8, y + 19, 29, 7);
-      g.fillStyle(0x674126, 1);
-      g.fillRect(x + 4, y + 6, 7, 20);
-      g.fillStyle(0x95643a, 1);
-      g.fillRect(x + 6, y + 8, 2, 14);
-    }
-  }
-}
-
-function drawCanopy(g: Phaser.GameObjects.Graphics, x: number, y: number, variant: number): void {
-  g.fillStyle(0x1e4134, 0.5);
-  g.fillRect(x - 10, y - 6, 36, 26);
-  g.fillStyle(0x28543d, 1);
-  g.fillRect(x - 8, y - 12, 30, 25);
-  g.fillRect(x - 14, y - 5, 42, 15);
-  g.fillStyle(variant % 2 ? 0x3d7048 : 0x356944, 1);
-  g.fillRect(x - 4, y - 17, 22, 19);
-  g.fillRect(x + 10, y - 8, 21, 12);
-  g.fillStyle(0x91bd6a, 1);
-  g.fillRect(x + 1, y - 14, 9, 4);
-  g.fillRect(x + 14, y - 5, 7, 3);
-  if (variant % 3 === 0) {
-    g.fillStyle(0xe6a05f, 1);
-    g.fillRect(x + 5, y, 3, 3);
-    g.fillRect(x + 19, y - 2, 3, 3);
-  }
-}
-
-function drawHedge(g: Phaser.GameObjects.Graphics, x: number, y: number, length: number): void {
-  for (let index = 0; index < length; index += 1) {
-    const px = x + index * 22;
-    const offset = index % 2 ? 3 : 0;
-    g.fillStyle(0x244b39, 1);
-    g.fillRect(px - 4, y + offset, 27, 16);
-    g.fillStyle(0x3f7549, 1);
-    g.fillRect(px, y - 4 + offset, 20, 15);
-    g.fillStyle(0x91bd6a, 1);
-    g.fillRect(px + 4, y - 2 + offset, 6, 2);
-  }
-}
-
-function drawForegroundLeaves(g: Phaser.GameObjects.Graphics, x: number, y: number, mirror: boolean): void {
-  const direction = mirror ? -1 : 1;
-  g.fillStyle(0x17372e, 0.92);
-  g.fillRect(x, y, 34, 30);
-  g.fillRect(x + direction * 18, y - 10, 27, 25);
-  g.fillStyle(0x28543d, 1);
-  g.fillRect(x + 3, y - 5, 24, 22);
-  g.fillStyle(0x5b8b52, 1);
-  g.fillRect(x + 7, y - 2, 9, 4);
 }
 
 function drawFarmSign(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
