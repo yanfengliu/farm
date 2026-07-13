@@ -4,9 +4,9 @@
 
 - Surfaced by: the first full 120-decision Village Harvest recursive shift reached `120-final.png` but ended `run-failed` with Node `ERR_STRING_TOO_LONG` in Playwright's pipe transport while exporting the in-page session bundle.
 - Failure mode: the recorder captured a whole accelerated browser lifetime, and Farm's per-tick deterministic state diffs accumulated into one protocol response even though each PNG remained under 275 kB. Screenshot size was unrelated to the failure.
-- Fix commit: `fix: bound browser replay evidence`; development recording now seals every 64 ticks and returns the most recent non-empty window, including when export lands exactly on a rotation boundary.
-- Regression anchors: `tests/simulation/farmReplayWindow.test.ts` builds long command history, asserts the exported JSON stays below 32 MB, runs a strong `SessionReplayer.selfCheck()`, and pins exact-boundary fallback behavior; `tests/browser/llmVisualLoopImprovementContract.test.mjs` keeps earlier findings unverified under a strong partial suffix.
-- Behavior delta: the complete screenshots and action log still describe the whole player journey, while the deterministic bundle provides recent bounded replay proof instead of crashing the recursive pass after all actions finish or overclaiming which observations that suffix verifies.
+- Fix commits: `fix: bound browser replay evidence` introduced the rolling recorder; `fix: free request storage without selling reserves` retains the latest command-bearing window through a long idle tail while preserving partial-coverage labeling.
+- Regression anchors: `tests/simulation/farmReplayWindow.test.ts` builds long command history, asserts the exported JSON stays below 32 MB, runs a strong `SessionReplayer.selfCheck()`, pins exact-boundary fallback behavior, and proves an earlier command window survives two idle rotations; `tests/browser/llmVisualLoopImprovementContract.test.mjs` keeps earlier findings unverified under a strong partial suffix.
+- Behavior delta: the complete screenshots and action log still describe the whole player journey, while the deterministic bundle provides bounded replay proof with at least one checked command segment when the run contained one, instead of crashing after all actions finish, returning a vacuous idle suffix, or overclaiming which observations that partial window verifies.
 
 ## 2026-07-12 - Additive save migrations must normalize command history too
 

@@ -7,6 +7,7 @@ import {
   findAction,
   findKeyboardAction,
   findKeyboardControl,
+  findSafeRequestPressureSellAction,
   findSeedActionForVisibleNeed,
   findUpgradeAction,
   hasActionableGuidance,
@@ -164,6 +165,10 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (panelScrollAction?.state?.canScrollDown && !scrolledPanelDown && /Inventory|Tier|Crop Mix|Inspect|Request/i.test(observation.visibleText)) return wheelDecision(panelScrollAction, 'Scroll the side panel down with the mouse wheel so the LLM sees lower panel content only after a player-like scroll.', 420);
   if (panelScrollAction?.state?.canScrollUp && scrolledPanelDown && !scrolledPanelUp) return wheelDecision(panelScrollAction, 'Scroll the side panel back up so primary controls remain reachable for the next player decision.', -420);
 
+  const safeRequestSellAction = findSafeRequestPressureSellAction(observation, history);
+  if (request.pending && safeRequestSellAction) {
+    return clickDecision(safeRequestSellAction, 'Storage pressure is blocking the pinned basket, so sell one crop above its reserved need.');
+  }
   if (request.pending && requestsAction && !requestsAction.state?.active && !hasExplicitSeedGuidance(observation.visibleText) && !explicitPaintGuidanceVisible) {
     return clickDecision(requestsAction, 'Return to the pinned Village Request before selling so its reserved basket can be checked and delivered.');
   }

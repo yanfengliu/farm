@@ -71,4 +71,35 @@ describe('farm replay evidence window', () => {
     expect(selfCheck.checkedSegments).toBeGreaterThan(0);
     expect(selfCheck.skippedSegments).toHaveLength(0);
   });
+
+  test('retains the most recent command-bearing window across a long idle tail', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'command-replay-window' }));
+    state.tier = tierState(2);
+    const game = createFarmGame({ seed: 'command-replay-window', state });
+    const replayWindow = new FarmReplayWindow(game, true);
+    submitFarmCommand(game, { type: 'setCropMix', mix: { carrot: 0.8, wheat: 0.2 } });
+    replayWindow.advance(1 + FARM_REPLAY_WINDOW_TICKS * 2);
+
+    const bundle = replayWindow.exportBundle() as unknown as SessionBundle<ReplayEvents, ReplayCommands>;
+    replayWindow.dispose();
+    expect(bundle.commands).toHaveLength(1);
+    expect(bundle.metadata.sourceLabel).toBe('farm-terminal-replay-window:partial');
+
+    const replayer = SessionReplayer.fromBundle<
+      ReplayEvents,
+      ReplayCommands,
+      unknown,
+      Record<string, never>,
+      ReplayState
+    >(bundle, {
+      worldFactory: (snapshot) => {
+        const replay = createFarmGame({ seed: snapshot.config.seed });
+        replay.applySnapshot(snapshot);
+        return replay;
+      },
+    });
+    const selfCheck = replayer.selfCheck({ stopOnFirstDivergence: true });
+    expect(selfCheck.ok).toBe(true);
+    expect(selfCheck.checkedSegments).toBeGreaterThan(0);
+  });
 });

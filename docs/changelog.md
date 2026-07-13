@@ -13,6 +13,8 @@
 - Moved permanent cottage, sign, path, and grove scenery outside the buyable grid so a fully expanded farm cannot paint over its landmarks.
 - Bounded development replay evidence to a rolling 64-tick terminal window so a complete accelerated recursive shift stays strongly replayable without overflowing Playwright's protocol transport.
 - Recorded replay-window coverage explicitly, kept findings outside a partial terminal window unverified, and taught the local player to open Inventory when an active Village Request is stalled by seed guidance.
+- Taught the visual player to relieve a full request bin by selling exactly one crop above the pinned basket's visible reserve, never the requested crop deficit or the whole inventory.
+- Kept the most recent command-bearing 64-tick replay window across idle rotations so long visual shifts finish with non-vacuous deterministic evidence when a recorded command exists.
 
 ## 0.1.0 - 2026-07-04
 

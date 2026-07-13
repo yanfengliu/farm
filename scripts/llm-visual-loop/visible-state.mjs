@@ -1,7 +1,7 @@
 export function hasVisibleSellableCrops(visibleText) {
   const text = String(visibleText ?? '');
   if (/\bSTORAGE\s+(?!0\/)\d+\/\d+\b/i.test(text)) return true;
-  return /\b(?:Carrot|Wheat|Tomato):\s*(?!0\b)\d+\b/i.test(text);
+  return /\b(?:Carrot|Wheat|Tomato|Pumpkin):\s*(?!0\b)\d+\b/i.test(text);
 }
 
 const CROP_LABELS = {
@@ -17,6 +17,13 @@ export function visibleSeedStock(visibleText, cropId) {
   const label = CROP_LABELS[cropId];
   if (!label) return null;
   const match = String(visibleText ?? '').match(new RegExp(`${label} seeds:\\s*(\\d+)`, 'i'));
+  return match ? Number(match[1]) : null;
+}
+
+export function visibleCropStock(visibleText, cropId) {
+  const label = CROP_LABELS[cropId];
+  if (!label) return null;
+  const match = String(visibleText ?? '').match(new RegExp(`${label}:\\s*(\\d+)`, 'i'));
   return match ? Number(match[1]) : null;
 }
 

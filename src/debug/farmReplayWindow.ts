@@ -15,6 +15,7 @@ export class FarmReplayWindow {
   #game: FarmGame;
   #recorder: SessionRecorder | null = null;
   #lastCompleteBundle: SessionBundle | null = null;
+  #lastCommandBundle: SessionBundle | null = null;
   #coverageInvalidated = false;
   readonly #coverageOriginTick: number;
   readonly #enabled: boolean;
@@ -50,6 +51,7 @@ export class FarmReplayWindow {
   replaceGame(game: FarmGame): void {
     this.dispose();
     this.#lastCompleteBundle = null;
+    this.#lastCommandBundle = null;
     this.#coverageInvalidated = true;
     this.#game = game;
     this.#attach();
@@ -60,14 +62,18 @@ export class FarmReplayWindow {
     const recorder = this.#recorder;
     recorder.disconnect();
     const currentBundle = recorder.toBundle();
-    const bundle = recorder.tickCount > 0 ? currentBundle : this.#lastCompleteBundle;
+    const bundle = currentBundle.commands.length > 0
+      ? currentBundle
+      : this.#lastCommandBundle ?? (recorder.tickCount > 0 ? currentBundle : this.#lastCompleteBundle);
     if (bundle) {
       const coversWholeRecording = !this.#coverageInvalidated
-        && bundle.metadata.startTick === this.#coverageOriginTick;
+        && bundle.metadata.startTick === this.#coverageOriginTick
+        && bundle.metadata.endTick === this.#game.tick;
       bundle.metadata.sourceLabel = `farm-terminal-replay-window:${coversWholeRecording ? 'full' : 'partial'}`;
     }
     this.#recorder = null;
     this.#lastCompleteBundle = null;
+    this.#lastCommandBundle = null;
     this.#attach();
     return bundle;
   }
@@ -81,7 +87,9 @@ export class FarmReplayWindow {
   #rotate(): void {
     if (this.#recorder) {
       this.#recorder.disconnect();
-      this.#lastCompleteBundle = this.#recorder.toBundle();
+      const bundle = this.#recorder.toBundle();
+      this.#lastCompleteBundle = bundle;
+      if (bundle.commands.length > 0) this.#lastCommandBundle = bundle;
       this.#recorder = null;
     }
     this.#attach();

@@ -96,6 +96,26 @@ describe('LLM visual-loop deterministic local player', () => {
     expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-panel="inventory"]' });
   });
 
+  test('sells only visible crop surplus when a full bin blocks an active basket', () => {
+    const decision = decide(
+      observation(
+        'Coins 171 Storage 15/15 Inventory Carrot: 4 Wheat: 11 Tomato: 0 Pumpkin: 0',
+        [
+          visibleAction('[data-panel="requests"]', 'Village Requests', { active: false }),
+          visibleAction('[data-sell="carrot"]', 'Sell 1 Carrot'),
+          visibleAction('[data-sell="wheat"]', 'Sell 1 Wheat'),
+          visibleAction('[data-command="sell-all"]', 'Sell all crops'),
+        ],
+      ),
+      [{
+        observation: { visibleText: 'Active basket Soup Pot 4/5 Carrot 2/2 Wheat Harvest the missing crops.' },
+        decision: { action: { kind: 'click', selector: '[data-accept-request="soup-pot"]' } },
+      }],
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-sell="wheat"]' });
+  });
+
   test('dismisses a later tutorial after proving the request flow', () => {
     const decision = decide(
       observation(

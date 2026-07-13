@@ -1,4 +1,6 @@
-import { visibleSeedStock } from './visible-state.mjs';
+import { visibleCropStock, visibleSeedStock } from './visible-state.mjs';
+
+const REQUEST_CROP_IDS = ['carrot', 'wheat', 'tomato', 'pumpkin'];
 
 export function hasExplicitSeedGuidance(visibleText) {
   return /FARM GUIDE Buy Seeds|Farmers Waiting|Restock seeds/i.test(visibleText);
@@ -44,6 +46,33 @@ export function visibleStorage(visibleText) {
 
 export function visibleTierReady(visibleText) {
   return /Tier \d+ ready/i.test(visibleText);
+}
+
+export function findSafeRequestPressureSellAction(observation, history) {
+  if (!/\bInventory\b/i.test(observation.visibleText) || !shouldSellVisibleCrops(observation.visibleText)) return null;
+
+  const requestText = [
+    observation.visibleText,
+    ...history.slice().reverse().map((step) => step.observation?.visibleText),
+  ].find((text) => /Active basket/i.test(text ?? '') && parseRequestNeeds(text).size > 0);
+  if (!requestText) return null;
+
+  const needs = parseRequestNeeds(requestText);
+  const candidates = REQUEST_CROP_IDS.flatMap((cropId, priority) => {
+    const stock = visibleCropStock(observation.visibleText, cropId);
+    const action = findAction(observation, `[data-sell="${cropId}"]`);
+    const surplus = stock === null ? 0 : stock - (needs.get(cropId) ?? 0);
+    return action && surplus > 0 ? [{ action, surplus, priority }] : [];
+  });
+  candidates.sort((left, right) => right.surplus - left.surplus || left.priority - right.priority);
+  return candidates[0]?.action ?? null;
+}
+
+function parseRequestNeeds(visibleText) {
+  const needs = new Map();
+  const matches = String(visibleText ?? '').matchAll(/\d+\/(\d+)\s+(Carrot|Wheat|Tomato|Pumpkin)\b/gi);
+  for (const match of matches) needs.set(match[2].toLowerCase(), Number(match[1]));
+  return needs;
 }
 
 export function tutorialActionFromText(observation) {
