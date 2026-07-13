@@ -15,6 +15,8 @@
 - Recorded replay-window coverage explicitly, kept findings outside a partial terminal window unverified, and taught the local player to open Inventory when an active Village Request is stalled by seed guidance.
 - Taught the visual player to relieve a full request bin by selling exactly one crop above the pinned basket's visible reserve, never the requested crop deficit or the whole inventory.
 - Kept the most recent command-bearing 64-tick replay window across idle rotations so long visual shifts finish with non-vacuous deterministic evidence when a recorded command exists.
+- Limited request-pressure selling to the final two bin slots and made missing active-basket crops outrank generic tier crops when the visual player chooses which zero-stock seed bundle to buy.
+- Closed the visual player's pending-request lifecycle when a basket is abandoned so stale requirements cannot influence later selling or seed purchases.
 
 ## 0.1.0 - 2026-07-04
 

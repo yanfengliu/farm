@@ -50,14 +50,11 @@ export function visibleTierReady(visibleText) {
 
 export function findSafeRequestPressureSellAction(observation, history) {
   if (!/\bInventory\b/i.test(observation.visibleText) || !shouldSellVisibleCrops(observation.visibleText)) return null;
+  const storage = visibleStorage(observation.visibleText);
+  if (!storage || storage.used < storage.capacity - 1) return null;
 
-  const requestText = [
-    observation.visibleText,
-    ...history.slice().reverse().map((step) => step.observation?.visibleText),
-  ].find((text) => /Active basket/i.test(text ?? '') && parseRequestNeeds(text).size > 0);
-  if (!requestText) return null;
-
-  const needs = parseRequestNeeds(requestText);
+  const needs = findLatestRequestNeeds(observation, history);
+  if (!needs) return null;
   const candidates = REQUEST_CROP_IDS.flatMap((cropId, priority) => {
     const stock = visibleCropStock(observation.visibleText, cropId);
     const action = findAction(observation, `[data-sell="${cropId}"]`);
@@ -66,6 +63,28 @@ export function findSafeRequestPressureSellAction(observation, history) {
   });
   candidates.sort((left, right) => right.surplus - left.surplus || left.priority - right.priority);
   return candidates[0]?.action ?? null;
+}
+
+export function findSeedActionForActiveRequest(observation, history) {
+  const needs = findLatestRequestNeeds(observation, history);
+  if (!needs) return null;
+  const candidates = REQUEST_CROP_IDS.flatMap((cropId, priority) => {
+    const stock = visibleCropStock(observation.visibleText, cropId);
+    const seedStock = visibleSeedStock(observation.visibleText, cropId);
+    const action = findAction(observation, `[data-buy-seeds="${cropId}"]`);
+    const deficit = stock === null ? 0 : (needs.get(cropId) ?? 0) - stock;
+    return action && seedStock === 0 && deficit > 0 ? [{ action, deficit, priority }] : [];
+  });
+  candidates.sort((left, right) => right.deficit - left.deficit || left.priority - right.priority);
+  return candidates[0]?.action ?? null;
+}
+
+function findLatestRequestNeeds(observation, history) {
+  const requestText = [
+    observation.visibleText,
+    ...history.slice().reverse().map((step) => step.observation?.visibleText),
+  ].find((text) => /Active basket/i.test(text ?? '') && parseRequestNeeds(text).size > 0);
+  return requestText ? parseRequestNeeds(requestText) : null;
 }
 
 function parseRequestNeeds(visibleText) {
@@ -95,10 +114,14 @@ export function requestFlowState(actionHistory) {
   const fulfilled = actionHistory.filter((action) => (
     action.kind === 'click' && action.selector === '[data-command="fulfill-request"]'
   )).length;
+  const abandoned = actionHistory.filter((action) => (
+    action.kind === 'click' && action.selector === '[data-command="abandon-request"]'
+  )).length;
   return {
     accepted,
     fulfilled,
-    pending: accepted > fulfilled,
+    abandoned,
+    pending: accepted > fulfilled + abandoned,
     exercised: accepted > 0 && fulfilled > 0,
   };
 }

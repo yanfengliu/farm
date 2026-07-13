@@ -1,5 +1,13 @@
 # Engineering Lessons
 
+## 2026-07-12 - Request-aware automation must distinguish reserves, deficits, and pressure
+
+- Surfaced by: recursive runs `farm-visual-loop-2026-07-13T06-14-30-782Z` and `farm-visual-loop-2026-07-13T06-24-21-415Z` both capped with an active basket even though the second run successfully exercised the new single-Wheat surplus sale.
+- Failure mode: treating every stored crop as reserved deadlocked a full bin, but treating every positive surplus as continuously sellable drained extra crops after enough space was free. Separately, generic milestone seed priority bought tomatoes while a request was one carrot short and carrot seed stock was zero, and an abandoned acceptance was never closed in the heuristic's request counter.
+- Fix commits: `5124d86` introduced visible basket reserve accounting; the follow-up request-priority repair limits pressure sales to the last two bin slots, prioritizes zero-stock seed for a visible basket deficit before the tier milestone crop, and treats Unpin as closing the accepted request.
+- Regression anchors: `tests/browser/llmVisualLoopLocalPlayer.test.mjs` pins full-bin surplus selection, reserve preservation, the two-free-slot stop condition, request-deficit seed priority, and abandoned-basket cleanup; `tests/browser/llmVisualLoopContract.test.mjs` pins active-request-first with milestone fallback in the composed harness source.
+- Behavior delta: the visual player can make space without using Sell All or consuming a request deficit, stops selling after two slots are free, plants the crop that can actually complete the pinned basket instead of looping on unrelated progression stock, and does not carry an abandoned basket's reserve into later play.
+
 ## 2026-07-12 - Browser replay evidence needs a bounded time window
 
 - Surfaced by: the first full 120-decision Village Harvest recursive shift reached `120-final.png` but ended `run-failed` with Node `ERR_STRING_TOO_LONG` in Playwright's pipe transport while exporting the in-page session bundle.

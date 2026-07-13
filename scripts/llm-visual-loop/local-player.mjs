@@ -8,6 +8,7 @@ import {
   findKeyboardAction,
   findKeyboardControl,
   findSafeRequestPressureSellAction,
+  findSeedActionForActiveRequest,
   findSeedActionForVisibleNeed,
   findUpgradeAction,
   hasActionableGuidance,
@@ -86,9 +87,13 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
     return clickDecision(requestsAction, 'Open Village Requests because the visible Farm Guide introduces the basket flow.');
   }
 
-  const seedAction = findSeedActionForVisibleNeed(observation);
+  const requestSeedAction = request.pending ? findSeedActionForActiveRequest(observation, history) : null;
+  const seedAction = requestSeedAction ?? findSeedActionForVisibleNeed(observation);
   if (seedAction && hasExplicitSeedGuidance(observation.visibleText)) {
-    return clickDecision(seedAction, 'Workers need seeds and the visible guidance offers a direct seed-buying action.');
+    const rationale = requestSeedAction
+      ? 'The pinned basket is missing this crop and its visible seed stock is empty, so restock it before the general tier crop.'
+      : 'Workers need seeds and the visible guidance offers a direct seed-buying action.';
+    return clickDecision(seedAction, rationale);
   }
   if (request.pending && inventoryAction && !inventoryAction.state?.active && hasExplicitSeedGuidance(observation.visibleText)) {
     return clickDecision(inventoryAction, 'The pinned basket is stalled by visible seed guidance, so open Inventory before waiting for crops that cannot be planted.');

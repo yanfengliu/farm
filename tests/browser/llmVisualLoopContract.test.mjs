@@ -167,7 +167,7 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('!shouldSellVisibleCrops(visibleText)');
   });
 
-  test('visual loop prefers the active milestone crop when restocking visible inventory rows', async () => {
+  test('visual loop prefers an active basket deficit before milestone seed restocking', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('function findSeedActionForVisibleNeed(observation)');
@@ -175,7 +175,8 @@ describe('LLM visual loop harness contract', () => {
     expect(source).toContain('findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`)');
     expect(source).toContain('for (const zeroSeedCrop of visibleZeroSeedCropsByPriority(observation.visibleText))');
     expect(source).toContain('if (zeroSeedAction) return zeroSeedAction;');
-    expect(source).toContain('const seedAction = findSeedActionForVisibleNeed(observation);');
+    expect(source).toContain('const requestSeedAction = request.pending ? findSeedActionForActiveRequest(observation, history) : null;');
+    expect(source).toContain('const seedAction = requestSeedAction ?? findSeedActionForVisibleNeed(observation);');
   });
 
   test('visual loop follows goal-specific Farm Guide seed cards', async () => {

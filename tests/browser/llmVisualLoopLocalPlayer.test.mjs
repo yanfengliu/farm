@@ -116,6 +116,64 @@ describe('LLM visual-loop deterministic local player', () => {
     expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-sell="wheat"]' });
   });
 
+  test('stops pressure selling after two storage slots are free', () => {
+    const decision = decide(
+      observation(
+        'Coins 171 Storage 13/15 Inventory Carrot: 4 Wheat: 9 Tomato: 0 Pumpkin: 0',
+        [
+          visibleAction('[data-panel="requests"]', 'Village Requests', { active: false }),
+          visibleAction('[data-sell="carrot"]', 'Sell 1 Carrot'),
+          visibleAction('[data-sell="wheat"]', 'Sell 1 Wheat'),
+        ],
+      ),
+      [{
+        observation: { visibleText: 'Active basket Soup Pot 4/5 Carrot 2/2 Wheat Harvest the missing crops.' },
+        decision: { action: { kind: 'click', selector: '[data-accept-request="soup-pot"]' } },
+      }],
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-panel="requests"]' });
+  });
+
+  test('prioritizes zero-stock seeds for the missing basket crop over the tier milestone crop', () => {
+    const decision = decide(
+      observation(
+        'Restock seeds to keep farmers planting. Harvest 2/10 Tomato Inventory Carrot: 3 Wheat: 3 Tomato: 0 Carrot seeds: 0 Tomato seeds: 0',
+        [
+          visibleAction('[data-buy-seeds="carrot"]', 'Buy 5 Carrot seeds'),
+          visibleAction('[data-buy-seeds="tomato"]', 'Buy 5 Tomato seeds'),
+        ],
+      ),
+      [{
+        observation: { visibleText: 'Active basket Creek Picnic 3/4 Carrot 3/3 Wheat Harvest the missing crops.' },
+        decision: { action: { kind: 'click', selector: '[data-accept-request="creek-picnic"]' } },
+      }],
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-buy-seeds="carrot"]' });
+  });
+
+  test('does not carry an abandoned basket seed deficit into later play', () => {
+    const decision = decide(
+      observation(
+        'Restock seeds to keep farmers planting. Harvest 2/10 Tomato Inventory Carrot: 3 Wheat: 3 Tomato: 0 Carrot seeds: 0 Tomato seeds: 0',
+        [
+          visibleAction('[data-buy-seeds="carrot"]', 'Buy 5 Carrot seeds'),
+          visibleAction('[data-buy-seeds="tomato"]', 'Buy 5 Tomato seeds'),
+        ],
+      ),
+      [
+        {
+          observation: { visibleText: 'Active basket Creek Picnic 3/4 Carrot 3/3 Wheat Harvest the missing crops.' },
+          decision: { action: { kind: 'click', selector: '[data-accept-request="creek-picnic"]' } },
+        },
+        { decision: { action: { kind: 'click', selector: '[data-command="abandon-request"]' } } },
+      ],
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-buy-seeds="tomato"]' });
+  });
+
   test('dismisses a later tutorial after proving the request flow', () => {
     const decision = decide(
       observation(
