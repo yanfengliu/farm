@@ -17,6 +17,10 @@ import {
   loadPreviousRunSummary,
   visualFindingsFromImprovementFindings,
 } from './llm-visual-loop/improvement-report.mjs';
+import {
+  normalizeVisualLoopSteps,
+  ORDINARY_DEFAULT_VISUAL_LOOP_STEPS,
+} from './llm-visual-loop/loop-budget.mjs';
 import { chooseVisualLoopAction, executePlayerDecision } from './llm-visual-loop/player-provider.mjs';
 import { renderVisualLoopHtml, renderVisualLoopMarkdown } from './llm-visual-loop/report-renderers.mjs';
 
@@ -26,7 +30,7 @@ const screenshotDir = path.join(outputDir, 'steps');
 const preferredFarmUrl = 'http://127.0.0.1:5175/';
 const configuredPlaytestUrl = process.env.FARM_PLAYTEST_URL?.trim() ?? '';
 const PLAYER_ACTION_SELECTOR = 'button, input[type="range"], input[type="number"], [role="button"], [role="separator"], [data-player-scroll], canvas';
-const maxSteps = boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 80, 1, 120);
+const maxSteps = normalizeVisualLoopSteps(process.env.FARM_VISUAL_LOOP_STEPS, ORDINARY_DEFAULT_VISUAL_LOOP_STEPS);
 const defaultWaitMs = boundedNumber(process.env.FARM_VISUAL_LOOP_WAIT_MS, 4000, 250, 15000);
 const settleMs = boundedNumber(process.env.FARM_VISUAL_LOOP_SETTLE_MS, 350, 0, 3000);
 const providerCommand = process.env.FARM_LLM_VISUAL_LOOP_COMMAND?.trim() ?? '';

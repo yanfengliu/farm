@@ -63,17 +63,36 @@ describe('buildPassManifest', () => {
       startedAt: '2026-07-08T12:00:00.000Z',
       completedAt: '2026-07-08T12:05:00.000Z',
       durationMs: 300_000,
+      gitCommit: '1234567890abcdef1234567890abcdef12345678',
+      sourceTreeDirty: true,
       provider: 'local-heuristic',
       candidate: finding('browser-errors', 'high', 'autoFix'),
+      discoveryScope: {
+        mode: 'deterministic-regression',
+        id: 'local-heuristic-full-surface',
+        findingSource: 'mechanical-oracles-plus-semantic-control-coverage',
+        supportsBroadQualityClaim: false,
+      },
       verification: { ok: true, checkedSegments: 1, skippedSegments: 0 },
       runId: 'run-1',
       artifacts: [{ kind: 'run', path: 'output/playwright/llm-visual-loop/latest.json' }],
     });
     expect(() => assertImprovementRunManifest(manifest)).not.toThrow();
     expect(manifest.stopReason).toBe('proposal-only');
+    expect(manifest.gitCommit).toBe('1234567890abcdef1234567890abcdef12345678');
     expect(manifest.data).toMatchObject({
       outcome: 'proposal-only',
       candidateFindingId: 'browser-errors',
+      sourceTreeDirty: true,
+      sourceRevision: '1234567890abcdef1234567890abcdef12345678+dirty',
+      discoveryScope: {
+        mode: 'deterministic-regression',
+        id: 'local-heuristic-full-surface',
+        supportsBroadQualityClaim: false,
+      },
+      scopeConclusion: 'candidate-found',
+      broaderGoalStatus: 'in-progress',
+      nextAction: 'fix-candidate',
       verification: { ok: true },
     });
   });
@@ -89,17 +108,36 @@ describe('buildPassManifest', () => {
     expect(() => assertImprovementRunManifest(manifest)).not.toThrow();
     expect(manifest.stopReason).toBe('no-fix-candidate');
     expect(Object.keys(manifest.data ?? {})).not.toContain('candidateFindingId');
+    expect(manifest.data).toMatchObject({
+      discoveryScope: {
+        mode: 'unspecified',
+        id: 'unspecified',
+        findingSource: 'unspecified',
+        supportsBroadQualityClaim: false,
+      },
+      sourceTreeDirty: false,
+      sourceRevision: 'unversioned',
+      scopeConclusion: 'no-candidate-in-declared-scope',
+      broaderGoalStatus: 'not-evaluated',
+      nextAction: 'broaden-discovery',
+    });
   });
 });
 
 describe('playtest-recursive script wiring', () => {
-  test('uses the full visual-loop ceiling by default and preserves explicit bounds', () => {
+  test('uses the Harvest Hearth budget by default and normalizes explicit bounds', () => {
     expect(recursiveVisualLoopEnvironment({ PATH: 'farm-path' })).toMatchObject({
       PATH: 'farm-path',
-      FARM_VISUAL_LOOP_STEPS: '120',
+      FARM_VISUAL_LOOP_STEPS: '140',
     });
     expect(recursiveVisualLoopEnvironment({ FARM_VISUAL_LOOP_STEPS: '72' })).toMatchObject({
       FARM_VISUAL_LOOP_STEPS: '72',
+    });
+    expect(recursiveVisualLoopEnvironment({ FARM_VISUAL_LOOP_STEPS: '999' })).toMatchObject({
+      FARM_VISUAL_LOOP_STEPS: '160',
+    });
+    expect(recursiveVisualLoopEnvironment({ FARM_VISUAL_LOOP_STEPS: 'bogus' })).toMatchObject({
+      FARM_VISUAL_LOOP_STEPS: '140',
     });
   });
 
@@ -109,6 +147,9 @@ describe('playtest-recursive script wiring', () => {
     expect(source).toContain('latest.json');
     expect(source).toContain('selectFixCandidate');
     expect(source).toContain('buildPassManifest');
+    expect(source).toContain('currentGitCommit');
+    expect(source).toContain('currentGitWorktreeDirty');
+    expect(source).toContain('discoveryScope');
   });
 
   test('persists the pass manifest and appends the passes ledger', async () => {

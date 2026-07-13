@@ -16,6 +16,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
   buildPassManifest,
+  currentGitCommit,
+  currentGitWorktreeDirty,
   recursiveVisualLoopEnvironment,
   selectFixCandidate,
 } from './llm-visual-loop/recursive-pass.mjs';
@@ -27,11 +29,26 @@ const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const startedAtMs = Date.now();
 const startedAt = new Date(startedAtMs).toISOString();
+const loopEnvironment = recursiveVisualLoopEnvironment(process.env);
+const discoveryScope = {
+  mode: 'deterministic-regression',
+  id: `local-heuristic-full-surface-${loopEnvironment.FARM_VISUAL_LOOP_STEPS}-step`,
+  findingSource: 'mechanical-oracles-plus-semantic-control-coverage',
+  supportsBroadQualityClaim: false,
+};
+const [gitCommit, sourceTreeDirty] = await Promise.all([
+  currentGitCommit(cwd),
+  currentGitWorktreeDirty(cwd),
+]);
+if (!gitCommit || sourceTreeDirty === null) {
+  console.error('[recursive] failed to resolve the current git source state; refusing an unversioned pass.');
+  await finish(null, null, null, 'run-failed', 1);
+}
 
 const loop = await runCommand(
   npmBin,
   ['run', 'playtest:llm:visual-loop'],
-  recursiveVisualLoopEnvironment(process.env),
+  loopEnvironment,
 );
 if (loop.exitCode !== 0) {
   await finish(null, null, null, 'run-failed', 1);
@@ -51,7 +68,8 @@ if (candidate) {
   console.log(`[recursive] fix candidate: ${candidate.id} [${candidate.severity}] ${candidate.title}`);
   console.log('[recursive] farm is proposal-only: fix this finding, rerun, and compare before claiming it fixed.');
 } else {
-  console.log('[recursive] no fix-classified finding in this run');
+  console.log(`[recursive] no fix-classified finding in declared scope ${discoveryScope.id}`);
+  console.log('[recursive] this proves the deterministic visual-loop scope only, not broad game quality or recursive-session completion.');
 }
 await finish(run, verification, candidate, undefined, candidate ? 0 : 0);
 
@@ -62,26 +80,34 @@ async function finish(runPacket, verificationResult, fixCandidate, forcedOutcome
     startedAt,
     completedAt: new Date(completedAtMs).toISOString(),
     durationMs: completedAtMs - startedAtMs,
+    gitCommit,
+    sourceTreeDirty,
     provider: runPacket?.decisionProvider ?? 'local-heuristic',
     candidate: forcedOutcome ? null : fixCandidate,
+    forcedOutcome,
+    discoveryScope,
     verification: verificationResult,
     runId: runPacket?.improvementRun?.id,
-    artifacts: [
+    artifacts: runPacket ? [
       { kind: 'run', path: path.relative(cwd, path.join(outputDir, 'latest.json')) },
       { kind: 'report', path: path.relative(cwd, path.join(outputDir, 'latest.md')) },
-    ],
+    ] : [],
   });
-  if (forcedOutcome) {
-    manifest.stopReason = forcedOutcome;
-    manifest.data = { ...(manifest.data ?? {}), outcome: forcedOutcome };
-  }
+  await fs.mkdir(outputDir, { recursive: true });
   await fs.writeFile(
     path.join(outputDir, 'latest.pass-manifest.json'),
     `${JSON.stringify(manifest, null, 2)}\n`,
   ).catch(() => {});
   await fs.mkdir(historyDir, { recursive: true });
   await fs.appendFile(path.join(historyDir, 'passes.jsonl'), `${JSON.stringify(manifest)}\n`);
-  console.log(JSON.stringify({ outcome: manifest.stopReason, candidate: fixCandidate?.id ?? null }, null, 2));
+  console.log(JSON.stringify({
+    outcome: manifest.stopReason,
+    candidate: fixCandidate?.id ?? null,
+    discoveryScope: manifest.data?.discoveryScope ?? null,
+    scopeConclusion: manifest.data?.scopeConclusion ?? null,
+    broaderGoalStatus: manifest.data?.broaderGoalStatus ?? null,
+    nextAction: manifest.data?.nextAction ?? null,
+  }, null, 2));
   process.exit(exitCode);
 }
 

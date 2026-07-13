@@ -10,6 +10,7 @@ import {
   findSafeRequestPressureSellAction,
   findSeedActionForActiveRequest,
   findSeedActionForVisibleNeed,
+  findVisibleZeroSeedAction,
   findUpgradeAction,
   hasActionableGuidance,
   hasExplicitSeedGuidance,
@@ -34,14 +35,15 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   const state = summarizeActionHistory(actionHistory);
   const request = requestFlowState(actionHistory);
   const {
-    clickedSelectors, waitCount, canvasClickCount, pannedCamera, zoomedCamera, hoveredPanelTab,
+    clickedSelectors, canvasClickCount, pannedCamera, zoomedCamera, hoveredPanelTab,
     draggedCanvas, draggedPanelWithMouse, resizedPanelWithKeyboard, collapsedPanel, expandedPanel,
     pausedWithButton, resumedWithSpace, usedSpeed1, usedSpeed2, returnedToSpeed4AfterSpeedTour,
     compactViewport, openedInspectPanel, selectedInspectTool, inspectedCanvasTile, selectedWellTool,
     selectedStorageTool, selectedLandTool, selectedBulldozeTool, usedUndo, usedRedo, scrolledPanelDown,
-    scrolledPanelUp, pressedPlotShortcut, canvasClickedAfterPlotShortcut, claimedTier, waitsAfterClaim,
-    adjustedWheatNumber, adjustedTomatoNumber, adjustedPumpkinNumber, openedMixAfterTomato,
-    openedGoalsAfterTomato, selectedLandAfterTomato, dismissedTutorial, carrotSold, wheatSold, tierClaims,
+    scrolledPanelUp, pressedPlotShortcut, canvasClickedAfterPlotShortcut, waitsAfterClaim, checkedGoalsAfterLatestClaim,
+    adjustedCarrotNumber, adjustedCarrotSlider, adjustedWheatSlider, adjustedWheatNumber,
+    adjustedTomatoNumber, adjustedTomatoSlider, adjustedPumpkinNumber, adjustedPumpkinSlider, openedMixAfterTomato,
+    openedGoalsAfterTomato, selectedLandAfterTomato, dismissedTutorial, carrotSold, wheatSold, tomatoSold, pumpkinSold, tierClaims,
   } = state;
 
   const canvasAction = findAction(observation, 'canvas');
@@ -64,6 +66,7 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   const bulldozeToolAction = findAction(observation, '[data-tool="bulldoze"]');
   const undoAction = findAction(observation, '[data-command="undo"]');
   const redoAction = findAction(observation, '[data-command="redo"]');
+  const dismissTutorialAction = findAction(observation, '[data-command="dismiss-tutorial"]');
   const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
   const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
   const explicitPaintGuidanceVisible = /FARM GUIDE Paint Empty Land|Paint plots on empty land/i.test(observation.visibleText);
@@ -92,6 +95,7 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   }
 
   const requestSeedAction = request.pending ? findSeedActionForActiveRequest(observation, history) : null;
+  const visibleZeroSeedAction = findVisibleZeroSeedAction(observation);
   const seedAction = requestSeedAction ?? findSeedActionForVisibleNeed(observation);
   if (seedAction && hasExplicitSeedGuidance(observation.visibleText)) {
     const rationale = requestSeedAction
@@ -104,6 +108,9 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
       ? 'The pinned basket is stalled by visible seed guidance, so open Inventory before waiting for crops that cannot be planted.'
       : 'Visible seed guidance says planting is stalled, so open Inventory from the current panel before waiting again.';
     return clickDecision(inventoryAction, rationale);
+  }
+  if (dismissTutorialAction && !dismissedTutorial && /FARM GUIDE Paint Empty Land/i.test(observation.visibleText)) {
+    return clickDecision(dismissTutorialAction, 'Dismiss the canvas-blocking paint card before following its guidance on the farm itself.');
   }
 
   const speedAction = findAction(observation, '[data-speed="4"]');
@@ -149,13 +156,24 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
     return dragDecision(canvasAction, 'Drag across visible farm tiles with the selected Plot tool so drag-painting is covered like a player action.', { x: 410, y: 290 }, { deltaX: 72, deltaY: 0 });
   }
 
-  const dismissTutorialAction = findAction(observation, '[data-command="dismiss-tutorial"]');
   if (dismissTutorialAction && request.exercised && !dismissedTutorial) {
     return clickDecision(dismissTutorialAction, 'Dismiss a later Farm Guide once so the visual player covers the explicit tutorial-close control.');
   }
   const tutorialAction = selectedPlotFromShortcut && canvasClickedAfterPlotShortcut && selectedPlotGuideVisible ? null : tutorialActionFromText(observation);
   if (tutorialAction && !recentlyClicked(actionHistory, tutorialAction.selector)) return clickDecision(tutorialAction, `Follow the visible tutorial prompt: ${tutorialAction.label}.`);
 
+  const carrotNumberAction = findAction(observation, '[data-mix-number="carrot"]');
+  if (carrotNumberAction && !adjustedCarrotNumber && /Crop Mix|allocated across unlocked crops/i.test(observation.visibleText)) {
+    return adjustDecision(carrotNumberAction, 'Type a direct Carrot crop mix percentage so the visual loop covers its precise numerical control.', 60);
+  }
+  const carrotSliderAction = findAction(observation, '[data-mix="carrot"]');
+  if (carrotSliderAction && !adjustedCarrotSlider && /Crop Mix|allocated across unlocked crops/i.test(observation.visibleText)) {
+    return adjustDecision(carrotSliderAction, 'Adjust the visible Carrot crop mix slider so its pointer-style control is covered alongside the number field.', 55);
+  }
+  const wheatSliderAction = findAction(observation, '[data-mix="wheat"]');
+  if (wheatSliderAction && !adjustedWheatSlider && /Crop Mix|allocated across unlocked crops/i.test(observation.visibleText)) {
+    return adjustDecision(wheatSliderAction, 'Adjust the visible Wheat crop mix slider so both Tier 2 planning controls are exercised.', 40);
+  }
   const wheatNumberAction = findAction(observation, '[data-mix-number="wheat"]');
   if (wheatNumberAction && !adjustedWheatNumber && /Crop Mix|allocated across unlocked crops/i.test(observation.visibleText)) {
     return adjustDecision(wheatNumberAction, 'Type a direct Wheat crop mix percentage so the visual loop covers the same numerical control a player sees.', 40);
@@ -164,16 +182,34 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (tomatoNumberAction && !adjustedTomatoNumber && /Tomato|Tomatoes are unlocked|allocated across unlocked crops/i.test(observation.visibleText)) {
     return adjustDecision(tomatoNumberAction, 'Type a direct Tomato crop mix percentage so the visual loop covers the newly unlocked crop control.', 25);
   }
+  const tomatoSliderAction = findAction(observation, '[data-mix="tomato"]');
+  if (tomatoSliderAction && !adjustedTomatoSlider && /Tomato|Tomatoes are unlocked|allocated across unlocked crops/i.test(observation.visibleText)) {
+    return adjustDecision(tomatoSliderAction, 'Adjust the visible Tomato crop mix slider after its number field so both input modes are covered.', 25);
+  }
   const pumpkinNumberAction = findAction(observation, '[data-mix-number="pumpkin"]');
   if (pumpkinNumberAction && !adjustedPumpkinNumber && /Pumpkin|Pumpkins are unlocked|allocated across unlocked crops/i.test(observation.visibleText)) {
     return adjustDecision(pumpkinNumberAction, 'Type a direct Pumpkin crop mix percentage so the visual loop audits the Tier 4 crop control.', 20);
+  }
+  const pumpkinSliderAction = findAction(observation, '[data-mix="pumpkin"]');
+  if (pumpkinSliderAction && !adjustedPumpkinSlider && /Pumpkin|Pumpkins are unlocked|allocated across unlocked crops/i.test(observation.visibleText)) {
+    return adjustDecision(pumpkinSliderAction, 'Adjust the visible Pumpkin crop mix slider after its number field so both input modes are covered.', 20);
   }
   if (inventoryAction && !inventoryAction.state?.active && /Crop Mix/i.test(observation.visibleText) && /No seeds stocked/i.test(observation.visibleText) && !recentlyClicked(actionHistory, inventoryAction.selector)) {
     return clickDecision(inventoryAction, 'Crop Mix shows a crop with no seeds stocked, so open Inventory to restock visible seed rows.');
   }
 
-  const upgradeAction = findUpgradeAction(observation);
+  const wateringCanBought = clickedSelectors.has('[data-buy-upgrade="wateringCan"]');
+  const upgradeAction = findUpgradeAction(observation, clickedSelectors);
   if (upgradeAction && /Tool Upgrades|Worker Boots|Watering Cans/i.test(observation.visibleText)) return clickDecision(upgradeAction, 'Buy the visible worker upgrade so the playtest exercises progression beyond selling and tier claims.');
+  if (!request.pending && tierClaims >= 3 && goalsAction && !goalsAction.state?.active && !wateringCanBought && !checkedGoalsAfterLatestClaim) {
+    return clickDecision(goalsAction, 'Return to Goals after reaching Tier 4 so the remaining Watering Cans upgrade is not hidden behind an earlier Goals visit.');
+  }
+  if (!request.pending && tierClaims >= 3 && mixAction && !mixAction.state?.active && (!adjustedPumpkinNumber || !adjustedPumpkinSlider)) {
+    return clickDecision(mixAction, 'Open Crop Mix after reaching Tier 4 so Pumpkin receives a visible planting share before the run can stop.');
+  }
+  if (!request.pending && tierClaims >= 3 && adjustedPumpkinNumber && adjustedPumpkinSlider && !pumpkinSold && inventoryAction && !inventoryAction.state?.active) {
+    return clickDecision(inventoryAction, 'Return to Inventory after setting Pumpkin mix so the first harvested Pumpkin can be sold through its visible control.');
+  }
   if (panelScrollAction?.state?.canScrollDown && !scrolledPanelDown && /Inventory|Tier|Crop Mix|Inspect|Request/i.test(observation.visibleText)) return wheelDecision(panelScrollAction, 'Scroll the side panel down with the mouse wheel so the LLM sees lower panel content only after a player-like scroll.', 420);
   if (panelScrollAction?.state?.canScrollUp && scrolledPanelDown && !scrolledPanelUp) return wheelDecision(panelScrollAction, 'Scroll the side panel back up so primary controls remain reachable for the next player decision.', -420);
 
@@ -196,6 +232,22 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (!request.pending && wheatSellAction && !wheatSold && hasVisibleSellableCrops(observation.visibleText) && shouldSellVisibleCrops(observation.visibleText)) {
     return clickDecision(wheatSellAction, 'Exercise the visible single-crop Wheat sell action before using the bulk sale control.');
   }
+  const tomatoSellAction = findAction(observation, '[data-sell="tomato"]');
+  if (!request.pending && tomatoSellAction && !tomatoSold && hasVisibleSellableCrops(observation.visibleText) && shouldSellVisibleCrops(observation.visibleText)) {
+    return clickDecision(tomatoSellAction, 'Exercise the visible single-crop Tomato sell action before using the bulk sale control.');
+  }
+  const pumpkinSellAction = findAction(observation, '[data-sell="pumpkin"]');
+  if (!request.pending && pumpkinSellAction && !pumpkinSold) {
+    return clickDecision(pumpkinSellAction, 'Exercise the visible single-crop Pumpkin sell action before using the bulk sale control.');
+  }
+  const tomatoSeedAction = findAction(observation, '[data-buy-seeds="tomato"]');
+  if (!request.pending && tierClaims >= 2 && tomatoSeedAction && !clickedSelectors.has(tomatoSeedAction.selector)) {
+    return clickDecision(tomatoSeedAction, 'Buy one visible Tomato seed bundle after reaching Tier 3 so its Inventory control is exercised even while starter stock remains.');
+  }
+  const pumpkinSeedAction = findAction(observation, '[data-buy-seeds="pumpkin"]');
+  if (!request.pending && tierClaims >= 3 && pumpkinSeedAction && !clickedSelectors.has(pumpkinSeedAction.selector)) {
+    return clickDecision(pumpkinSeedAction, 'Buy one visible Pumpkin seed bundle after reaching Tier 4 so its late-game Inventory control is exercised even while starter stock remains.');
+  }
   const sellAllAction = findAction(observation, '[data-command="sell-all"]');
   if (!request.pending && sellAllAction && hasVisibleSellableCrops(observation.visibleText) && shouldSellVisibleCrops(observation.visibleText)) {
     return clickDecision(sellAllAction, 'The visible inventory shows crops ready to sell, so sell them before waiting again.');
@@ -207,17 +259,14 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (canvasAction && canvasClickCount < 2 && !selectedPlotGuideVisible && /\bTOOL Plot\b|Paint plots on empty land/i.test(observation.visibleText)) {
     return clickDecision(canvasAction, 'The selected plot tool needs a field click, so click an open farm tile visible on the canvas.', nextPaintPosition(canvasClickCount));
   }
-  if (seedAction && hasVisibleZeroSeedRestock(observation.visibleText)) return clickDecision(seedAction, 'Visible Inventory seed rows show zero stock, so buy seeds before ending the run.');
+  if (visibleZeroSeedAction && hasVisibleZeroSeedRestock(observation.visibleText)) return clickDecision(visibleZeroSeedAction, 'Visible Inventory seed rows show enabled zero-stock seed controls, so restock one before ending the run.');
   if (mixAction && !mixAction.state?.active && (terminalOpenEndedGuidanceVisible || /Tune mix/i.test(observation.visibleText)) && !openedMixAfterTomato) return clickDecision(mixAction, 'Open Crop Mix because the visible open-ended guidance asks the player to tune mix.');
   if (goalsAction && !goalsAction.state?.active && (terminalOpenEndedGuidanceVisible || /upgrade workers/i.test(observation.visibleText)) && !openedGoalsAfterTomato) return clickDecision(goalsAction, 'Open Goals because the visible open-ended guidance mentions worker upgrades.');
   if (landToolAction && !landToolAction.state?.active && (terminalOpenEndedGuidanceVisible || /expand land/i.test(observation.visibleText)) && !selectedLandAfterTomato) return clickDecision(landToolAction, 'Select the Land tool because the visible open-ended guidance asks the player to expand land.');
   if (goalsAction && !clickedSelectors.has(goalsAction.selector)) return clickDecision(goalsAction, 'Open the visible Goals panel because progression and tier rewards should be understandable there.');
 
-  if (!request.pending && lastAction?.kind === 'wait' && claimedTier && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)) {
-    return { rationale: 'The loop already claimed a tier and watched the post-claim farm for two intervals.', action: { kind: 'stop' }, expectedResult: 'End with a final screenshot for review.' };
-  }
-  if (!request.pending && lastAction?.kind === 'wait' && waitCount >= 7 && !hasActionableGuidance(observation.visibleText)) {
-    return { rationale: 'Several watch intervals have passed without a higher-priority visible action becoming available.', action: { kind: 'stop' }, expectedResult: 'Stop before creating redundant screenshots.' };
+  if (!request.pending && lastAction?.kind === 'wait' && tierClaims >= 3 && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)) {
+    return { rationale: 'The loop reached Tier 4 and watched the Harvest Hearth farm for two intervals.', action: { kind: 'stop' }, expectedResult: 'End with a final screenshot for review.' };
   }
   return {
     rationale: request.pending

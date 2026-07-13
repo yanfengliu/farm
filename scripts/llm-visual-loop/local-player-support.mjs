@@ -138,14 +138,14 @@ export function summarizeActionHistory(actionHistory) {
     (action.kind === 'press' && action.key === 'Z')
   ));
   const plotShortcutIndex = actionHistory.findIndex((action) => action.kind === 'press' && action.key === '1');
-  const claimIndex = actionHistory.findIndex((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]');
+  const claimIndex = actionHistory.findLastIndex((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]');
+  const afterLatestClaim = claimIndex >= 0 ? actionHistory.slice(claimIndex + 1) : [];
   const tomatoAdjustIndex = actionHistory.findIndex((action) => (
     action.kind === 'adjust' && action.selector === '[data-mix-number="tomato"]'
   ));
   const afterTomato = tomatoAdjustIndex >= 0 ? actionHistory.slice(tomatoAdjustIndex + 1) : [];
   return {
     clickedSelectors,
-    waitCount: actionHistory.filter((action) => action.kind === 'wait').length,
     canvasClickCount: actionHistory.filter((action) => action.kind === 'click' && action.selector === 'canvas').length,
     pannedCamera: actionHistory.some((action) => action.kind === 'press' && action.key === 'ArrowRight'),
     zoomedCamera: actionHistory.some((action) => action.kind === 'wheel' && action.selector === 'canvas'),
@@ -176,17 +176,30 @@ export function summarizeActionHistory(actionHistory) {
     scrolledPanelUp: actionHistory.some((action) => action.kind === 'wheel' && action.selector === '[data-player-scroll="side-panel"]' && action.deltaY < 0),
     pressedPlotShortcut: plotShortcutIndex >= 0,
     canvasClickedAfterPlotShortcut: plotShortcutIndex >= 0 && actionHistory.slice(plotShortcutIndex + 1).some((action) => action.kind === 'click' && action.selector === 'canvas'),
-    claimedTier: claimIndex >= 0,
     waitsAfterClaim: claimIndex >= 0 ? actionHistory.slice(claimIndex + 1).filter((action) => action.kind === 'wait').length : 0,
+    checkedGoalsAfterLatestClaim: afterLatestClaim.some((action) => (
+      action.kind === 'click' && (
+        action.selector === '[data-panel="goals"]' ||
+        action.selector === '[data-panel="mix"]' ||
+        action.selector?.startsWith('[data-buy-upgrade=')
+      )
+    )),
+    adjustedCarrotNumber: actionHistory.some((action) => action.kind === 'adjust' && action.selector === '[data-mix-number="carrot"]'),
+    adjustedCarrotSlider: actionHistory.some((action) => action.kind === 'adjust' && action.selector === '[data-mix="carrot"]'),
+    adjustedWheatSlider: actionHistory.some((action) => action.kind === 'adjust' && action.selector === '[data-mix="wheat"]'),
     adjustedWheatNumber: actionHistory.some((action) => action.kind === 'adjust' && action.selector === '[data-mix-number="wheat"]'),
     adjustedTomatoNumber: tomatoAdjustIndex >= 0,
+    adjustedTomatoSlider: actionHistory.some((action) => action.kind === 'adjust' && action.selector === '[data-mix="tomato"]'),
     adjustedPumpkinNumber: actionHistory.some((action) => action.kind === 'adjust' && action.selector === '[data-mix-number="pumpkin"]'),
+    adjustedPumpkinSlider: actionHistory.some((action) => action.kind === 'adjust' && action.selector === '[data-mix="pumpkin"]'),
     openedMixAfterTomato: afterTomato.some((action) => action.kind === 'click' && action.selector === '[data-panel="mix"]'),
     openedGoalsAfterTomato: afterTomato.some((action) => action.kind === 'click' && action.selector === '[data-panel="goals"]'),
     selectedLandAfterTomato: afterTomato.some((action) => action.kind === 'click' && action.selector === '[data-tool="land"]'),
     dismissedTutorial: clickedSelectors.has('[data-command="dismiss-tutorial"]'),
     carrotSold: clickedSelectors.has('[data-sell="carrot"]'),
     wheatSold: clickedSelectors.has('[data-sell="wheat"]'),
+    tomatoSold: clickedSelectors.has('[data-sell="tomato"]'),
+    pumpkinSold: clickedSelectors.has('[data-sell="pumpkin"]'),
     tierClaims: actionHistory.filter((action) => action.kind === 'click' && action.selector === '[data-command="claim-tier"]').length,
   };
 }
@@ -203,16 +216,16 @@ export function recentlyUsedCanvas(actionHistory) {
 
 export function nextPaintPosition(canvasClickCount) {
   const positions = [
-    { x: 276, y: 230 },
-    { x: 326, y: 230 },
-    { x: 376, y: 230 },
-    { x: 426, y: 230 },
-    { x: 476, y: 230 },
-    { x: 276, y: 430 },
-    { x: 326, y: 430 },
-    { x: 376, y: 430 },
-    { x: 426, y: 430 },
-    { x: 476, y: 430 },
+    { x: 340, y: 340 },
+    { x: 380, y: 340 },
+    { x: 420, y: 340 },
+    { x: 460, y: 340 },
+    { x: 500, y: 340 },
+    { x: 340, y: 390 },
+    { x: 380, y: 390 },
+    { x: 420, y: 390 },
+    { x: 460, y: 390 },
+    { x: 500, y: 390 },
   ];
   return positions[canvasClickCount % positions.length];
 }
@@ -325,11 +338,17 @@ export function findSeedActionForVisibleNeed(observation) {
     const milestoneSeedAction = findAction(observation, `[data-buy-seeds="${milestoneCrop}"]`);
     if (milestoneSeedAction) return milestoneSeedAction;
   }
+  const visibleZeroSeedAction = findVisibleZeroSeedAction(observation);
+  if (visibleZeroSeedAction) return visibleZeroSeedAction;
+  return findSeedAction(observation);
+}
+
+export function findVisibleZeroSeedAction(observation) {
   for (const zeroSeedCrop of visibleZeroSeedCropsByPriority(observation.visibleText)) {
     const zeroSeedAction = findAction(observation, `[data-buy-seeds="${zeroSeedCrop}"]`);
     if (zeroSeedAction) return zeroSeedAction;
   }
-  return findSeedAction(observation);
+  return null;
 }
 
 export function visibleMilestoneCrop(visibleText) {
@@ -341,8 +360,10 @@ export function visibleZeroSeedCropsByPriority(visibleText) {
   return ['pumpkin', 'tomato', 'wheat', 'carrot'].filter((cropId) => visibleSeedStock(visibleText, cropId) === 0);
 }
 
-export function findUpgradeAction(observation) {
+export function findUpgradeAction(observation, clickedSelectors = new Set()) {
   return (
+    (!clickedSelectors.has('[data-buy-upgrade="boots"]') && findAction(observation, '[data-buy-upgrade="boots"]')) ||
+    (!clickedSelectors.has('[data-buy-upgrade="wateringCan"]') && findAction(observation, '[data-buy-upgrade="wateringCan"]')) ||
     findAction(observation, '[data-buy-upgrade="boots"]') ||
     findAction(observation, '[data-buy-upgrade="wateringCan"]') ||
     observation.availableActions.find((action) => action.selector?.startsWith('[data-buy-upgrade=')) ||

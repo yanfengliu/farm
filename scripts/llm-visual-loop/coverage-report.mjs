@@ -3,8 +3,11 @@
 // 'coverage-gap:<selector>' findings whose FIX is teaching the local visual
 // player (or adding a scenario) to reach them — the loop grows its own
 // coverage through the normal candidate cycle instead of new machinery.
-// Identity is the player selector: observations offer controls keyed by
-// `selector`, and decisions that target a control carry `action.selector`
+// Identity is the semantic player selector: observations offer controls keyed
+// by `selector`, and decisions that target a control carry `action.selector`.
+// Rotating village-request IDs normalize to one accept-control family because
+// the interaction contract is shared while the content rotation is exercised
+// by the request lifecycle curriculum.
 // (selectorless kinds — wait/stop/viewport/camera presses — target no
 // offered control, which is why the guard below skips them).
 
@@ -20,7 +23,7 @@ export function coverageLedger(steps) {
   for (const step of steps ?? []) {
     const seenThisStep = new Set();
     for (const action of step.observation?.availableActions ?? []) {
-      const key = typeof action?.selector === 'string' ? action.selector : null;
+      const key = typeof action?.selector === 'string' ? coverageKey(action.selector) : null;
       if (!key || seenThisStep.has(key)) continue;
       seenThisStep.add(key);
       const entry = offered.get(key) ?? { label: action.label || key, sightings: 0 };
@@ -29,7 +32,7 @@ export function coverageLedger(steps) {
     }
     const acted = step.decision?.action;
     if (acted && typeof acted.selector === 'string' && acted.kind !== 'wait') {
-      exercised.add(acted.selector);
+      exercised.add(coverageKey(acted.selector));
     }
   }
   // Deterministic order (sightings desc, then key) so the emission cap in the
@@ -41,4 +44,8 @@ export function coverageLedger(steps) {
     .map(([key, entry]) => ({ key, label: entry.label, sightings: entry.sightings }))
     .sort((a, b) => b.sightings - a.sightings || (a.key < b.key ? -1 : 1));
   return { offered: offered.size, exercised: exercised.size, gaps };
+}
+
+function coverageKey(selector) {
+  return selector.startsWith('[data-accept-request=') ? '[data-accept-request]' : selector;
 }

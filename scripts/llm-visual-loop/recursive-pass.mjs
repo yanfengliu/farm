@@ -1,4 +1,9 @@
+import { spawn } from 'node:child_process';
 import { createImprovementRunManifest } from 'civ-engine';
+import {
+  normalizeVisualLoopSteps,
+  RECURSIVE_DEFAULT_VISUAL_LOOP_STEPS,
+} from './loop-budget.mjs';
 
 // Pure decisions for the proposal-only recursive pass (scripts/playtest-recursive.mjs).
 // farm has no auto-apply arm by design: the pass surfaces the top fix-classified
@@ -26,29 +31,62 @@ export function passOutcome(candidate) {
   return candidate ? 'proposal-only' : 'no-fix-candidate';
 }
 
+export function continuationForOutcome(outcome) {
+  if (outcome === 'proposal-only') {
+    return {
+      scopeConclusion: 'candidate-found',
+      broaderGoalStatus: 'in-progress',
+      nextAction: 'fix-candidate',
+    };
+  }
+  if (outcome === 'run-failed') {
+    return {
+      scopeConclusion: 'scope-run-failed',
+      broaderGoalStatus: 'not-evaluated',
+      nextAction: 'repair-run',
+    };
+  }
+  return {
+    scopeConclusion: 'no-candidate-in-declared-scope',
+    broaderGoalStatus: 'not-evaluated',
+    nextAction: 'broaden-discovery',
+  };
+}
+
 export function recursiveVisualLoopEnvironment(baseEnvironment) {
-  const configuredSteps = baseEnvironment?.FARM_VISUAL_LOOP_STEPS?.trim();
+  const configuredSteps = normalizeVisualLoopSteps(
+    baseEnvironment?.FARM_VISUAL_LOOP_STEPS,
+    RECURSIVE_DEFAULT_VISUAL_LOOP_STEPS,
+  );
   return {
     ...(baseEnvironment ?? {}),
-    FARM_VISUAL_LOOP_STEPS: configuredSteps || '120',
+    FARM_VISUAL_LOOP_STEPS: String(configuredSteps),
   };
 }
 
 export function buildPassManifest(input) {
-  const outcome = passOutcome(input.candidate);
+  const outcome = input.forcedOutcome ?? passOutcome(input.candidate);
+  const discoveryScope = normalizeDiscoveryScope(input.discoveryScope);
+  const gitCommit = nonEmptyString(input.gitCommit);
+  const sourceTreeDirty = input.sourceTreeDirty === true;
   return createImprovementRunManifest({
     id: input.id,
     gameId: 'farm',
-    objective: 'Recursive self-improvement pass over the visual loop (proposal-only).',
+    objective: 'Scoped recursive self-improvement pass over the visual loop.',
     startedAt: input.startedAt,
     completedAt: input.completedAt,
     ...(input.durationMs !== undefined ? { durationMs: input.durationMs } : {}),
+    ...(gitCommit ? { gitCommit } : {}),
     stopReason: outcome,
     provider: input.provider ?? 'local-heuristic',
     artifacts: (input.artifacts ?? []).map((artifact) => ({ ...artifact })),
     tags: ['farm', 'recursive-pass'],
     data: {
       outcome,
+      discoveryScope,
+      sourceTreeDirty,
+      sourceRevision: gitCommit ? `${gitCommit}${sourceTreeDirty ? '+dirty' : ''}` : 'unversioned',
+      ...continuationForOutcome(outcome),
       ...(input.candidate ? { candidateFindingId: input.candidate.id } : {}),
       // The candidate's declared bug class (engine signature contract) so
       // fleet aggregation keys on the class, not the run-specific id.
@@ -58,6 +96,48 @@ export function buildPassManifest(input) {
         : {}),
       ...(input.runId !== undefined ? { runId: input.runId } : {}),
     },
+  });
+}
+
+export function currentGitCommit(root) {
+  return runGitProbe(root, ['rev-parse', 'HEAD'], (stdout) => {
+    const commit = stdout.trim();
+    return /^[0-9a-f]{40}$/i.test(commit) ? commit : null;
+  });
+}
+
+export function currentGitWorktreeDirty(root) {
+  return runGitProbe(root, ['status', '--porcelain', '--untracked-files=normal'], (stdout) => stdout.trim().length > 0);
+}
+
+function normalizeDiscoveryScope(scope) {
+  const value = scope && typeof scope === 'object' ? scope : {};
+  return {
+    mode: nonEmptyString(value.mode) ?? 'unspecified',
+    id: nonEmptyString(value.id) ?? 'unspecified',
+    findingSource: nonEmptyString(value.findingSource) ?? 'unspecified',
+    supportsBroadQualityClaim: value.supportsBroadQualityClaim === true,
+  };
+}
+
+function nonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function runGitProbe(root, args, parse) {
+  return new Promise((resolvePromise) => {
+    const safeRoot = root.replaceAll('\\', '/');
+    const child = spawn('git', ['-c', `safe.directory=${safeRoot}`, ...args], {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+    });
+    let stdout = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += String(chunk);
+    });
+    child.on('error', () => resolvePromise(null));
+    child.on('close', (code) => resolvePromise(code === 0 ? parse(stdout) : null));
   });
 }
 

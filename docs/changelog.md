@@ -19,6 +19,9 @@
 - Closed the visual player's pending-request lifecycle when a basket is abandoned so stale requirements cannot influence later selling or seed purchases.
 - Added a bounded Village Request curriculum to the recursive player: demonstrate Unpin once, retain the replacement, complete three deliveries, then stop auto-pinning extra baskets and continue toward Harvest Hearth.
 - Made visible seed-shortage guidance navigate to Inventory from any side panel after the request curriculum completes, eliminating an idle wait loop on the Request Board.
+- Completed the recursive Harvest Hearth curriculum: it exercises number and range controls for every Crop Mix row, each unlocked single-crop sale, Tomato and Pumpkin seed purchases, Worker Boots and Watering Cans, safe tutorial dismissal, and framed-farm plot placement; rotating request offers count as one semantic accept-control family.
+- Replaced broad wait exits with one terminal guard tied to the latest Tier 4 claim, Pumpkin Crop Mix controls, a Pumpkin sale, and two subsequent watch intervals. Locked future-crop rows no longer trigger fallback seed purchases, and upgrades run before panel navigation, allowing the 140-step headless shift to agent-stop with all 45 offered semantic controls exercised and no findings.
+- Normalized explicit recursive decision budgets before both execution and scope labeling, and remembered the post-claim Goals inspection so an unaffordable Watering Cans upgrade cannot bounce the player between Goals and Crop Mix.
 
 ## 0.1.0 - 2026-07-04
 

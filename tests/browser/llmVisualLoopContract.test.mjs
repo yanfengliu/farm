@@ -94,8 +94,7 @@ describe('LLM visual loop harness contract', () => {
   test('visual loop has enough default budget to cover the surface audit and first tier path', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 80');
-    expect(source).toContain('boundedNumber(process.env.FARM_VISUAL_LOOP_STEPS, 80, 1, 120)');
+    expect(source).toContain('normalizeVisualLoopSteps(process.env.FARM_VISUAL_LOOP_STEPS, ORDINARY_DEFAULT_VISUAL_LOOP_STEPS)');
   });
 
   test('visual loop flags a capped run when the final screenshot still has actionable guidance', async () => {
@@ -162,8 +161,8 @@ describe('LLM visual loop harness contract', () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('function hasVisibleZeroSeedRestock');
-    expect(source).toContain('seedAction && hasVisibleZeroSeedRestock(observation.visibleText)');
-    expect(source).toContain('Visible Inventory seed rows show zero stock, so buy seeds before ending the run.');
+    expect(source).toContain('visibleZeroSeedAction && hasVisibleZeroSeedRestock(observation.visibleText)');
+    expect(source).toContain('Visible Inventory seed rows show enabled zero-stock seed controls, so restock one before ending the run.');
     expect(source).toContain('!shouldSellVisibleCrops(visibleText)');
   });
 
@@ -203,6 +202,7 @@ describe('LLM visual loop harness contract', () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain("findAction(observation, '[data-mix-number=\"tomato\"]')");
+    expect(source).toContain("findAction(observation, '[data-mix=\"tomato\"]')");
     expect(source).toContain("action.selector === '[data-mix-number=\"tomato\"]'");
     expect(source).toContain('Type a direct Tomato crop mix percentage');
   });
@@ -444,8 +444,8 @@ describe('LLM visual loop harness contract', () => {
   test('visual loop plot clicks target visible open owned land bands', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
-    expect(source).toContain('{ x: 276, y: 230 }');
-    expect(source).toContain('{ x: 476, y: 430 }');
+    expect(source).toContain('{ x: 340, y: 340 }');
+    expect(source).toContain('{ x: 500, y: 390 }');
     expect(source).toContain('nextPaintPosition(canvasClickCount)');
   });
 
@@ -461,8 +461,9 @@ describe('LLM visual loop harness contract', () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('function hasActionableGuidance');
-    expect(source).toContain('claimedTier && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)');
-    expect(source).toContain('waitCount >= 7 && !hasActionableGuidance(observation.visibleText)');
+    expect(source).toContain('tierClaims >= 3 && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2');
+    expect(source).toContain('actionHistory.findLastIndex');
+    expect(source).not.toContain('waitCount >= 7');
     expect(source).toContain('FARM GUIDE Paint Empty Land');
   });
 
@@ -479,8 +480,8 @@ describe('LLM visual loop harness contract', () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('const lastAction = actionHistory.at(-1);');
-    expect(source).toContain("lastAction?.kind === 'wait' && claimedTier && waitsAfterClaim >= 2");
-    expect(source).toContain("lastAction?.kind === 'wait' && waitCount >= 7");
+    expect(source).toContain("lastAction?.kind === 'wait' && tierClaims >= 3 && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2");
+    expect(source).not.toContain("lastAction?.kind === 'wait' && tierClaims >= 3 && waitCount >= 7");
   });
 
   test('visual loop replay viewer keeps screenshots in the viewport while metadata scrolls', async () => {

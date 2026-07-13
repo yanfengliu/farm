@@ -75,6 +75,27 @@ describe('coverageLedger', () => {
     }
     expect(coverageLedger(steps).gaps.map((gap) => gap.key)).toEqual(['#a-often', '#b-often', '#late']);
   });
+
+  test('treats rotating village request offers as one exercised control family', () => {
+    const steps = [];
+    for (let i = 0; i < COVERAGE_MIN_SIGHTINGS; i++) {
+      steps.push(step(
+        i,
+        [
+          control('[data-accept-request="mill-morning"]', 'Accept Mill Morning'),
+          control('[data-accept-request="bakery-basket"]', 'Accept Bakery Basket'),
+        ],
+        i === 0
+          ? { kind: 'click', selector: '[data-accept-request="bakery-basket"]', label: 'Accept Bakery Basket' }
+          : undefined,
+      ));
+    }
+
+    const ledger = coverageLedger(steps);
+    expect(ledger.offered).toBe(1);
+    expect(ledger.exercised).toBe(1);
+    expect(ledger.gaps).toEqual([]);
+  });
 });
 
 describe('coverage-gap findings through evaluateVisualLoop', () => {
