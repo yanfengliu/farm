@@ -140,6 +140,22 @@ describe('LLM visual-loop deterministic local player', () => {
     expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-panel="inventory"]' });
   });
 
+  test('opens Inventory for visible seed guidance after the request curriculum is complete', () => {
+    const completedRequests = Array.from({ length: 3 }, (_, index) => [
+      { kind: 'click', selector: `[data-accept-request="basket-${index}"]` },
+      { kind: 'click', selector: '[data-command="fulfill-request"]' },
+    ]).flat();
+    const decision = decide(
+      observation(
+        'Restock seeds to keep farmers planting. Village Lane Request Board.',
+        [visibleAction('[data-panel="inventory"]', 'Inventory', { active: false })],
+      ),
+      history(...completedRequests),
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-panel="inventory"]' });
+  });
+
   test('sells only visible crop surplus when a full bin blocks an active basket', () => {
     const decision = decide(
       observation(

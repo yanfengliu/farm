@@ -99,8 +99,11 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
       : 'Workers need seeds and the visible guidance offers a direct seed-buying action.';
     return clickDecision(seedAction, rationale);
   }
-  if (request.pending && inventoryAction && !inventoryAction.state?.active && hasExplicitSeedGuidance(observation.visibleText)) {
-    return clickDecision(inventoryAction, 'The pinned basket is stalled by visible seed guidance, so open Inventory before waiting for crops that cannot be planted.');
+  if (inventoryAction && !inventoryAction.state?.active && hasExplicitSeedGuidance(observation.visibleText)) {
+    const rationale = request.pending
+      ? 'The pinned basket is stalled by visible seed guidance, so open Inventory before waiting for crops that cannot be planted.'
+      : 'Visible seed guidance says planting is stalled, so open Inventory from the current panel before waiting again.';
+    return clickDecision(inventoryAction, rationale);
   }
 
   const speedAction = findAction(observation, '[data-speed="4"]');

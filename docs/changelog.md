@@ -18,6 +18,7 @@
 - Limited request-pressure selling to the final two bin slots and made missing active-basket crops outrank generic tier crops when the visual player chooses which zero-stock seed bundle to buy.
 - Closed the visual player's pending-request lifecycle when a basket is abandoned so stale requirements cannot influence later selling or seed purchases.
 - Added a bounded Village Request curriculum to the recursive player: demonstrate Unpin once, retain the replacement, complete three deliveries, then stop auto-pinning extra baskets and continue toward Harvest Hearth.
+- Made visible seed-shortage guidance navigate to Inventory from any side panel after the request curriculum completes, eliminating an idle wait loop on the Request Board.
 
 ## 0.1.0 - 2026-07-04
 
