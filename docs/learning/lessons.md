@@ -1,5 +1,13 @@
 # Engineering Lessons
 
+## 2026-07-13 - Decorative anchors are not visual clearance contracts
+
+- Surfaced by: independent hardening review of the living-hedgerow diff after the 1280x800 and 1024x720 browser captures. The review traced the western elder and willow crowns beyond their placement anchors and found three to five visible pixels could clip at the default recenter; it also found southern permanent plants crossing two to three pixels into buildable land while a later render layer happened to conceal the overlap.
+- Failure mode: checking only an object's anchor proves where it starts, not where its full pixel silhouette ends. Renderer layer order can then hide an invalid placement without making the world geometry valid, and using a tree's array index as wildlife habitat identity lets an innocent art-direction reorder silently move a named shelter.
+- Fix commit: `2ea068a` gives every permanent tree and plant an explicit visual-bounds contract, narrows or repositions the offending silhouettes, moves southern plants beyond the farm's actual visual boundary, and exposes named duck-shelter anchors independently of tree ordering.
+- Regression anchors: `tests/browser/farmBotanyLayout.test.mjs` checks every permanent plant's real pixel bounds against the farm, bridge, garden, and default recenter viewport, and pins the named shelters exactly; `tests/browser/vegetationArtDirection.test.mjs` proves the intended vegetation palette at both desktop viewports; final screenshots live under `output/playwright/botany-review/`, and recursive run `farm-visual-loop-2026-07-13T19-17-25-242Z` completed its bounded 127-decision surface with no findings or replay divergence.
+- Behavior delta: default recenter no longer clips the western crowns, permanent decorative pixels no longer intrude into buildable or bridge space, and Pip and Mallow keep their authored shelters even when the tree composition changes.
+
 ## 2026-07-13 - Additive simulation state has distinct save, history, and replay policies
 
 - Surfaced by: duck-ecology implementation review against a committed pre-ecology replay bundle. A blanket default could make old replays diverge, while `Object.assign` during Undo/Redo could carry current ecology through a historical core that never stored it; the same audit showed a structurally valid but truncated current payload could permanently remove an authored duck or fish.
