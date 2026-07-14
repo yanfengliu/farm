@@ -145,6 +145,9 @@ describe('farm annotations', () => {
       await expect.poll(async () => page.locator('.annotation-editor-warning').isVisible()).toBe(true);
       await expect.poll(async () => page.locator('.annotation-editor-warning').textContent()).toContain('cannot be empty');
 
+      await textarea.focus();
+      await page.keyboard.type('wasd WASD');
+      expect(await textarea.inputValue()).toBe('wasd WASD');
       await textarea.fill('Keyboard-only center capture.');
       await page.click('[data-panel="inventory"]');
       await page.click('[data-panel="annotations"]');

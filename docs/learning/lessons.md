@@ -1,5 +1,13 @@
 # Engineering Lessons
 
+## 2026-07-13 - Focus ownership and browser-default capture are separate keyboard contracts
+
+- Surfaced by: the player reported that `W`, `A`, `S`, and `D` could not be typed into a Farm Note. A real-keyboard browser regression reproduced `wasd WASD` as one surviving space even though `.fill()`-based tests had passed.
+- Failure mode: checking `document.activeElement` was sufficient to stop camera movement but not text suppression. Phaser's `addKeys` also captured the browser defaults for WASD, so its global listener called `preventDefault` before the textarea could insert those characters.
+- Fix commit: `fix: let Farm Notes type camera keys` removes browser-default capture for W, A, S, and D while retaining Phaser key-state tracking for camera movement.
+- Regression anchors: `tests/browser/annotations.test.mjs` types lowercase and uppercase WASD through real keyboard events and requires the exact textarea value; `tests/browser/cozyArtDirection.test.mjs` keeps the existing held-KeyD camera-pan contract green.
+- Behavior delta: focused note editors accept ordinary prose containing WASD, while an unfocused farm canvas still pans with the same controls.
+
 ## 2026-07-13 - Modal debug tools must own the gameplay input boundary
 
 - Surfaced by: independent code review placed a plot, opened a paused Farm Notes draft, focused the canvas, pressed `Z`, and cancelled the draft; the queued Undo then removed the plot even though the farm appeared locked while the editor was open. Toolbar Undo/Redo, tool/speed keys, and `Shift+R` shared the same leak.
