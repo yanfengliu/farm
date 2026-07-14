@@ -56,12 +56,23 @@ describe('browser autosave failure', () => {
       expect(endTick).toBeGreaterThan(startTick);
       expect(await page.locator('#hud').textContent()).toContain('Autosave unavailable');
 
+      await page.evaluate(() => {
+        const hud = globalThis.document.querySelector('#hud');
+        globalThis.__persistenceMessageHistory = [hud?.textContent ?? ''];
+        new MutationObserver(() => {
+          globalThis.__persistenceMessageHistory.push(hud?.textContent ?? '');
+        }).observe(hud, { childList: true, subtree: true, characterData: true });
+      });
       await page.keyboard.press('Shift+R');
-      await page.waitForTimeout(100);
+      await page.waitForFunction(() => globalThis.__persistenceMessageHistory.some((text) => (
+        text.includes('Stored save could not be cleared')
+      )));
       const resetTick = await page.evaluate(() => globalThis.__farmDebug.getState().tick);
       expect(resetTick).toBeLessThan(endTick);
       expect(pageErrors).toEqual([]);
-      expect(await page.locator('#hud').textContent()).toContain('Stored save could not be cleared');
+      expect(await page.evaluate(() => globalThis.__persistenceMessageHistory)).toContainEqual(
+        expect.stringContaining('Stored save could not be cleared'),
+      );
     } finally {
       await context.close();
     }

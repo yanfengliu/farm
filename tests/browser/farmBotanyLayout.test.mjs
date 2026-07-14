@@ -83,6 +83,17 @@ describe('farm botany layout', () => {
     expect(new Set(botany.plants.map((plant) => `${plant.x},${plant.y}`)).size).toBe(botany.plants.length);
   });
 
+  test('keeps permanent tree pixels clear of the tier-four harvest stall', () => {
+    const scenery = buildFarmSceneryLayout(WIDTH, HEIGHT, TILE_SIZE);
+    const stallX = scenery.farm.right + 16;
+    const stallY = scenery.farm.bottom - 61;
+    const stallBounds = { left: stallX - 5, right: stallX + 65, top: stallY + 4, bottom: stallY + 47 };
+
+    for (const tree of buildFarmBotanyLayout(WIDTH, HEIGHT, TILE_SIZE).trees) {
+      expect(boundsIntersect(farmTreeVisualBounds(tree), stallBounds), `${tree.species} tree overlaps harvest stall`).toBe(false);
+    }
+  });
+
   test('keeps shelter art anchored to the first natural grove', () => {
     const state = { width: WIDTH, height: HEIGHT };
     const groves = farmGroveAnchors(state, TILE_SIZE);

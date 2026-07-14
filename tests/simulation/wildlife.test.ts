@@ -300,5 +300,18 @@ describe('natural creek lily layout', () => {
     expect(new Set(first.map((plant) => plant.bank))).toEqual(new Set(['left', 'right']));
     expect(new Set(first.slice(1).map((plant, index) => plant.y - first[index]!.y)).size).toBeGreaterThan(2);
     expect(first.every((plant) => Math.abs(plant.y - plant.bridgeY) > 34)).toBe(true);
+
+    const completeCommunities = Array.from({ length: Math.floor(first.length / 6) }, (_, communityIndex) => (
+      first.slice(communityIndex * 6, communityIndex * 6 + 6)
+    ));
+    expect(completeCommunities.length).toBeGreaterThanOrEqual(2);
+    for (const community of completeCommunities) {
+      expect(new Set(community.map((plant) => `${plant.kind}:${plant.bank}`)).size).toBe(6);
+    }
+    expect(first.some((plant, index) => index > 0 && plant.kind === first[index - 1]?.kind)).toBe(true);
+    expect(first.some((plant, index) => index > 0 && plant.bank === first[index - 1]?.bank)).toBe(true);
+    expect(new Set(completeCommunities.map((community) => (
+      community.map((plant) => `${plant.kind}:${plant.bank}`).join('|')
+    ))).size).toBeGreaterThan(1);
   });
 });

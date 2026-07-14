@@ -54,6 +54,6 @@ export function buildFarmSceneryLayout(width: number, height: number, tileSize: 
     },
     cottage,
     garden,
-    sign: { x: farmRight + 3, y: 108 },
+    sign: { x: farmRight + 4, y: garden.bottom + 25 },
   };
 }

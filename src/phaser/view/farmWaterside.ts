@@ -22,6 +22,33 @@ export interface CreekBankPlantLayout {
   bridgeY: number;
 }
 
+const CREEK_BANK_KINDS = ['cattail', 'iris', 'sedge'] as const;
+const COMMUNITY_BANK_PATTERN = ['left', 'right', 'right', 'left', 'left', 'right'] as const;
+const CATTAIL_HEIGHT_PROFILES = [
+  [12, 11, 10],
+  [11, 13, 9],
+  [13, 10, 12],
+  [10, 12, 11],
+] as const;
+const CATTAIL_LEAN_PROFILES = [
+  [-2, 1, 2],
+  [-3, 2, 1],
+  [-1, 3, 2],
+  [-2, 1, 3],
+] as const;
+const IRIS_BLADE_PROFILES = [
+  [[13, -1], [9, 2]],
+  [[12, -2], [11, 1]],
+  [[14, -1], [8, 3]],
+  [[11, -3], [10, 2]],
+] as const;
+const SEDGE_BLADE_PROFILES = [
+  [[10, -2], [13, 1], [8, 3], [7, -3]],
+  [[12, -1], [10, 3], [9, 1], [8, -4]],
+  [[9, -3], [14, 1], [7, 4], [10, -1]],
+  [[11, -2], [12, 2], [10, 3], [6, -4]],
+] as const;
+
 export function creekCenterX(baseX: number, y: number): number {
   return baseX + Math.round(Math.sin(y / 42) * 6 + Math.sin(y / 91) * 3);
 }
@@ -51,7 +78,6 @@ export function drawCreekBed(g: Phaser.GameObjects.Graphics, state: FarmState, t
 export function buildCreekBankPlantLayout(state: FarmState, tileSize: number): CreekBankPlantLayout[] {
   const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
   const plants: CreekBankPlantLayout[] = [];
-  const kinds = ['cattail', 'iris', 'sedge'] as const;
   let y = layout.environment.top + 19;
   let index = 0;
 
@@ -60,14 +86,14 @@ export function buildCreekBankPlantLayout(state: FarmState, tileSize: number): C
     y += 43 + (hash % 37);
     if (Math.abs(y - layout.creek.bridgeY) <= 34) y = layout.creek.bridgeY + 38 + (hash % 17);
     if (y >= layout.environment.bottom - 10) break;
-    const bank = index % 2 === 0 ? 'left' : 'right';
+    const { bank, kind } = creekBankCommunityAt(index, state.width, state.height);
     const creekX = creekCenterX(layout.creek.centerX, y);
     plants.push({
       x: bank === 'left'
         ? creekX - 9 - (Math.floor(hash / 13) % 5)
         : creekX + layout.creek.width + 7 + (Math.floor(hash / 17) % 5),
       y,
-      kind: kinds[index % kinds.length] ?? 'sedge',
+      kind,
       bank,
       variant: hash,
       bridgeY: layout.creek.bridgeY,
@@ -76,6 +102,23 @@ export function buildCreekBankPlantLayout(state: FarmState, tileSize: number): C
   }
 
   return plants;
+}
+
+function creekBankCommunityAt(
+  index: number,
+  width: number,
+  height: number,
+): Pick<CreekBankPlantLayout, 'bank' | 'kind'> {
+  const communityIndex = Math.floor(index / 6);
+  const slot = positiveModulo(index, 6);
+  const communityHash = coordinateHash(communityIndex + 197, width * 59 + height * 83);
+  const pair = Math.floor(slot / 2);
+  const kindDirection = Math.floor(communityHash / 7) % 2 === 0 ? 1 : -1;
+  const kindIndex = positiveModulo((communityHash % CREEK_BANK_KINDS.length) + pair * kindDirection, CREEK_BANK_KINDS.length);
+  const authoredBank = COMMUNITY_BANK_PATTERN[slot] ?? 'left';
+  const mirrorBanks = communityHash % 2 === 1;
+  const bank = mirrorBanks ? (authoredBank === 'left' ? 'right' : 'left') : authoredBank;
+  return { bank, kind: CREEK_BANK_KINDS[kindIndex] ?? 'sedge' };
 }
 
 export function buildCreekLilyLayout(state: FarmState, tileSize: number): CreekLilyLayout[] {
@@ -141,63 +184,169 @@ export function drawCreekShimmer(g: Phaser.GameObjects.Graphics, state: FarmStat
   }
 }
 
-function drawCreekBankPlant(g: Phaser.GameObjects.Graphics, plant: CreekBankPlantLayout): void {
+export function drawCreekBankPlant(g: Phaser.GameObjects.Graphics, plant: CreekBankPlantLayout): void {
   const direction = plant.bank === 'left' ? -1 : 1;
+  const profile = positiveModulo(plant.variant, 4);
   if (plant.kind === 'cattail') {
-    g.fillStyle(0x759a4a, 1);
-    for (const offset of [0, direction * 4, direction * 8]) {
-      g.fillRect(plant.x + offset, plant.y - 10 + Math.abs(offset % 3), 2, 12);
+    const heights = CATTAIL_HEIGHT_PROFILES[profile] ?? CATTAIL_HEIGHT_PROFILES[0];
+    const leans = CATTAIL_LEAN_PROFILES[profile] ?? CATTAIL_LEAN_PROFILES[0];
+    const bladeBases = [plant.x, plant.x + direction * 4, plant.x + direction * 8] as const;
+    for (const [blade, baseX] of bladeBases.entries()) {
+      drawBankBlade(g, baseX, plant.y + 1, heights[blade] ?? 10, direction * (leans[blade] ?? 1), 0x759a4a);
     }
     g.fillStyle(0x815338, 1);
-    g.fillRect(plant.x, plant.y - 13, 2, 5);
-    g.fillRect(plant.x + direction * 8, plant.y - 10, 2, 4);
+    drawCattailHeadForBlade(g, bladeBases[0], plant.y + 1, heights[0], direction * leans[0], profile % 2 === 0 ? 5 : 4);
+    if (profile !== 1) {
+      drawCattailHeadForBlade(g, bladeBases[2], plant.y + 1, heights[2], direction * leans[2], profile === 2 ? 5 : 4);
+    }
     return;
   }
 
   if (plant.kind === 'iris') {
-    g.fillStyle(0x5f8b49, 1);
-    g.fillRect(plant.x, plant.y - 12, 2, 13);
-    g.fillRect(plant.x + direction * 3, plant.y - 8, 1, 9);
+    const blades = IRIS_BLADE_PROFILES[profile] ?? IRIS_BLADE_PROFILES[0];
+    drawBankBlade(g, plant.x, plant.y, blades[0][0], direction * blades[0][1], 0x5f8b49);
+    drawBankBlade(g, plant.x + direction * 3, plant.y, blades[1][0], direction * blades[1][1], 0x5f8b49);
     g.fillStyle(plant.variant % 2 ? 0x8999d3 : 0x9b87c6, 1);
-    g.fillRect(plant.x - 2, plant.y - 15, 6, 3);
-    g.fillRect(plant.x, plant.y - 17, 2, 6);
+    drawIrisPetals(g, plant.x, plant.y, direction, profile);
     g.fillStyle(0xf0cf6a, 1);
-    g.fillRect(plant.x + 1, plant.y - 14, 1, 2);
+    g.fillRect(plant.x + (profile === 2 ? direction : 0), plant.y - 15, 1, 2);
     return;
   }
 
-  g.fillStyle(plant.variant % 2 ? 0x759c50 : 0x89a951, 1);
-  g.fillRect(plant.x, plant.y - 9, 1, 10);
-  g.fillRect(plant.x + direction * 3, plant.y - 12, 2, 13);
-  g.fillRect(plant.x + direction * 7, plant.y - 7, 1, 8);
-  g.fillRect(plant.x - direction * 3, plant.y - 6, 2, 7);
+  const sedge = plant.variant % 2 ? 0x759c50 : 0x89a951;
+  const blades = SEDGE_BLADE_PROFILES[profile] ?? SEDGE_BLADE_PROFILES[0];
+  const bladeBases = [plant.x, plant.x + direction * 3, plant.x + direction * 7, plant.x - direction * 3] as const;
+  for (const [blade, baseX] of bladeBases.entries()) {
+    const bladeProfile = blades[blade] ?? blades[0];
+    drawBankBlade(g, baseX, plant.y, bladeProfile[0], direction * bladeProfile[1], sedge);
+  }
 }
 
-function drawLilyPad(g: Phaser.GameObjects.Graphics, lily: CreekLilyLayout): void {
+function drawIrisPetals(
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  direction: -1 | 1,
+  profile: number,
+): void {
+  const spread = profile % 2 === 0 ? 4 : 5;
+  const topRise = profile >= 2 ? 20 : 19;
+  const topDrift = profile === 1 ? -direction : profile === 2 ? direction : 0;
+  g.fillRect(x - spread, y - 15, 2, 1);
+  g.fillRect(x - spread + 1, y - 14 - (profile === 3 ? 1 : 0), 2, 1);
+  g.fillRect(x + spread - 1, y - 15 + (profile === 1 ? 1 : 0), 2, 1);
+  g.fillRect(x + spread - 2, y - 14, 2, 1);
+  g.fillRect(x + topDrift, y - topRise, 1, 2);
+  g.fillRect(x + topDrift + direction, y - topRise + 1, 1, 2);
+  g.fillRect(x - 1, y - 13, 2, 1);
+  g.fillRect(x + direction * (profile >= 2 ? 2 : 1), y - 12, 2, 1);
+  if (profile >= 2) g.fillRect(x - direction * 3, y - 13, 1, 1);
+}
+
+function drawBankBlade(
+  g: Phaser.GameObjects.Graphics,
+  baseX: number,
+  baseY: number,
+  height: number,
+  lean: number,
+  color: number,
+): void {
+  g.fillStyle(color, 1);
+  for (let rise = 0; rise < height; rise += 1) {
+    const progress = rise / Math.max(1, height - 1);
+    const curve = progress > 0.55 ? Math.sign(lean) : 0;
+    g.fillRect(baseX + Math.round(lean * progress) + curve, baseY - rise, 1, 1);
+  }
+}
+
+function drawCattailHead(g: Phaser.GameObjects.Graphics, x: number, top: number, height: 4 | 5): void {
+  for (let row = 0; row < height; row += 1) {
+    const width = row === 0 || row === height - 1 ? 1 : 2;
+    g.fillRect(x - Math.floor(width / 2), top + row, width, 1);
+  }
+}
+
+function drawCattailHeadForBlade(
+  g: Phaser.GameObjects.Graphics,
+  baseX: number,
+  baseY: number,
+  bladeHeight: number,
+  lean: number,
+  headHeight: 4 | 5,
+): void {
+  const tipX = baseX + lean + Math.sign(lean);
+  drawCattailHead(g, tipX, baseY - bladeHeight - headHeight + 2, headHeight);
+}
+
+export function drawLilyPad(g: Phaser.GameObjects.Graphics, lily: CreekLilyLayout): void {
   const { x, y, size, notch, blossomColor, companion } = lily;
   const half = Math.floor(size / 2);
-  const height = Math.max(4, Math.floor(size / 2));
+  const pixels = lilyPadPixels(x, y, size, notch);
   g.fillStyle(0x1e4839, 0.5);
-  g.fillRect(x - half - 1, y + 1, size + 2, height);
-  g.fillStyle(0x28543d, 1);
-  g.fillRect(x - half, y, size, height);
-  g.fillRect(x - half + 2, y - 2, size - 4, height + 1);
-  g.fillStyle(0x397f8c, 1);
-  const notchX = notch < 2 ? x - 1 : x + 1;
-  g.fillRect(notchX, notch % 2 === 0 ? y - 2 : y, 2, 3);
+  for (const pixel of pixels) g.fillRect(pixel.x + 1, pixel.y + 2, 1, 1);
+  for (const pixel of pixels) {
+    const edge = pixel.row === pixels.at(-1)?.row || pixel.column === 0;
+    const glint = pixel.row === 1 && pixel.column % 3 === 0;
+    g.fillStyle(edge ? 0x1e4839 : glint ? 0x4c7a52 : 0x28543d, 1);
+    g.fillRect(pixel.x, pixel.y, 1, 1);
+  }
   if (companion) {
-    g.fillStyle(0x356b49, 1);
-    g.fillRect(x + half - 1, y + height, 6, 3);
-    g.fillRect(x + half, y + height - 1, 4, 4);
+    const companionRows = [2, 5, 4, 2] as const;
+    for (const [row, width] of companionRows.entries()) {
+      g.fillStyle(row === companionRows.length - 1 ? 0x28543d : 0x356b49, 1);
+      const left = x + half + 1 + Math.floor((5 - width) / 2);
+      for (let column = 0; column < width; column += 1) {
+        if (row < 2 && column === Math.floor(width / 2)) continue;
+        g.fillRect(left + column, y + Math.floor(size / 2) + row, 1, 1);
+      }
+    }
   }
   if (blossomColor !== null) {
     const flowerX = x + (notch < 2 ? 2 : -3);
+    const flowerY = y - 4;
     g.fillStyle(blossomColor, 1);
-    g.fillRect(flowerX, y - 4, 3, 3);
-    g.fillRect(flowerX - 1, y - 3, 5, 1);
+    g.fillRect(flowerX - 3, flowerY, 2, 1);
+    g.fillRect(flowerX + 2, flowerY + 1, 2, 1);
+    g.fillRect(flowerX, flowerY - 2, 1, 2);
+    g.fillRect(flowerX + 1, flowerY + 2, 1, 2);
     g.fillStyle(0xffefb0, 1);
-    g.fillRect(flowerX + 1, y - 3, 1, 1);
+    g.fillRect(flowerX, flowerY, 2, 1);
   }
+}
+
+interface LilyPixel {
+  x: number;
+  y: number;
+  row: number;
+  column: number;
+}
+
+function lilyPadPixels(x: number, y: number, size: CreekLilyLayout['size'], notch: CreekLilyLayout['notch']): LilyPixel[] {
+  const profiles: Record<CreekLilyLayout['size'], readonly [number, number][]> = {
+    8: [[4, 1], [7, 0], [8, 0], [7, 1], [4, 2]],
+    10: [[5, 1], [8, 0], [10, 0], [9, 0], [7, 1], [4, 3]],
+    12: [[5, 2], [9, 0], [12, 0], [11, 1], [9, 1], [7, 2], [4, 4]],
+  };
+  const gapDrifts = [
+    [0, 0, -1, -1, 0],
+    [0, 1, 1, 0, 0],
+    [-1, -1, 0, 1, 0],
+    [1, 1, 0, -1, 0],
+  ] as const;
+  const rows = profiles[size];
+  const top = y - 2;
+  const pixels: LilyPixel[] = [];
+
+  for (const [row, [width, inset]] of rows.entries()) {
+    const left = x - Math.floor(size / 2) + inset;
+    const gapCenter = Math.floor(width / 2) + (gapDrifts[notch][row] ?? 0);
+    const cutNotch = row < rows.length - 2;
+    for (let column = 0; column < width; column += 1) {
+      if (cutNotch && (column === gapCenter || column === gapCenter - 1)) continue;
+      pixels.push({ x: left + column, y: top + row, row, column });
+    }
+  }
+  return pixels;
 }
 
 function positiveModulo(value: number, divisor: number): number {

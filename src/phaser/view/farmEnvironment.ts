@@ -1,8 +1,11 @@
 import type Phaser from 'phaser';
 import type { FarmState } from '../../game/simulation/farmGame';
 import { drawFarmBotanyGround, drawFarmBotanyOverstory, drawWildMeadowBotany } from './farmBotany';
+import { drawCottagePlants } from './farmCottagePlantArt';
+import { drawPixelLeafSpray } from './farmFoliagePrimitives';
 import { buildFarmSceneryLayout } from './farmSceneryLayout';
 import { coordinateHash, drawFlowerClump, drawGrassTuft, tileVariant } from './farmPixelPrimitives';
+import { drawPixelStone } from './farmStonePrimitives';
 import { drawCreekBed, drawCreekBridge } from './farmWaterside';
 
 export function drawFarmEnvironment(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {
@@ -31,10 +34,10 @@ export function drawFarmEnvironment(g: Phaser.GameObjects.Graphics, state: FarmS
   }
 
   drawCreekBed(g, state, tileSize);
+  drawSteppingPath(g, state, tileSize);
   drawCottage(g, layout.cottage.x, layout.cottage.y);
   drawCottageGarden(g, state, tileSize);
   drawTierFlourishes(g, state, tileSize);
-  drawSteppingPath(g, state, tileSize);
   drawFarmBotanyGround(g, state, tileSize);
   drawFarmSign(g, layout.sign.x, layout.sign.y);
 }
@@ -71,13 +74,14 @@ function drawSouthernMeadowStory(g: Phaser.GameObjects.Graphics, x: number, y: n
   if (x === 1 && y === 8) drawBeeSkeps(g, px, py);
 }
 
-function drawSouthPathStone(g: Phaser.GameObjects.Graphics, x: number, y: number, seed: number): void {
-  g.fillStyle(0x3c5c39, 0.32);
-  g.fillRect(x - 2, y + 5, 19, 5);
-  g.fillStyle(seed % 2 ? 0x9b987b : 0x8b9075, 1);
-  g.fillRect(x, y + 1, 15, 7);
-  g.fillStyle(0xc3ba91, 0.8);
-  g.fillRect(x + 3, y + 2, 7, 1);
+export function drawSouthPathStone(g: Phaser.GameObjects.Graphics, x: number, y: number, seed: number): void {
+  drawPixelStone(g, x, y + 1, 15, 7, seed, {
+    shade: 0x707460,
+    main: seed % 2 ? 0x9b987b : 0x8b9075,
+    light: 0xc3ba91,
+    lichen: seed % 2 ? 0x77894d : 0x82945a,
+    shadow: 0x3c5c39,
+  });
 }
 
 function drawHayBales(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
@@ -218,28 +222,18 @@ function drawCottage(g: Phaser.GameObjects.Graphics, x: number, y: number): void
   g.fillStyle(0x9bd1c5, 1);
   g.fillRect(x + 10, y + 33, 6, 6);
   g.fillRect(x + 45, y + 33, 6, 6);
-  for (const [index, windowX] of [8, 43].entries()) {
+  for (const windowX of [8, 43]) {
     g.fillStyle(0x704229, 1);
     g.fillRect(x + windowX - 1, y + 41, 12, 4);
-    g.fillStyle(0x5f873d, 1);
-    g.fillRect(x + windowX + 1, y + 39, 4, 3);
-    g.fillRect(x + windowX + 6, y + 38, 4, 4);
-    g.fillStyle(index === 0 ? 0xf4d778 : 0xe9a5a1, 1);
-    g.fillRect(x + windowX + 3, y + 39, 2, 2);
-    g.fillRect(x + windowX + 7, y + 38, 2, 2);
   }
+  drawCottagePlants(g, x, y);
   g.fillStyle(0xffd879, 1);
   g.fillRect(x + 33, y + 44, 2, 2);
   g.fillStyle(0x754130, 1);
   g.fillRect(x + 45, y - 1, 8, 16);
-  g.fillStyle(0x5f873d, 1);
-  g.fillRect(x + 2, y + 28, 3, 21);
-  g.fillRect(x + 4, y + 43, 8, 2);
-  g.fillStyle(0xf4d778, 1);
-  g.fillRect(x + 5, y + 35, 2, 2);
 }
 
-function drawCottageGarden(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {
+export function drawCottageGarden(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {
   const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
   const { garden, cottage } = layout;
   g.fillStyle(0x3b6239, 0.5);
@@ -258,11 +252,15 @@ function drawCottageGarden(g: Phaser.GameObjects.Graphics, state: FarmState, til
     g.fillRect(x - 1, garden.top + 15 + (index % 2), 2, 2);
 
     const cabbageX = x + (index % 2 ? 1 : -1);
-    g.fillStyle(index % 2 ? 0x5f934c : 0x6aa052, 1);
-    g.fillRect(cabbageX - 4, garden.top + 29, 9, 5);
-    g.fillRect(cabbageX - 2, garden.top + 26, 5, 9);
-    g.fillStyle(0x9bc36d, 1);
-    g.fillRect(cabbageX - 1, garden.top + 28, 3, 3);
+    drawPixelLeafSpray(
+      g,
+      cabbageX - 3,
+      garden.top + 27,
+      index % 2 ? 0x5f934c : 0x6aa052,
+      0x9bc36d,
+      index + 2,
+      0x315f3c,
+    );
   }
 
   const lineY = garden.top + 5;
@@ -348,13 +346,18 @@ function drawSteppingPath(g: Phaser.GameObjects.Graphics, state: FarmState, tile
     const x = cottage.x + 28 - index * 7;
     const y = cottage.y + 66 + index * 12;
     if (x < farm.right - 12) break;
-    g.fillStyle(0x40583d, 0.35);
-    g.fillRect(x - 1, y + 4, 13, 4);
-    g.fillStyle(0x8d9277, 1);
-    g.fillRect(x, y, 11, 6);
-    g.fillStyle(0xb9b48e, 0.8);
-    g.fillRect(x + 2, y + 1, 5, 1);
+    drawSteppingStone(g, x, y, index);
   }
+}
+
+export function drawSteppingStone(g: Phaser.GameObjects.Graphics, x: number, y: number, _seed: number): void {
+  drawPixelStone(g, x, y, 11, 6, _seed, {
+    shade: 0x626c61,
+    main: 0x8d9277,
+    light: 0xb9b48e,
+    lichen: 0x71834f,
+    shadow: 0x40583d,
+  });
 }
 
 function drawFarmSign(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
@@ -371,11 +374,12 @@ function drawFarmSign(g: Phaser.GameObjects.Graphics, x: number, y: number): voi
   g.fillRect(x + 22, y + 9, 11, 3);
 }
 
-function drawMeadowRock(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
-  g.fillStyle(0x536052, 1);
-  g.fillRect(x, y + 2, 7, 4);
-  g.fillStyle(0x7b8975, 1);
-  g.fillRect(x + 1, y, 5, 4);
-  g.fillStyle(0xa4ad91, 0.75);
-  g.fillRect(x + 2, y + 1, 2, 1);
+export function drawMeadowRock(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
+  drawPixelStone(g, x, y, 7, 5, x + y, {
+    shade: 0x536052,
+    main: 0x7b8975,
+    light: 0xa4ad91,
+    lichen: 0x6d824c,
+    shadow: 0x40583d,
+  });
 }

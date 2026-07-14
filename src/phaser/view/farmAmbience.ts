@@ -50,16 +50,27 @@ function drawSunMotes(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize
   }
 }
 
-function drawChimneySmoke(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number, tick: number): void {
+export function drawChimneySmoke(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number, tick: number): void {
   const { cottage } = buildFarmSceneryLayout(state.width, state.height, tileSize);
   const drift = positiveModulo(tick, 18);
   for (let index = 0; index < 4; index += 1) {
     const age = positiveModulo(drift + index * 5, 20);
-    const size = 3 + Math.floor(age / 7);
-    g.fillStyle(0xe7dfc8, Math.max(0.12, 0.48 - age * 0.015));
-    g.fillRect(cottage.x + 47 + Math.floor(age / 5), cottage.y - 4 - age * 2, size, size - 1);
+    const mask = SMOKE_PUFF_MASKS[(Math.floor(age / 5) + index) % SMOKE_PUFF_MASKS.length] ?? SMOKE_PUFF_MASKS[0];
+    const puffX = cottage.x + 47 + Math.floor(age / 5) + (positiveModulo(age + index, 4) === 0 ? -1 : 0);
+    const puffY = cottage.y - 5 - age * 2;
+    const alpha = Math.max(0.12, 0.48 - age * 0.015);
+    for (const [segmentIndex, [offsetX, offsetY, width]] of mask.entries()) {
+      g.fillStyle(segmentIndex === 0 ? 0xf5eedb : 0xe7dfc8, segmentIndex === 0 ? alpha * 0.8 : alpha);
+      g.fillRect(puffX + offsetX, puffY + offsetY, width, 1);
+    }
   }
 }
+
+const SMOKE_PUFF_MASKS: ReadonlyArray<ReadonlyArray<readonly [number, number, number]>> = [
+  [[1, 0, 1], [0, 1, 2], [3, 1, 1], [1, 2, 1], [3, 2, 2]],
+  [[2, 0, 1], [0, 1, 2], [3, 1, 2], [1, 2, 2], [4, 2, 1], [2, 3, 1]],
+  [[1, 0, 2], [0, 1, 1], [2, 1, 2], [5, 1, 1], [1, 2, 1], [4, 2, 2], [2, 3, 2]],
+];
 
 function positiveModulo(value: number, divisor: number): number {
   return ((value % divisor) + divisor) % divisor;

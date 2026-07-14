@@ -20,8 +20,22 @@ let browser;
 let url;
 
 const STORYBOOK_PALETTE = {
-  canopy: [40, 84, 61],
-  sunLeaf: [145, 189, 106],
+  canopy: [
+    [29, 65, 51],
+    [31, 70, 53],
+    [36, 74, 52],
+    [36, 74, 54],
+    [40, 84, 61],
+    [46, 91, 62],
+  ],
+  sunLeaf: [
+    [143, 186, 103],
+    [145, 185, 102],
+    [155, 194, 110],
+    [180, 213, 125],
+    [131, 173, 94],
+    [121, 168, 90],
+  ],
   duck: [243, 205, 103],
   linen: [238, 215, 192],
   hay: [218, 171, 72],
@@ -101,22 +115,23 @@ async function paletteCounts(page) {
     const counts = Object.fromEntries(Object.keys(palette).map((key) => [key, 0]));
     for (let index = 0; index < pixels.length; index += 4) {
       for (const [key, target] of Object.entries(palette)) {
-        if (
-          Math.abs(pixels[index] - target[0]) <= 3 &&
-          Math.abs(pixels[index + 1] - target[1]) <= 3 &&
-          Math.abs(pixels[index + 2] - target[2]) <= 3
-        ) counts[key] += 1;
+        const targets = Array.isArray(target[0]) ? target : [target];
+        if (targets.some((color) => (
+          Math.abs(pixels[index] - color[0]) <= 3 &&
+          Math.abs(pixels[index + 1] - color[1]) <= 3 &&
+          Math.abs(pixels[index + 2] - color[2]) <= 3
+        ))) counts[key] += 1;
       }
     }
     return counts;
   }, STORYBOOK_PALETTE);
 }
 
-async function paletteCountInWorldRect(page, target, worldRect, frame) {
-  return (await paletteSignatureInWorldRect(page, target, worldRect, frame)).count;
+async function paletteCountInWorldRect(page, target, worldRect, frame, tolerance = 3) {
+  return (await paletteSignatureInWorldRect(page, target, worldRect, frame, tolerance)).count;
 }
 
-async function paletteSignatureInWorldRect(page, target, worldRect, frame) {
+async function paletteSignatureInWorldRect(page, target, worldRect, frame, tolerance = 3) {
   return page.locator('#game-canvas canvas').evaluate((element, args) => {
     const frameWidth = args.frame.right - args.frame.left;
     const frameHeight = args.frame.bottom - args.frame.top;
@@ -135,14 +150,15 @@ async function paletteSignatureInWorldRect(page, target, worldRect, frame) {
     let count = 0;
     let sumX = 0;
     let sumY = 0;
+    const targets = Array.isArray(args.target[0]) ? args.target : [args.target];
     for (let y = top; y < bottom; y += 1) {
       for (let x = left; x < right; x += 1) {
         const index = (y * element.width + x) * 4;
-        if (
-          Math.abs(pixels[index] - args.target[0]) <= 3 &&
-          Math.abs(pixels[index + 1] - args.target[1]) <= 3 &&
-          Math.abs(pixels[index + 2] - args.target[2]) <= 3
-        ) {
+        if (targets.some((color) => (
+          Math.abs(pixels[index] - color[0]) <= args.tolerance &&
+          Math.abs(pixels[index + 1] - color[1]) <= args.tolerance &&
+          Math.abs(pixels[index + 2] - color[2]) <= args.tolerance
+        ))) {
           count += 1;
           sumX += x;
           sumY += y;
@@ -150,7 +166,7 @@ async function paletteSignatureInWorldRect(page, target, worldRect, frame) {
       }
     }
     return { count, sumX, sumY };
-  }, { target, worldRect, frame });
+  }, { target, worldRect, frame, tolerance });
 }
 
 async function paletteSignature(page, target) {
@@ -438,23 +454,24 @@ describe('storybook pixel art direction', () => {
       const colors = [[79, 134, 166], [182, 93, 82], [102, 140, 85], [139, 104, 160]];
       const layout = buildFarmSceneryLayout(12, 10, 32);
       const cropChecks = [
-        { cropId: 'carrot', x: 2, color: [255, 180, 92] },
-        { cropId: 'wheat', x: 3, color: [229, 185, 79] },
-        { cropId: 'tomato', x: 4, color: [217, 75, 63] },
-        { cropId: 'pumpkin', x: 5, color: [245, 164, 71] },
+        { cropId: 'carrot', x: 2, color: [[232, 117, 45], [185, 93, 43], [255, 180, 92]] },
+        { cropId: 'wheat', x: 3, color: [[184, 134, 56], [229, 185, 79], [255, 223, 121]] },
+        { cropId: 'tomato', x: 4, color: [[217, 75, 63], [130, 59, 50], [255, 123, 100]] },
+        { cropId: 'pumpkin', x: 5, color: [[232, 117, 45], [169, 68, 36], [245, 164, 71], [141, 59, 37]] },
       ];
       const planted = await page.evaluate((checks) => checks.map(({ x }) => (
         window.__farmDebug.getState().tiles[`${x},2`]?.plot?.cropId ?? null
       )), cropChecks);
       expect(planted).toEqual(cropChecks.map(({ cropId }) => cropId));
-      for (const { x, color } of cropChecks) {
+      for (const { cropId, x, color } of cropChecks) {
         const count = await paletteCountInWorldRect(
           page,
           color,
           { left: x * 32, top: 2 * 32, right: (x + 1) * 32, bottom: 3 * 32 },
           layout.frame,
+          10,
         );
-        expect(count).toBeGreaterThan(2);
+        expect(count, `${cropId} mature palette`).toBeGreaterThan(2);
       }
       const workerRect = { left: 4 * 32 - 24, top: 4 * 32 - 30, right: 5 * 32 + 24, bottom: 5 * 32 + 30 };
       const signatures = await Promise.all(

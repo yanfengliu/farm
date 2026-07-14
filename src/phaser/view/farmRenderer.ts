@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CROPS, type CropId } from '../../game/content/crops';
 import type { FarmState, FarmTile, FarmWorker } from '../../game/simulation/farmGame';
 import { drawFarmAmbience } from './farmAmbience';
+import { drawCarrotCrop, drawCloverPatch, drawPumpkinCrop, drawTomatoCrop, drawWheatCrop } from './farmCultivatedPlantArt';
 import { drawFarmEnvironment, drawFarmOverstory, drawFarmScenery, drawWildMeadowCell } from './farmEnvironment';
 import { exponentialApproach } from './farmMotionMath';
 import { coordinateHash, drawFlowerClump, drawGrassTuft } from './farmPixelPrimitives';
@@ -247,97 +248,10 @@ export class FarmRenderer {
     const ratio = Phaser.Math.Clamp(growth / definition.growTicks, 0, 1);
     const stage = Math.min(3, Math.floor(ratio * 4));
     const dry = water <= 0;
-    if (cropId === 'carrot') this.drawCarrots(px, py, stage, dry);
-    else if (cropId === 'wheat') this.drawWheat(px, py, stage, dry);
-    else if (cropId === 'tomato') this.drawTomatoes(px, py, stage, dry);
-    else this.drawPumpkins(px, py, stage, dry);
-  }
-
-  private drawCarrots(px: number, py: number, stage: number, dry: boolean): void {
-    const g = this.#objects;
-    for (const x of [10, 16, 22]) {
-      const leafY = py + 21 - stage * 2;
-      g.fillStyle(dry ? 0x87904e : 0x4f9849, 1);
-      g.fillRect(px + x - 1, leafY, 2, 5 + stage);
-      if (stage > 0) {
-        g.fillRect(px + x - 4, leafY + 2, 4, 2);
-        g.fillRect(px + x + 1, leafY + 1, 4, 2);
-      }
-      if (stage >= 2) {
-        g.fillStyle(stage === 3 ? 0xe8752d : 0xb95d2b, 1);
-        g.fillRect(px + x - 2, py + 21, 4, stage === 3 ? 7 : 4);
-        g.fillStyle(0xffb45c, 1);
-        g.fillRect(px + x - 1, py + 22, 2, 1);
-      }
-    }
-  }
-
-  private drawWheat(px: number, py: number, stage: number, dry: boolean): void {
-    const g = this.#objects;
-    const stem = dry ? 0x8b7741 : 0x7d8e3c;
-    const grain = stage === 3 ? 0xe5b94f : 0xaab153;
-    for (const x of [9, 13, 17, 21, 24]) {
-      const height = 5 + stage * 3 + ((x + stage) % 2);
-      const top = py + 26 - height;
-      g.fillStyle(stem, 1);
-      g.fillRect(px + x, top, 1, height);
-      if (stage > 0) {
-        g.fillStyle(grain, 1);
-        g.fillRect(px + x - 2, top, 5, 2 + (stage === 3 ? 2 : 0));
-        g.fillStyle(0xffdf79, 0.8);
-        if (stage === 3) g.fillRect(px + x - 1, top, 1, 2);
-      }
-    }
-  }
-
-  private drawTomatoes(px: number, py: number, stage: number, dry: boolean): void {
-    const g = this.#objects;
-    if (stage > 0) {
-      g.fillStyle(0x6a4930, 1);
-      g.fillRect(px + 9, py + 9, 2, 17);
-      g.fillRect(px + 21, py + 9, 2, 17);
-      g.fillRect(px + 9, py + 10, 14, 2);
-    }
-    g.fillStyle(dry ? 0x7d884b : 0x4c9449, 1);
-    g.fillRect(px + 12, py + 20 - stage * 2, 9, 4 + stage);
-    if (stage >= 2) {
-      const fruit = stage === 3 ? 0xd94b3f : 0xa85839;
-      g.fillStyle(fruit, 1);
-      g.fillRect(px + 11, py + 18, stage === 3 ? 6 : 4, stage === 3 ? 6 : 4);
-      g.fillRect(px + 19, py + 15, stage === 3 ? 6 : 4, stage === 3 ? 6 : 4);
-      g.fillStyle(0xff7b64, 1);
-      g.fillRect(px + 12, py + 19, 2, 1);
-      if (stage === 3) g.fillRect(px + 20, py + 16, 2, 1);
-    }
-  }
-
-  private drawPumpkins(px: number, py: number, stage: number, dry: boolean): void {
-    const g = this.#objects;
-    const vine = dry ? 0x79824a : 0x4b8c45;
-    g.fillStyle(vine, 1);
-    g.fillRect(px + 7, py + 20, 18, 2);
-    g.fillRect(px + 10, py + 16, 2, 6);
-    g.fillRect(px + 21, py + 19, 2, 5);
-    if (stage > 0) {
-      g.fillRect(px + 7, py + 17, 5, 3);
-      g.fillRect(px + 20, py + 20, 6, 3);
-    }
-    if (stage < 2) return;
-    for (const [x, y, delayed] of [[9, 18, false], [18, 14, true]] as const) {
-      if (delayed && stage < 3) continue;
-      const width = stage === 3 ? 9 : 6;
-      const height = stage === 3 ? 7 : 5;
-      g.fillStyle(0xa94424, 1);
-      g.fillRect(px + x - 1, py + y + 1, width + 2, height - 1);
-      g.fillStyle(stage === 3 ? 0xe8752d : 0xc45d28, 1);
-      g.fillRect(px + x, py + y, width, height);
-      g.fillStyle(0xf5a447, 1);
-      g.fillRect(px + x + 2, py + y + 1, 2, height - 2);
-      g.fillStyle(0x8d3b25, 1);
-      g.fillRect(px + x + width - 2, py + y + 1, 1, height - 1);
-      g.fillStyle(0x4f7137, 1);
-      g.fillRect(px + x + Math.floor(width / 2), py + y - 2, 2, 3);
-    }
+    if (cropId === 'carrot') drawCarrotCrop(this.#objects, px, py, stage, dry);
+    else if (cropId === 'wheat') drawWheatCrop(this.#objects, px, py, stage, dry);
+    else if (cropId === 'tomato') drawTomatoCrop(this.#objects, px, py, stage, dry);
+    else drawPumpkinCrop(this.#objects, px, py, stage, dry);
   }
 
   private drawSelection(state: FarmState, cell: Cell, tool: string): void {
@@ -386,19 +300,6 @@ function workerOffset(id: number): Cell {
 
 function tileVariant(x: number, y: number, colors: number[]): number {
   return colors[Math.abs((x * 17 + y * 31) % colors.length)] ?? colors[0];
-}
-
-function drawCloverPatch(g: Phaser.GameObjects.Graphics, x: number, y: number, variant: number): void {
-  g.fillStyle(0x598548, 1);
-  g.fillRect(x, y - 5, 1, 6);
-  g.fillStyle(0x86b966, 1);
-  g.fillRect(x - 4, y - 6, 4, 3);
-  g.fillRect(x + 1, y - 7, 4, 3);
-  g.fillRect(x - 2, y - 9, 4, 3);
-  if (variant % 3 === 0) {
-    g.fillStyle(0xf0d6df, 1);
-    g.fillRect(x, y - 10, 2, 2);
-  }
 }
 
 function farmGroundSignature(state: FarmState): string {
