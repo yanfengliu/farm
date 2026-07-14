@@ -146,6 +146,8 @@ vite.config.ts.timestamp-*
 .superpowers/
 
 # Local verification artifacts
+.playwright-cli/
+output/annotations/received/
 output/playwright/
 tmp/
 tmp-*.log
