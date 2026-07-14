@@ -123,6 +123,9 @@ describe('LLM visual-loop deterministic local player', () => {
         { kind: 'click', selector: '[data-command="claim-tier"]' },
         { kind: 'adjust', selector: '[data-mix-number="pumpkin"]', value: 20 },
         { kind: 'adjust', selector: '[data-mix="pumpkin"]', value: 20 },
+        { kind: 'click', selector: '[data-sell="carrot"]' },
+        { kind: 'click', selector: '[data-sell="wheat"]' },
+        { kind: 'click', selector: '[data-sell="tomato"]' },
         { kind: 'click', selector: '[data-sell="pumpkin"]' },
         { kind: 'wait', ms: 4000 },
         { kind: 'wait', ms: 4000 },
@@ -130,6 +133,41 @@ describe('LLM visual-loop deterministic local player', () => {
     );
 
     expect(decision.action.kind).toBe('stop');
+  });
+
+  test('waits for a sell trigger, then sells Tomato before the Tier 4 clean stop', () => {
+    const beforeTomato = history(
+      { kind: 'click', selector: '[data-command="claim-tier"]' },
+      { kind: 'click', selector: '[data-command="claim-tier"]' },
+      { kind: 'click', selector: '[data-command="claim-tier"]' },
+      { kind: 'adjust', selector: '[data-mix-number="pumpkin"]', value: 20 },
+      { kind: 'adjust', selector: '[data-mix="pumpkin"]', value: 20 },
+      { kind: 'click', selector: '[data-sell="carrot"]' },
+      { kind: 'click', selector: '[data-sell="wheat"]' },
+      { kind: 'click', selector: '[data-sell="pumpkin"]' },
+      { kind: 'wait', ms: 4000 },
+      { kind: 'wait', ms: 4000 },
+    );
+    const sellAction = visibleAction('[data-sell="tomato"]', 'Sell 1 Tomato');
+
+    const lowPressureDecision = decide(
+      observation(
+        'Coins 251 Storage 6/15 Tier 4 Harvest Hearth Inventory Tomato: 1 Pumpkin: 0',
+        [sellAction],
+      ),
+      beforeTomato,
+    );
+    expect(lowPressureDecision.action.kind).toBe('wait');
+
+    const pressureDecision = decide(
+      observation(
+        'Coins 251 Storage 12/15 Tier 4 Harvest Hearth Inventory Tomato: 3 Pumpkin: 0',
+        [sellAction],
+      ),
+      [...beforeTomato, ...history(lowPressureDecision.action)],
+    );
+
+    expect(pressureDecision.action).toMatchObject({ kind: 'click', selector: '[data-sell="tomato"]' });
   });
 
   test('does not clean-stop at Tier 4 before growing and selling a Pumpkin', () => {

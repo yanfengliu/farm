@@ -1,5 +1,13 @@
 # Engineering Lessons
 
+## 2026-07-13 - Terminal gates must include promised coverage obligations
+
+- Surfaced by: recursive pass `farm-recursive-2026-07-14T03-39-50-565Z` stopped at decision 150 with a low-severity `coverage-gap-data-sell-tomato` finding after the Tomato control was visible 25 times but never exercised.
+- Failure mode: the deterministic player required Pumpkin mix, Pumpkin sale, terminal watches, and no actionable guide before stopping, but did not require its documented single-crop sale tour. A timing path protected Tomato for an active request and later bulk-sold full storage, so the remaining Tomato first became available after every listed stop predicate was already true.
+- Fix commit: the recursive-coverage follow-up makes terminal completion depend on successful Carrot, Wheat, Tomato, and Pumpkin single-sale actions while retaining normal late-game sale triggers instead of selling tiny inventory merely for coverage.
+- Regression anchors: `tests/browser/llmVisualLoopLocalPlayerCompletion.test.mjs` proves low-pressure Tier 4 waits rather than stopping or needlessly selling, then selects Tomato at the existing 12/15 pressure threshold; `tests/browser/llmVisualLoopContract.test.mjs` pins the full terminal predicate. Final run `farm-visual-loop-2026-07-14T04-37-22-653Z` has zero findings and records `coverage-gap-data-sell-tomato` in `comparison.resolved` with strong replay.
+- Behavior delta: the local player now completes its promised unlocked-crop control tour before declaring the bounded scenario done, without changing the game or its economical late-game selling policy.
+
 ## 2026-07-13 - A mode control must activate the input route it promises
 
 - Surfaced by: direct player feedback reported that Box annotation behaved like one farm-grid cell. The existing freeform test stayed green because it always pressed `N` before clicking Box, while the actual idle-panel path clicked Box and dragged immediately.

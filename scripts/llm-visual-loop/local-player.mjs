@@ -466,7 +466,7 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   if (landToolAction && !landToolAction.state?.active && (terminalOpenEndedGuidanceVisible || /expand land/i.test(observation.visibleText)) && !selectedLandAfterTomato) return clickDecision(landToolAction, 'Select the Land tool because the visible open-ended guidance asks the player to expand land.');
   if (goalsAction && !clickedSelectors.has(goalsAction.selector)) return clickDecision(goalsAction, 'Open the visible Goals panel because progression and tier rewards should be understandable there.');
 
-  if (!request.pending && lastAction?.kind === 'wait' && tierClaims >= 3 && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)) {
+  if (!request.pending && lastAction?.kind === 'wait' && tierClaims >= 3 && carrotSold && wheatSold && tomatoSold && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2 && !hasActionableGuidance(observation.visibleText)) {
     return { rationale: 'The loop reached Tier 4 and watched the Harvest Hearth farm for two intervals.', action: { kind: 'stop' }, expectedResult: 'End with a final screenshot for review.' };
   }
   return {

@@ -463,7 +463,7 @@ describe('LLM visual loop harness contract', () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('function hasActionableGuidance');
-    expect(source).toContain('tierClaims >= 3 && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2');
+    expect(source).toContain('tierClaims >= 3 && carrotSold && wheatSold && tomatoSold && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2');
     expect(source).toContain('actionHistory.findLastIndex');
     expect(source).not.toContain('waitCount >= 7');
     expect(source).toContain('FARM GUIDE Paint Empty Land');
@@ -482,7 +482,7 @@ describe('LLM visual loop harness contract', () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 
     expect(source).toContain('const lastAction = actionHistory.at(-1);');
-    expect(source).toContain("lastAction?.kind === 'wait' && tierClaims >= 3 && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2");
+    expect(source).toContain("lastAction?.kind === 'wait' && tierClaims >= 3 && carrotSold && wheatSold && tomatoSold && pumpkinSold && adjustedPumpkinNumber && adjustedPumpkinSlider && waitsAfterClaim >= 2");
     expect(source).not.toContain("lastAction?.kind === 'wait' && tierClaims >= 3 && waitCount >= 7");
   });
 
