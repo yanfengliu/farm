@@ -5,7 +5,7 @@
 - Surfaced by: the player reported that `W`, `A`, `S`, and `D` could not be typed into a Farm Note. A real-keyboard browser regression reproduced `wasd WASD` as one surviving space even though `.fill()`-based tests had passed.
 - Failure mode: checking `document.activeElement` was sufficient to stop camera movement but not text suppression. Phaser's `addKeys` also captured the browser defaults for WASD, so its global listener called `preventDefault` before the textarea could insert those characters.
 - Fix commit: `fix: let Farm Notes type camera keys` removes browser-default capture for W, A, S, and D while retaining Phaser key-state tracking for camera movement.
-- Regression anchors: `tests/browser/annotations.test.mjs` types lowercase and uppercase WASD through real keyboard events and requires the exact textarea value; `tests/browser/cozyArtDirection.test.mjs` keeps the existing held-KeyD camera-pan contract green.
+- Regression anchors: `tests/browser/annotationKeyboard.test.mjs` real-types mixed-case movement keys through both editors; verifies exact draft and edited messages through `getAnnotations()`, `exportAnnotation()`, local storage, DOM, and reload; proves a sustained editor-owned `D` does not move its pin; and proves canvas-owned W/A/S/D move the pin in all four expected directions. Temporarily restoring the four captured defaults makes this contract fail on its first exact text assertion.
 - Behavior delta: focused note editors accept ordinary prose containing WASD, while an unfocused farm canvas still pans with the same controls.
 
 ## 2026-07-13 - Modal debug tools must own the gameplay input boundary
