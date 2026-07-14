@@ -38,8 +38,11 @@ const farmScene = new FarmScene({
   getSelectedCell: () => ui.selectedCell,
   applyTool: (x, y) => ui.applyTool(x, y),
   canDragTool: () => ui.canDragTool(),
-  captureAnnotation: (pick) => annotations?.capturePick(pick) ?? false,
-  isAnnotationDrafting: () => annotations?.isDrafting ?? false,
+  annotationPointerDown: (pick) => annotations?.handlePointerDown(pick) ?? false,
+  annotationPointerMove: (pick) => annotations?.handlePointerMove(pick) ?? false,
+  annotationPointerUp: (pick) => annotations?.handlePointerUp(pick) ?? false,
+  cancelAnnotationPointer: () => annotations?.cancelPointerSelection(),
+  annotationOwnsGameplayInput: () => annotations?.ownsGameplayInput ?? false,
 });
 
 const annotationController = new FarmAnnotationController({
@@ -54,6 +57,7 @@ const annotationController = new FarmAnnotationController({
   projectWorld: (point) => farmScene.projectWorldPoint(point),
   restoreCamera: (camera) => farmScene.restoreAnnotationCamera(camera),
   captureKeyboardPick: () => farmScene.captureKeyboardAnnotationPick(),
+  captureKeyboardBox: () => farmScene.captureKeyboardAnnotationBox(),
 });
 annotations = annotationController;
 ui.attachAnnotationUi(annotationController);

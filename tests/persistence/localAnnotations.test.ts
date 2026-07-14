@@ -10,9 +10,15 @@ import {
   editFarmAnnotation,
   formatFarmAnnotationBundleJson,
   formatFarmAnnotationCollectionJson,
+  formatFarmAnnotationContext,
   queueFarmAnnotation,
   type FarmAnnotationPick,
 } from '../../src/annotations/farmAnnotations';
+import {
+  createFarmAnnotationBoxSelection,
+  farmAnnotationBoxCenter,
+  type FarmAnnotationBoxSelection,
+} from '../../src/annotations/farmAnnotationSelection';
 import {
   FARM_ANNOTATIONS_STORAGE_KEY,
   loadFarmAnnotations,
@@ -27,8 +33,8 @@ function annotationPick(overrides: Partial<FarmAnnotationPick> = {}): FarmAnnota
     worldPx: { x: 144.5, y: 80.25 },
     gridCell: { x: 4, y: 2 },
     camera: {
-      scrollX: -48.125,
-      scrollY: -24.5,
+      scrollX: -204.791_666_666_7,
+      scrollY: -139.166_666_666_7,
       zoom: 1.5,
       width: 940,
       height: 688,
@@ -47,14 +53,38 @@ function annotationPick(overrides: Partial<FarmAnnotationPick> = {}): FarmAnnota
   };
 }
 
-function annotationDraft() {
+function boxAnnotationPick(): FarmAnnotationPick {
+  const zoom = 1.5;
+  const canvasSize = { width: 940, height: 688 };
+  const canvasStart = { x: 200, y: 100 };
+  const canvasEnd = { x: 320, y: 180 };
+  const worldStart = { x: -48.125 + canvasStart.x / zoom, y: -24.5 + canvasStart.y / zoom };
+  const worldEnd = { x: -48.125 + canvasEnd.x / zoom, y: -24.5 + canvasEnd.y / zoom };
+  const selection = createFarmAnnotationBoxSelection({
+    clientStart: { x: canvasStart.x, y: canvasStart.y + 48 },
+    clientEnd: { x: canvasEnd.x, y: canvasEnd.y + 48 },
+    canvasStart,
+    canvasEnd,
+    worldStart,
+    worldEnd,
+    canvasSize,
+  });
+  const center = farmAnnotationBoxCenter(selection);
+  return annotationPick({
+    ...center,
+    gridCell: { x: Math.floor(center.worldPx.x / 32), y: Math.floor(center.worldPx.y / 32) },
+    selection,
+  });
+}
+
+function annotationDraft(pick: FarmAnnotationPick = annotationPick()) {
   const state = getFarmSnapshot(createFarmGame({ seed: 'annotation-contract' }));
   state.history.undo = ['large undo payload'];
   state.history.redo = ['large redo payload'];
 
   return createFarmAnnotationDraft({
     state,
-    pick: annotationPick(),
+    pick,
     interaction: {
       selectedTool: 'note',
       activePanel: 'comments',
@@ -134,6 +164,106 @@ describe('local annotation bundles', () => {
     const collection = JSON.parse(formatFarmAnnotationCollectionJson(second.store, '2026-07-13T20:02:00.000Z'));
     expect(collection.schema).toBe(FARM_ANNOTATION_COLLECTION_SCHEMA);
     expect(collection.bundles).toHaveLength(2);
+  });
+
+  test('round-trips box selections while keeping selection-less V1 records as points', () => {
+    const storage = new MemoryStorage();
+    const point = queueFarmAnnotation(createFarmAnnotationStore(), annotationDraft(), 'Legacy point', {
+      id: 'farm-note-point',
+      createdAt: '2026-07-13T20:00:00.000Z',
+    });
+    const box = queueFarmAnnotation(point.store, annotationDraft(boxAnnotationPick()), 'Boxed concern', {
+      id: 'farm-note-box',
+      createdAt: '2026-07-13T20:01:00.000Z',
+    });
+
+    expect(saveFarmAnnotations(box.store, storage)).toBe(true);
+    const loaded = loadFarmAnnotations(storage);
+    expect(loaded).toEqual(box.store);
+    expect(loaded.records[0]?.capture.pick).not.toHaveProperty('selection');
+    expect(loaded.records[1]?.capture.pick.selection).toEqual(boxAnnotationPick().selection);
+
+    const exported = JSON.parse(formatFarmAnnotationBundleJson(loaded.records[1]!));
+    expect(exported.capture.pick.selection).toEqual(boxAnnotationPick().selection);
+    const context = formatFarmAnnotationContext(loaded);
+    expect(context).toContain('annotation#1 context=current-farm tick=0 shape=point');
+    expect(context).toContain('annotation#2 context=current-farm tick=0 shape=box');
+    expect(context).toContain(`worldBounds=${JSON.stringify(boxAnnotationPick().selection?.worldRect)}`);
+  });
+
+  test('drops box records with malformed or incoherent geometry without losing valid neighbors', () => {
+    const storage = new MemoryStorage();
+    const valid = queueFarmAnnotation(createFarmAnnotationStore(), annotationDraft(boxAnnotationPick()), 'Valid box', {
+      id: 'farm-note-valid-box',
+      createdAt: '2026-07-13T20:00:00.000Z',
+    }).record;
+    const corrupt = (
+      id: string,
+      index: number,
+      mutate: (selection: FarmAnnotationBoxSelection, pick: FarmAnnotationPick) => void,
+    ) => {
+      const record = structuredClone(valid);
+      record.id = id;
+      record.index = index;
+      const selection = record.capture.pick.selection as FarmAnnotationBoxSelection;
+      mutate(selection, record.capture.pick as FarmAnnotationPick);
+      return record;
+    };
+    const negativeWidth = corrupt('negative-width', 2, (selection) => {
+      selection.canvasRect.width = -1;
+    });
+    const normalizedDrift = corrupt('normalized-drift', 3, (selection) => {
+      selection.canvasRect.normalizedWidth += 0.1;
+    });
+    const clientDrift = corrupt('client-drift', 4, (selection) => {
+      selection.clientRect.x += 1;
+    });
+    const worldScaleDrift = corrupt('world-scale-drift', 5, (selection) => {
+      selection.worldRect.width += 1;
+    });
+    const centerDrift = corrupt('center-drift', 6, (_selection, pick) => {
+      pick.canvasPx.x += 1;
+    });
+    const cameraOriginDrift = corrupt('camera-origin-drift', 7, (selection, pick) => {
+      pick.camera.worldView.x += 100;
+      selection.worldRect.x += 100;
+      pick.worldPx.x += 100;
+    });
+    cameraOriginDrift.target.worldPx.x += 100;
+    const overflowingWorldRect = corrupt('overflowing-world-rect', 8, (selection, pick) => {
+      selection.worldRect.x = 0;
+      selection.worldRect.width = Number.MAX_VALUE;
+      pick.worldPx.x = Number.MAX_VALUE / 2;
+    });
+    overflowingWorldRect.target.worldPx.x = Number.MAX_VALUE / 2;
+    const scrollOriginDrift = corrupt('scroll-origin-drift', 9, (_selection, pick) => {
+      pick.camera.scrollX += 100;
+    });
+    const viewportScaleDrift = corrupt('viewport-scale-drift', 10, (selection, pick) => {
+      pick.viewport.canvasRect.width *= 2;
+      selection.canvasRect.normalizedX /= 2;
+      selection.canvasRect.normalizedWidth /= 2;
+      pick.canvasPx.normalizedX /= 2;
+    });
+    storage.setItem(FARM_ANNOTATIONS_STORAGE_KEY, JSON.stringify({
+      schema: 'farm.annotation-store',
+      version: 1,
+      nextIndex: 11,
+      records: [
+        valid,
+        negativeWidth,
+        normalizedDrift,
+        clientDrift,
+        worldScaleDrift,
+        centerDrift,
+        cameraOriginDrift,
+        overflowingWorldRect,
+        scrollOriginDrift,
+        viewportScaleDrift,
+      ],
+    }));
+
+    expect(loadFarmAnnotations(storage).records.map((record) => record.id)).toEqual(['farm-note-valid-box']);
   });
 
   test('edits only the comment metadata while preserving its captured evidence', () => {

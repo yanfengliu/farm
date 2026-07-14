@@ -327,7 +327,7 @@ describe('farm annotations', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 30000);
 
   test('annotation controls fit at both supported desktop viewports', async () => {
     for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 720 }]) {

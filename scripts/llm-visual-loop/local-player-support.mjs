@@ -137,9 +137,14 @@ export function summarizeActionHistory(actionHistory) {
   const annotationCanvasIndexes = new Set(actionHistory.flatMap((action, index) => (
     annotationStartIndex >= 0 && index > annotationStartIndex &&
     (annotationSaveIndex < 0 || index < annotationSaveIndex) &&
-    action.kind === 'click' && action.selector === 'canvas' ? [index] : []
+    (action.kind === 'click' || action.kind === 'drag') && action.selector === 'canvas' ? [index] : []
   )));
   const annotationCanvasCount = annotationCanvasIndexes.size;
+  const annotationCanvasDragCount = [...annotationCanvasIndexes]
+    .filter((index) => actionHistory[index]?.kind === 'drag').length;
+  const selectedAnnotationPoint = clickedSelectors.has('[data-command="set-annotation-point"]');
+  const selectedAnnotationBox = clickedSelectors.has('[data-command="set-annotation-box"]');
+  const annotationCaptureCount = selectedAnnotationBox ? annotationCanvasDragCount : annotationCanvasCount;
   const cancelledAnnotationDraft = actionHistory.some((action) => (
     action.kind === 'click' && action.selector === '[data-command="cancel-annotation"]'
   ));
@@ -168,7 +173,10 @@ export function summarizeActionHistory(actionHistory) {
     annotationAimToggleCount: actionHistory.filter((action) => (
       action.kind === 'click' && action.selector === '[data-command="start-annotation"]'
     )).length,
-    capturedAnnotation: annotationCanvasCount >= (cancelledAnnotationDraft ? 2 : 1),
+    selectedAnnotationPoint,
+    selectedAnnotationBox,
+    annotationCanvasDragCount,
+    capturedAnnotation: annotationCaptureCount >= (cancelledAnnotationDraft ? 2 : 1),
     cancelledAnnotationDraft,
     typedAnnotation: actionHistory.some((action) => (
       action.kind === 'type' && action.selector === '[data-annotation-draft]'
@@ -205,7 +213,9 @@ export function summarizeActionHistory(actionHistory) {
     pannedCamera: actionHistory.some((action) => action.kind === 'press' && action.key === 'ArrowRight'),
     zoomedCamera: actionHistory.some((action) => action.kind === 'wheel' && action.selector === 'canvas'),
     hoveredPanelTab: actionHistory.some((action) => action.kind === 'hover' && action.selector === '[data-panel="inventory"]'),
-    draggedCanvas: actionHistory.some((action) => action.kind === 'drag' && action.selector === 'canvas'),
+    draggedCanvas: actionHistory.some((action, index) => (
+      action.kind === 'drag' && action.selector === 'canvas' && !annotationCanvasIndexes.has(index)
+    )),
     draggedPanelWithMouse: actionHistory.some((action) => action.kind === 'drag' && action.selector === '[data-panel-resizer]'),
     resizedPanelWithKeyboard: actionHistory.some((action) => action.kind === 'press' && action.selector === '[data-panel-resizer]'),
     collapsedPanel: actionHistory.filter((action) => action.kind === 'click' && action.selector === '[data-command="toggle-panel"]').length >= 1,
@@ -347,16 +357,16 @@ export function wheelDecision(action, rationale, deltaY) {
   };
 }
 
-export function dragDecision(action, rationale, start, delta) {
+export function dragDecision(action, rationale, start, delta, expectedResult) {
   return {
     rationale,
     action: {
       kind: 'drag', selector: action.selector, label: action.label,
       x: start.x, y: start.y, deltaX: delta.deltaX, deltaY: delta.deltaY,
     },
-    expectedResult: action.actionHint === 'drag-resize'
+    expectedResult: expectedResult ?? (action.actionHint === 'drag-resize'
       ? `Dragging "${action.label}" should resize the side panel while text and controls remain readable.`
-      : `Dragging on "${action.label}" should apply the selected tool across visible farm tiles.`,
+      : `Dragging on "${action.label}" should apply the selected tool across visible farm tiles.`),
   };
 }
 

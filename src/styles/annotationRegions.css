@@ -1,0 +1,144 @@
+.annotation-mode-switch {
+  display: grid;
+  grid-template-columns: minmax(68px, 1fr) repeat(2, minmax(64px, auto));
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px;
+  border: 1px solid rgba(231, 190, 122, 0.22);
+  border-radius: 5px;
+  background: rgba(17, 11, 8, 0.24);
+}
+
+.annotation-mode-switch span {
+  padding-left: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.annotation-mode-switch button {
+  min-height: 29px;
+  padding: 4px 9px;
+  font-size: 11px;
+}
+
+.annotation-mode-switch button[aria-pressed="true"] {
+  border-color: rgba(255, 226, 174, 0.72);
+  background: rgba(231, 171, 87, 0.28);
+  color: #fff1c9;
+  box-shadow: inset 0 0 0 1px rgba(255, 226, 174, 0.12);
+}
+
+.annotation-overlay.box-aiming {
+  background: rgba(22, 15, 10, 0.14);
+}
+
+.annotation-overlay.box-aiming .annotation-aim span {
+  display: none;
+}
+
+.annotation-overlay.box-aiming .annotation-aim {
+  top: 16px;
+  width: auto;
+  height: auto;
+  translate: -50% 0;
+}
+
+.annotation-overlay.box-aiming .annotation-aim strong {
+  position: static;
+  display: block;
+  translate: 0;
+}
+
+.annotation-box {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 226, 160, 0.9);
+  background: rgba(239, 181, 95, 0.08);
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(75, 45, 26, 0.88),
+    0 0 0 1px rgba(75, 45, 26, 0.76),
+    0 4px 14px rgba(25, 15, 9, 0.16);
+}
+
+.annotation-box::before,
+.annotation-box::after {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-color: #fff3c4;
+  content: "";
+}
+
+.annotation-box::before {
+  top: -3px;
+  left: -3px;
+  border-top: 3px solid;
+  border-left: 3px solid;
+}
+
+.annotation-box::after {
+  right: -3px;
+  bottom: -3px;
+  border-right: 3px solid;
+  border-bottom: 3px solid;
+}
+
+.annotation-box-live {
+  z-index: 5;
+  border-color: #fff3c4;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 226, 160, 0.12) 0 4px, transparent 4px 8px),
+    rgba(52, 32, 19, 0.1);
+  filter: drop-shadow(0 2px 0 rgba(35, 21, 14, 0.72));
+}
+
+.annotation-box-pin {
+  position: absolute;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #5a3923;
+  border-radius: 50%;
+  background: #efb55f;
+  color: #2b1c15;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 20px;
+  text-align: center;
+  pointer-events: auto;
+  box-shadow: 0 3px 0 rgba(47, 30, 19, 0.38), 0 6px 13px rgba(22, 13, 8, 0.3);
+}
+
+.annotation-overlay.aiming .annotation-box-pin {
+  pointer-events: none;
+}
+
+.annotation-box:hover,
+.annotation-box:focus-within,
+.annotation-box.pulse {
+  z-index: 4;
+  border-color: #fff1bb;
+  background-color: rgba(255, 215, 126, 0.13);
+  filter: brightness(1.1) drop-shadow(0 0 5px rgba(255, 231, 148, 0.48));
+}
+
+.annotation-box-pin:hover,
+.annotation-box-pin:focus-visible {
+  border-color: #fff1bb;
+  background: #ffd77e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .annotation-box.pulse { filter: brightness(1.08); }
+}

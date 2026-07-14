@@ -1,12 +1,36 @@
 # Engineering Lessons
 
+## 2026-07-13 - Rectangular evidence needs one coherent transform chain
+
+- Surfaced by: adversarial persistence review shifted a saved box's point and world bounds together while leaving the camera unchanged, and visual review compared an edge-clamped wide selection with its evidence preview. Local range checks accepted the coordinated forgery, while filling the fixed preview rectangle distorted the selected region.
+- Failure mode: validating each rectangle independently does not prove that client, canvas, normalized, world, camera-scroll, viewport, and zoom coordinates describe the same gesture. Similarly, correct source bounds do not preserve evidence when the destination silently changes aspect ratio.
+- Fix commit: the Farm Notes bounding-box change validates the complete camera transform, rejects overflow and nonfinite geometry, expands crops without leaving the canvas, and letterboxes the remaining destination when an edge prevents an aspect-preserving expansion.
+- Regression anchors: `tests/persistence/localAnnotations.test.ts` rejects coordinated world/camera shifts, incoherent scroll and world views, and overflow; `tests/annotations/farmAnnotationCapture.test.ts` pins wide, edge-clamped, and 2x backing-buffer crops; `tests/browser/annotationBoundingBox.test.mjs` decodes the real PNG and proves its outline, world projection, reload, and camera restore.
+- Behavior delta: a persisted box cannot claim a different world region by shifting mutually consistent-looking fields, and its preview remains a faithful pixel window rather than a stretched thumbnail.
+
+## 2026-07-13 - Modal pointer gestures need native capture and explicit pause ownership
+
+- Surfaced by: independent UI review dragged a Box annotation beyond the canvas and released, then pressed `Enter` during another active drag. Phaser alone did not guarantee the native release reached the scene, and the keyboard interleave could replace the gesture while preserving the wrong pre-draft pause value.
+- Failure mode: a multi-event gesture owns more state than its current pointer coordinates. Without native pointer capture, release outside the hit area can strand dragging state; without an explicit interleave rule, a second capture path can overwrite the pause restoration boundary established by the first.
+- Fix commit: the bounding-box change captures the real DOM pointer id, releases it in a `finally` path on pointer up, handles pointer cancellation, capture loss, blur, and scene shutdown, clamps out-of-canvas endpoints, ignores ordinary `Enter` until the active drag ends, and restores only the pause state owned by the completed or cancelled draft.
+- Regression anchors: `tests/browser/annotationBoundingBox.test.mjs` releases beyond the canvas, forces capture loss, cancels active and tiny drags, interleaves `Enter`, verifies the retained draft outline, and proves a previously paused farm stays paused after both gesture cancellation and save.
+- Behavior delta: box selection always reaches a terminal state and cannot leak a stuck modal input lock or resume a farm that the player had already paused.
+
+## 2026-07-13 - Visual-agent progress needs observed UI evidence as well as execution history
+
+- Surfaced by: adversarial loop review supplied a drag execution marked failed while the browser already displayed the resulting Box draft. The first repair retried because it trusted the failure row; the opposite history-only approach could also advance after a no-op mode click or failed drag.
+- Failure mode: automation history reports what the adapter returned, while the current UI reports what state survived. Either source can be incomplete at an event boundary, so a stateful curriculum must require compatible observed mode/draft evidence and tolerate a partial-success action whose effect is already visible.
+- Fix commit: the bounding-box change recognizes Box mode only from observed pressed state, advances a drag only when a Box draft is observed or a later type/save proves capture, treats an observed draft as authoritative after adapter failure, releases the mouse in a `finally` path, and excludes annotation drags from plot-paint coverage.
+- Regression anchors: `tests/browser/llmVisualLoopAnnotations.test.mjs` pins no-op mode clicks, failed drag retries, observed-draft recovery after a failed history row, pointer-up cleanup, and annotation-versus-gameplay drag separation; recursive run `farm-visual-loop-2026-07-14T02-42-51-437Z` visibly completed Point -> Box -> drag -> cancel -> drag -> type -> save with zero failed actions.
+- Behavior delta: the player neither skips a missing annotation nor overwrites one that already exists, and annotation coverage cannot manufacture gameplay-paint proof.
+
 ## 2026-07-13 - Focus ownership and browser-default capture are separate keyboard contracts
 
-- Surfaced by: the player reported that `W`, `A`, `S`, and `D` could not be typed into a Farm Note. A real-keyboard browser regression reproduced `wasd WASD` as one surviving space even though `.fill()`-based tests had passed.
-- Failure mode: checking `document.activeElement` was sufficient to stop camera movement but not text suppression. Phaser's `addKeys` also captured the browser defaults for WASD, so its global listener called `preventDefault` before the textarea could insert those characters.
-- Fix commit: `fix: let Farm Notes type camera keys` removes browser-default capture for W, A, S, and D while retaining Phaser key-state tracking for camera movement.
-- Regression anchors: `tests/browser/annotationKeyboard.test.mjs` real-types mixed-case movement keys through both editors; verifies exact draft and edited messages through `getAnnotations()`, `exportAnnotation()`, local storage, DOM, and reload; proves a sustained editor-owned `D` does not move its pin; and proves canvas-owned W/A/S/D move the pin in all four expected directions. Temporarily restoring the four captured defaults makes this contract fail on its first exact text assertion.
-- Behavior delta: focused note editors accept ordinary prose containing WASD, while an unfocused farm canvas still pans with the same controls.
+- Surfaced by: the player reported that `W`, `A`, `S`, and `D` could not be typed into a Farm Note. A real-keyboard browser regression reproduced `wasd WASD` as one surviving space even though `.fill()`-based tests had passed. The subsequent all-shortcut audit found a second hidden leak: `createCursorKeys()` registered Shift, whose `keyup` still arrived with `defaultPrevented` after WASD was repaired.
+- Failure mode: checking `document.activeElement` was sufficient to stop camera movement but not text suppression. Phaser's `addKeys` and cursor convenience helper also capture browser defaults for registered keys, so their global listeners can call `preventDefault` before or after a textarea handles the event. Testing only printable `keydown` misses modifier `keyup` capture.
+- Fix commits: `70c20df` removes browser-default capture for W, A, S, and D; the bounding-box annotation change extends that removal to arrows, Home, Space, and the cursor helper's implicit Shift key while retaining Phaser key-state tracking.
+- Regression anchors: `tests/browser/annotationKeyboard.test.mjs` real-types every gameplay shortcut in mixed case through both editors; exercises Space, arrows, Home, Enter, Shift+Enter, Delete, Backspace, selection, Undo/Redo, and held movement keys; audits both event phases for unexpected `defaultPrevented`; verifies exact saved text through debug export, local storage, DOM, and reload; and proves those same movement keys still pan when the canvas owns focus. Restoring Shift capture makes the contract fail on the exact `keyup` audit row.
+- Behavior delta: focused note editors retain native prose, navigation, and editing behavior for every game-registered key, while an unfocused farm canvas keeps the same controls; only explicit note cancel and save chords are consumed.
 
 ## 2026-07-13 - Modal debug tools must own the gameplay input boundary
 

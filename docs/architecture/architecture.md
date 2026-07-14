@@ -20,7 +20,7 @@ src/main.ts
   Browser entry point.
 
 src/annotations/
-  Versioned Farm Notes records, exact click-time captures, validation, and export contracts. These are debugging artifacts, not simulation entities.
+  Versioned Farm Notes records, point and rectangular selection geometry, exact click-time captures, validation, and export contracts. These are debugging artifacts, not simulation entities.
 
 src/game/content/
   Crops, prices, tiers, authored village requests, wildlife habitats and tuning, starting farm config, and keybinding data.
@@ -87,7 +87,7 @@ DOM UI owns:
 - Inspect panel.
 - Village Request offer and active-basket panel.
 - Visible hotkey labels.
-- Farm Notes aiming, drafting, list management, and camera-restoring world pins.
+- Farm Notes point/box aiming, gesture ownership, drafting, list management, and camera-restoring world annotations.
 
 UI actions submit commands through the same bridge used by Phaser and tests.
 
@@ -99,12 +99,12 @@ Load validation rejects disconnected or out-of-bounds owned land, duplicate tile
 
 DOM-only UI preferences, such as side-panel width, selected speed, and first-time tutorial dismissal state, may use their own localStorage keys. They must not be mixed into the deterministic farm autosave payload.
 
-Farm Notes use the separate versioned `farm.annotations.v1` key. A note freezes the exact click-time farm snapshot with empty Undo/Redo arrays, state text, camera, viewport, normalized/canvas/world coordinates, semantic target, and a small PNG evidence crop. Creating, editing, deleting, resetting, or reloading notes never enters `FarmState`, the farm autosave, command history, or replay commands. Reset retains records as past-farm context and hides their stale world pins.
+Farm Notes use the separate versioned `farm.annotations.v1` key. A note freezes the exact click-time farm snapshot with empty Undo/Redo arrays, state text, camera, viewport, normalized/canvas/world coordinates, semantic target, and a small PNG evidence crop. The additive optional `capture.pick.selection` field keeps legacy point records valid while rectangular records store client, canvas, viewport-normalized, and world bounds. Validation proves those coordinate spaces agree with each other and with a coherent zoomed camera before any record reaches rendering. Box previews preserve the selected aspect ratio and letterbox at canvas edges rather than stretching evidence. Creating, editing, deleting, resetting, or reloading notes never enters `FarmState`, the farm autosave, command history, or replay commands. Reset retains records as past-farm context and hides their stale world annotations.
 
 ## Debug Boundary
 
 The debug surface provides text and structured snapshots that tests can inspect without reading private module internals.
 
-`window.__farmDebug.getAnnotations()`, `getAnnotationContext()`, `exportAnnotation(id)`, and `exportAnnotations()` expose cloned or serialized canonical note bundles. Browser-level `render_game_to_text()` appends aiming/draft/count state and the saved comments so an LLM can understand the same context the player sees without mutating it.
+`window.__farmDebug.getAnnotations()`, `getAnnotationContext()`, `exportAnnotation(id)`, and `exportAnnotations()` expose cloned or serialized canonical note bundles. Browser-level `render_game_to_text()` appends point/box mode, drag/draft/count state, world bounds, and saved comments so an LLM can understand the same context the player sees without mutating it.
 
 Development replay recording uses rolling 64-tick windows. Every completed window has an initial and terminal snapshot; export prefers the most recent command-bearing window and falls back to the terminal or most recent complete window when no command was recorded. Long accelerated browser sessions therefore keep a non-vacuous deterministic check when possible without serializing their entire lifetime through Playwright. A retained earlier window is always labeled partial, and no partial window claims that the complete visual trajectory is encoded in one bundle; screenshots and the decision log remain the full player-journey record.

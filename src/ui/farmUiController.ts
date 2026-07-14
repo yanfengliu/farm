@@ -306,7 +306,7 @@ export class FarmUiController {
       if (panel === 'mix') this.markMixTutorialsSeen();
     }
 
-    if (this.#annotations?.isDrafting) {
+    if (this.#annotations?.ownsGameplayInput) {
       const command = target.closest<HTMLElement>('[data-command]')?.dataset.command;
       if (command === 'toggle-annotations') this.handleNamedCommand(command);
       return;
@@ -348,10 +348,10 @@ export class FarmUiController {
   }
 
   private handleNamedCommand(command: string | undefined): void {
-    if (this.#annotations?.isDrafting && command !== 'toggle-annotations') return;
+    if (this.#annotations?.ownsGameplayInput && command !== 'toggle-annotations') return;
     if (command === 'undo') this.#bridge.submit({ type: 'undo' });
     if (command === 'redo') this.#bridge.submit({ type: 'redo' });
-    if (command === 'pause' && !this.#annotations?.isDrafting) this.#paused = !this.#paused;
+    if (command === 'pause' && !this.#annotations?.ownsGameplayInput) this.#paused = !this.#paused;
     if (command === 'toggle-annotations') this.#annotations?.toggleAiming();
     if (command === 'toggle-panel') this.#panelCollapsed = !this.#panelCollapsed;
     if (command === 'claim-tier') this.#bridge.submit({ type: 'claimNextTier' });
@@ -363,7 +363,7 @@ export class FarmUiController {
   private handleMixPreview(event: Event): void {
     const target = event.target;
     if (target instanceof Element && this.#annotations?.handleInput(target)) return;
-    if (this.#annotations?.isDrafting) return;
+    if (this.#annotations?.ownsGameplayInput) return;
     if (!(target instanceof HTMLInputElement)) return;
     const cropId = (target.dataset.mix ?? target.dataset.mixNumber) as CropId | undefined;
     if (!cropId || (target.dataset.mixNumber && target.value.trim() === '')) return;
@@ -380,7 +380,7 @@ export class FarmUiController {
   }
 
   private handleMixCommit(event: Event): void {
-    if (this.#annotations?.isDrafting) return;
+    if (this.#annotations?.ownsGameplayInput) return;
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
     const cropId = (target.dataset.mix ?? target.dataset.mixNumber) as CropId | undefined;
@@ -399,7 +399,7 @@ export class FarmUiController {
     ) return;
     const key = event.key.toLowerCase();
     if (
-      this.#annotations?.isDrafting &&
+      this.#annotations?.ownsGameplayInput &&
       (DRAFT_GAMEPLAY_KEYS.has(key) || (key === 'r' && event.shiftKey))
     ) {
       event.preventDefault();
@@ -408,7 +408,7 @@ export class FarmUiController {
     }
     if (key === ' ') {
       event.preventDefault();
-      if (!this.#annotations?.isDrafting) this.#paused = !this.#paused;
+      if (!this.#annotations?.ownsGameplayInput) this.#paused = !this.#paused;
     }
     else if (key === '1') this.#selectedTool = 'plot';
     else if (key === '2') this.#selectedTool = 'well';
@@ -437,7 +437,7 @@ export class FarmUiController {
 
   private setSpeed(next: number): void {
     this.#speed = next === 2 || next === 4 ? next : 1;
-    if (!this.#annotations?.isDrafting) this.#paused = false;
+    if (!this.#annotations?.ownsGameplayInput) this.#paused = false;
     try {
       localStorage.setItem(SPEED_STORAGE_KEY, String(this.#speed));
     } catch {

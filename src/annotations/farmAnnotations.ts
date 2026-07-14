@@ -1,4 +1,11 @@
 import type { FarmState, FarmTile } from '../game/simulation/farmGame';
+import type { FarmAnnotationBoxSelection } from './farmAnnotationSelection';
+
+export type {
+  AnnotationCanvasRect,
+  AnnotationRect,
+  FarmAnnotationBoxSelection,
+} from './farmAnnotationSelection';
 
 export const FARM_ANNOTATION_BUNDLE_SCHEMA = 'farm.annotation-bundle' as const;
 export const FARM_ANNOTATION_COLLECTION_SCHEMA = 'farm.annotation-bundle-collection' as const;
@@ -6,6 +13,7 @@ export const FARM_ANNOTATION_STORE_SCHEMA = 'farm.annotation-store' as const;
 export const FARM_ANNOTATION_VERSION = 1 as const;
 export const FARM_ANNOTATION_LIMIT = 50;
 export const FARM_ANNOTATION_MESSAGE_LIMIT = 2_000;
+const NUMBER_TOLERANCE = 1e-6;
 
 export interface AnnotationPoint {
   x: number;
@@ -45,6 +53,7 @@ export interface FarmAnnotationPick {
   presentationTimeMs: number;
   previewDataUrl: string | null;
   target?: FarmAnnotationTarget;
+  selection?: FarmAnnotationBoxSelection;
 }
 
 export interface FarmAnnotationInteraction {
@@ -221,16 +230,24 @@ export function formatFarmAnnotationCollectionJson(
 
 export function formatFarmAnnotationContext(
   store: FarmAnnotationStore,
-  ui: { aiming: boolean; draft: boolean } = { aiming: false, draft: false },
+  ui: { aiming: boolean; draft: boolean; mode?: 'point' | 'box'; dragging?: boolean } = {
+    aiming: false,
+    draft: false,
+  },
 ): string {
   const lines = [
     `annotationAiming=${ui.aiming}`,
     `annotationDraft=${ui.draft}`,
+    `annotationMode=${ui.mode ?? 'point'}`,
+    `annotationDragging=${ui.dragging ?? false}`,
     `annotationCount=${store.records.length}`,
   ];
   for (const record of store.records) {
+    const selection = record.capture.pick.selection;
     lines.push(
       `annotation#${record.index} context=${record.context} tick=${record.capture.farmState.tick}` +
+      ` shape=${selection?.kind ?? 'point'}` +
+      (selection ? ` worldBounds=${JSON.stringify(selection.worldRect)}` : '') +
       ` target=${JSON.stringify(record.target.label)} message=${JSON.stringify(record.message)}`,
     );
   }
@@ -244,7 +261,9 @@ export function isFarmAnnotationBundle(input: unknown): input is FarmAnnotationB
   if (typeof input.createdAt !== 'string' || (input.updatedAt !== null && typeof input.updatedAt !== 'string')) return false;
   if (input.context !== 'current-farm' && input.context !== 'past-farm') return false;
   if (typeof input.message !== 'string' || input.message.trim().length === 0 || input.message.length > FARM_ANNOTATION_MESSAGE_LIMIT) return false;
-  return isAnnotationTarget(input.target) && isAnnotationCapture(input.capture);
+  if (!isAnnotationTarget(input.target) || !isAnnotationCapture(input.capture)) return false;
+  const selection = input.capture.pick.selection;
+  return !selection || pointsApproximatelyEqual(input.target.worldPx, input.capture.pick.worldPx);
 }
 
 function isAnnotationCapture(input: unknown): input is FarmAnnotationCapture {
@@ -262,7 +281,77 @@ function isAnnotationPick(input: unknown): input is FarmAnnotationCapture['pick'
   if (!isRecord(input) || !isPoint(input.clientPx) || !isCanvasPoint(input.canvasPx) || !isPoint(input.worldPx)) return false;
   if (!isRecord(input.gridCell) || !isInteger(input.gridCell.x) || !isInteger(input.gridCell.y)) return false;
   if (!isCamera(input.camera) || !isViewport(input.viewport)) return false;
-  return isNonNegativeNumber(input.presentationTimeMs);
+  if (!isNonNegativeNumber(input.presentationTimeMs)) return false;
+  return input.selection === undefined || isAnnotationBoxSelection(
+    input.selection,
+    input as unknown as FarmAnnotationCapture['pick'],
+  );
+}
+
+function isAnnotationBoxSelection(
+  input: unknown,
+  pick: FarmAnnotationCapture['pick'],
+): input is FarmAnnotationBoxSelection {
+  if (!isRecord(input) || input.kind !== 'box') return false;
+  if (!isAnnotationRect(input.clientRect) || !isAnnotationCanvasRect(input.canvasRect) ||
+    !isAnnotationRect(input.worldRect)) return false;
+  const clientRect = input.clientRect;
+  const canvasRect = input.canvasRect;
+  const worldRect = input.worldRect;
+  const viewport = pick.viewport.canvasRect;
+  const drawingBuffer = pick.viewport.drawingBuffer;
+  const canvasCenter = rectCenter(canvasRect);
+  const clientCenter = rectCenter(clientRect);
+  const worldCenter = rectCenter(worldRect);
+  const expectedWorldRect = {
+    x: pick.camera.worldView.x + canvasRect.x / pick.camera.zoom,
+    y: pick.camera.worldView.y + canvasRect.y / pick.camera.zoom,
+    width: canvasRect.width / pick.camera.zoom,
+    height: canvasRect.height / pick.camera.zoom,
+  };
+  if (canvasRect.x < 0 || canvasRect.y < 0 ||
+    canvasRect.x + canvasRect.width > viewport.width + NUMBER_TOLERANCE ||
+    canvasRect.y + canvasRect.height > viewport.height + NUMBER_TOLERANCE) return false;
+  if (canvasRect.normalizedX + canvasRect.normalizedWidth > 1 + NUMBER_TOLERANCE ||
+    canvasRect.normalizedY + canvasRect.normalizedHeight > 1 + NUMBER_TOLERANCE) return false;
+  return approximatelyEqualWithin(pick.camera.width, viewport.width, 1) &&
+    approximatelyEqualWithin(pick.camera.height, viewport.height, 1) &&
+    approximatelyEqualWithin(
+      drawingBuffer.width / viewport.width,
+      drawingBuffer.height / viewport.height,
+      0.01,
+    ) &&
+    approximatelyEqual(canvasRect.normalizedX, canvasRect.x / viewport.width) &&
+    approximatelyEqual(canvasRect.normalizedY, canvasRect.y / viewport.height) &&
+    approximatelyEqual(canvasRect.normalizedWidth, canvasRect.width / viewport.width) &&
+    approximatelyEqual(canvasRect.normalizedHeight, canvasRect.height / viewport.height) &&
+    approximatelyEqual(clientRect.x, viewport.left + canvasRect.x) &&
+    approximatelyEqual(clientRect.y, viewport.top + canvasRect.y) &&
+    approximatelyEqual(clientRect.width, canvasRect.width) &&
+    approximatelyEqual(clientRect.height, canvasRect.height) &&
+    pointsApproximatelyEqual(clientCenter, pick.clientPx) &&
+    pointsApproximatelyEqual(canvasCenter, pick.canvasPx) &&
+    approximatelyEqual(pick.canvasPx.normalizedX, canvasRect.normalizedX + canvasRect.normalizedWidth / 2) &&
+    approximatelyEqual(pick.canvasPx.normalizedY, canvasRect.normalizedY + canvasRect.normalizedHeight / 2) &&
+    pointsApproximatelyEqual(worldCenter, pick.worldPx) &&
+    approximatelyEqualWithin(worldRect.x, expectedWorldRect.x, 1) &&
+    approximatelyEqualWithin(worldRect.y, expectedWorldRect.y, 1) &&
+    approximatelyEqual(worldRect.width, expectedWorldRect.width) &&
+    approximatelyEqual(worldRect.height, expectedWorldRect.height) &&
+    approximatelyEqual(worldRect.width * pick.camera.zoom, canvasRect.width) &&
+    approximatelyEqual(worldRect.height * pick.camera.zoom, canvasRect.height);
+}
+
+function isAnnotationCanvasRect(input: unknown): input is FarmAnnotationBoxSelection['canvasRect'] {
+  return isAnnotationRect(input) && isRecord(input) &&
+    isBoundedNumber(input.normalizedX, 0, 1) && isBoundedNumber(input.normalizedY, 0, 1) &&
+    isBoundedNumber(input.normalizedWidth, 0, 1) && input.normalizedWidth > 0 &&
+    isBoundedNumber(input.normalizedHeight, 0, 1) && input.normalizedHeight > 0;
+}
+
+function isAnnotationRect(input: unknown): input is FarmAnnotationBoxSelection['worldRect'] {
+  return isRecord(input) && isFiniteNumber(input.x) && isFiniteNumber(input.y) &&
+    isPositiveNumber(input.width) && isPositiveNumber(input.height);
 }
 
 function isCanvasPoint(input: unknown): boolean {
@@ -271,10 +360,25 @@ function isCanvasPoint(input: unknown): boolean {
 }
 
 function isCamera(input: unknown): boolean {
-  return isRecord(input) && isFiniteNumber(input.scrollX) && isFiniteNumber(input.scrollY) &&
+  if (!(isRecord(input) && isFiniteNumber(input.scrollX) && isFiniteNumber(input.scrollY) &&
     isPositiveNumber(input.zoom) && isPositiveNumber(input.width) && isPositiveNumber(input.height) &&
     isRecord(input.worldView) && isFiniteNumber(input.worldView.x) && isFiniteNumber(input.worldView.y) &&
-    isPositiveNumber(input.worldView.width) && isPositiveNumber(input.worldView.height);
+    isPositiveNumber(input.worldView.width) && isPositiveNumber(input.worldView.height))) return false;
+  const camera = input as unknown as FarmAnnotationPick['camera'];
+  const expectedWorldWidth = camera.width / camera.zoom;
+  const expectedWorldHeight = camera.height / camera.zoom;
+  return approximatelyEqualWithin(camera.worldView.width, expectedWorldWidth, 1) &&
+    approximatelyEqualWithin(camera.worldView.height, expectedWorldHeight, 1) &&
+    approximatelyEqualWithin(
+      camera.worldView.x,
+      camera.scrollX + (camera.width - expectedWorldWidth) / 2,
+      1,
+    ) &&
+    approximatelyEqualWithin(
+      camera.worldView.y,
+      camera.scrollY + (camera.height - expectedWorldHeight) / 2,
+      1,
+    );
 }
 
 function isViewport(input: unknown): boolean {
@@ -334,6 +438,23 @@ function isAnnotationTarget(input: unknown): input is FarmAnnotationTarget {
 
 function isPoint(input: unknown): input is AnnotationPoint {
   return isRecord(input) && isFiniteNumber(input.x) && isFiniteNumber(input.y);
+}
+
+function rectCenter(rect: { x: number; y: number; width: number; height: number }): AnnotationPoint {
+  return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+}
+
+function pointsApproximatelyEqual(left: AnnotationPoint, right: AnnotationPoint): boolean {
+  return approximatelyEqual(left.x, right.x) && approximatelyEqual(left.y, right.y);
+}
+
+function approximatelyEqual(left: number, right: number): boolean {
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return false;
+  return Math.abs(left - right) <= NUMBER_TOLERANCE * Math.max(1, Math.abs(left), Math.abs(right));
+}
+
+function approximatelyEqualWithin(left: number, right: number, tolerance: number): boolean {
+  return Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - right) <= tolerance;
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {

@@ -135,8 +135,11 @@ export async function executePlayerDecision(page, decision) {
       const startY = box.y + decision.action.y;
       await page.mouse.move(startX, startY);
       await page.mouse.down();
-      await page.mouse.move(startX + decision.action.deltaX, startY + decision.action.deltaY, { steps: 8 });
-      await page.mouse.up();
+      try {
+        await page.mouse.move(startX + decision.action.deltaX, startY + decision.action.deltaY, { steps: 8 });
+      } finally {
+        await page.mouse.up();
+      }
     } else if (decision.action.kind === 'adjust') {
       const locator = page.locator(decision.action.selector).first();
       await locator.waitFor({ state: 'visible', timeout: 5000 });

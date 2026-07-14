@@ -15,8 +15,11 @@ export interface FarmSceneBridge {
   getSelectedCell(): Cell | null;
   applyTool(x: number, y: number): void;
   canDragTool(): boolean;
-  captureAnnotation(pick: FarmAnnotationPick): boolean;
-  isAnnotationDrafting(): boolean;
+  annotationPointerDown(pick: FarmAnnotationPick): boolean;
+  annotationPointerMove(pick: FarmAnnotationPick): boolean;
+  annotationPointerUp(pick: FarmAnnotationPick): boolean;
+  cancelAnnotationPointer(): void;
+  annotationOwnsGameplayInput(): boolean;
 }
 
 const PAN_SPEED = 420;
@@ -29,6 +32,8 @@ export class FarmScene extends Phaser.Scene {
   #lastPaintKey = '';
   #cameraMoved = false;
   #pointerCapturedAnnotation = false;
+  #annotationPointerId: number | null = null;
+  #latestNativePointerId: number | null = null;
 
   constructor(bridge: FarmSceneBridge) {
     super('FarmScene');
@@ -54,33 +59,66 @@ export class FarmScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.UP,
       Phaser.Input.Keyboard.KeyCodes.DOWN,
       Phaser.Input.Keyboard.KeyCodes.HOME,
+      Phaser.Input.Keyboard.KeyCodes.SHIFT,
     ]);
     this.input.keyboard!.on('keydown-HOME', () => {
-      if (!this.#bridge.isAnnotationDrafting() && !domControlOwnsKeyboard()) this.recenter();
+      if (!this.#bridge.annotationOwnsGameplayInput() && !domControlOwnsKeyboard()) this.recenter();
     });
+    const rememberNativePointer = (event: PointerEvent) => { this.#latestNativePointerId = event.pointerId; };
+    this.game.canvas.addEventListener('pointerdown', rememberNativePointer, true);
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.rightButtonDown() || pointer.middleButtonDown()) return;
       this.#lastPaintKey = '';
-      this.#pointerCapturedAnnotation = this.#bridge.captureAnnotation(this.annotationPick(pointer.x, pointer.y));
-      if (this.#pointerCapturedAnnotation) return;
+      this.#pointerCapturedAnnotation = this.#bridge.annotationPointerDown(this.annotationPick(pointer.x, pointer.y));
+      if (this.#pointerCapturedAnnotation) {
+        this.#annotationPointerId = captureNativePointer(this.game.canvas, pointer, this.#latestNativePointerId);
+        return;
+      }
       this.applyPointerTool(pointer);
     });
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.isDown || this.#pointerCapturedAnnotation || !this.#bridge.canDragTool()) return;
+      if (this.#pointerCapturedAnnotation) {
+        this.#bridge.annotationPointerMove(this.annotationPick(pointer.x, pointer.y));
+        return;
+      }
+      if (!pointer.isDown || !this.#bridge.canDragTool()) return;
       this.applyPointerTool(pointer);
     });
-    this.input.on('pointerup', () => { this.#pointerCapturedAnnotation = false; });
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      try {
+        if (this.#pointerCapturedAnnotation) {
+          this.#bridge.annotationPointerUp(this.annotationPick(pointer.x, pointer.y));
+        }
+      } finally {
+        releaseNativePointer(this.game.canvas, this.#annotationPointerId);
+        this.#annotationPointerId = null;
+        this.#latestNativePointerId = null;
+        this.#pointerCapturedAnnotation = false;
+      }
+    });
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _objects: Phaser.GameObjects.GameObject[], _dx: number, dy: number) => {
-      if (this.#bridge.isAnnotationDrafting()) return;
+      if (this.#bridge.annotationOwnsGameplayInput()) return;
       const camera = this.cameras.main;
       camera.setZoom(Phaser.Math.Clamp(camera.zoom + (dy > 0 ? -0.08 : 0.08), this.minimumCameraZoom(), 2.8));
       this.#cameraMoved = true;
     });
     this.scale.on('resize', () => {
+      this.cancelAnnotationPointer();
       this.configureCameraBounds();
       if (!this.#cameraMoved) this.frameFarm();
       else this.cameras.main.setZoom(Math.max(this.cameras.main.zoom, this.minimumCameraZoom()));
+    });
+    const cancelPointer = () => this.cancelAnnotationPointer();
+    this.game.canvas.addEventListener('pointercancel', cancelPointer);
+    this.game.canvas.addEventListener('lostpointercapture', cancelPointer);
+    window.addEventListener('blur', cancelPointer);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.cancelAnnotationPointer();
+      this.game.canvas.removeEventListener('pointerdown', rememberNativePointer, true);
+      this.game.canvas.removeEventListener('pointercancel', cancelPointer);
+      this.game.canvas.removeEventListener('lostpointercapture', cancelPointer);
+      window.removeEventListener('blur', cancelPointer);
     });
   }
 
@@ -150,6 +188,19 @@ export class FarmScene extends Phaser.Scene {
     return this.annotationPick(camera.width / 2, camera.height / 2);
   }
 
+  captureKeyboardAnnotationBox(): { start: FarmAnnotationPick; end: FarmAnnotationPick } | null {
+    if (!this.cameras?.main) return null;
+    const camera = this.cameras.main;
+    const width = Math.min(176, Math.max(12, camera.width - 16));
+    const height = Math.min(112, Math.max(12, camera.height - 16));
+    const centerX = camera.width / 2;
+    const centerY = camera.height / 2;
+    return {
+      start: this.annotationPick(centerX - width / 2, centerY - height / 2),
+      end: this.annotationPick(centerX + width / 2, centerY + height / 2),
+    };
+  }
+
   private configureCameraBounds(): void {
     const state = this.#bridge.getState();
     const margin = FARM_ENVIRONMENT_MARGIN_TILES * TILE_SIZE;
@@ -170,7 +221,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private updateCamera(delta: number): void {
-    if (this.#bridge.isAnnotationDrafting() || domControlOwnsKeyboard()) return;
+    if (this.#bridge.annotationOwnsGameplayInput() || domControlOwnsKeyboard()) return;
     const camera = this.cameras.main;
     const distance = (PAN_SPEED * delta) / 1000 / camera.zoom;
     let moved = false;
@@ -193,6 +244,8 @@ export class FarmScene extends Phaser.Scene {
 
   private annotationPick(canvasX: number, canvasY: number): FarmAnnotationPick {
     const camera = this.cameras.main;
+    canvasX = Phaser.Math.Clamp(canvasX, 0, camera.width);
+    canvasY = Phaser.Math.Clamp(canvasY, 0, camera.height);
     const world = camera.getWorldPoint(canvasX, canvasY);
     const canvas = this.game.canvas;
     const rect = canvas.getBoundingClientRect();
@@ -230,6 +283,37 @@ export class FarmScene extends Phaser.Scene {
       previewDataUrl: null,
     };
   }
+
+  private cancelAnnotationPointer(): void {
+    if (!this.#pointerCapturedAnnotation && !this.#bridge.annotationOwnsGameplayInput()) return;
+    this.#pointerCapturedAnnotation = false;
+    releaseNativePointer(this.game.canvas, this.#annotationPointerId);
+    this.#annotationPointerId = null;
+    this.#latestNativePointerId = null;
+    this.#bridge.cancelAnnotationPointer();
+  }
+}
+
+function captureNativePointer(
+  canvas: HTMLCanvasElement,
+  pointer: Phaser.Input.Pointer,
+  nativePointerId: number | null,
+): number | null {
+  const eventPointerId = (pointer.event as { pointerId?: unknown } | undefined)?.pointerId;
+  const pointerId = typeof eventPointerId === 'number' ? eventPointerId : nativePointerId;
+  if (typeof pointerId === 'number' && Number.isInteger(pointerId) && !canvas.hasPointerCapture(pointerId)) {
+    try {
+      canvas.setPointerCapture(pointerId);
+      return pointerId;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function releaseNativePointer(canvas: HTMLCanvasElement, pointerId: number | null): void {
+  if (pointerId !== null && canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
 }
 
 function domControlOwnsKeyboard(): boolean {

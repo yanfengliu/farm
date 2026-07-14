@@ -49,7 +49,8 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
     adjustedCarrotNumber, adjustedCarrotSlider, adjustedWheatSlider, adjustedWheatNumber,
     adjustedTomatoNumber, adjustedTomatoSlider, adjustedPumpkinNumber, adjustedPumpkinSlider, openedMixAfterTomato,
     openedGoalsAfterTomato, selectedLandAfterTomato, dismissedTutorial, carrotSold, wheatSold, tomatoSold, pumpkinSold, tierClaims,
-    startedAnnotation, annotationAimToggleCount, capturedAnnotation, cancelledAnnotationDraft,
+    startedAnnotation, annotationAimToggleCount, selectedAnnotationPoint, selectedAnnotationBox,
+    capturedAnnotation, cancelledAnnotationDraft,
     typedAnnotation, savedAnnotation, openedAnnotationPanel, viewedAnnotation, viewedAnnotationPin,
     annotationEditStarts, cancelledAnnotationEdit, typedAnnotationEdit, savedAnnotationEdit,
     copiedAnnotation, copiedAnnotations, exportedAnnotation, exportedAnnotations, deleteAnnotationClicks,
@@ -84,6 +85,8 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   const viewAnnotationAction = findAction(observation, '[data-command="view-annotation"]');
   const annotationPinAction = findAction(observation, '[data-annotation-id=');
   const annotationAimAction = findAction(observation, '[data-command="start-annotation"]');
+  const annotationPointAction = findAction(observation, '[data-command="set-annotation-point"]');
+  const annotationBoxAction = findAction(observation, '[data-command="set-annotation-box"]');
   const cancelAnnotationAction = findAction(observation, '[data-command="cancel-annotation"]');
   const editAnnotationAction = findAction(observation, '[data-command="edit-annotation"]');
   const annotationEditAction = findAction(observation, '[data-annotation-edit]');
@@ -94,6 +97,14 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
   const exportAnnotationAction = findAction(observation, '[data-command="export-annotation"]');
   const exportAnnotationsAction = findAction(observation, '[data-command="export-annotations"]');
   const deleteAnnotationAction = findAction(observation, '[data-command="delete-annotation"]');
+  const annotationPointModeConfirmed = selectedAnnotationPoint && annotationPointAction?.state?.pressed === 'true';
+  const annotationBoxModeConfirmed = selectedAnnotationBox && annotationBoxAction?.state?.pressed === 'true';
+  const annotationBoxDraftVisible = Boolean(
+    annotationDraftAction && /\bBoxing\b|\bPin box\b/i.test(observation.visibleText),
+  );
+  const capturedBoxAnnotation = annotationBoxDraftVisible || (
+    capturedAnnotation && (typedAnnotation || savedAnnotation)
+  );
   const selectedPlotFromShortcut = pressedPlotShortcut && /\bTOOL Plot\b/i.test(observation.visibleText);
   const selectedPlotGuideVisible = /NEXT CLICK Select Plot|FARM GUIDE Select Plot/i.test(observation.visibleText);
   const explicitPaintGuidanceVisible = /FARM GUIDE Paint Empty Land|Paint plots on empty land/i.test(observation.visibleText);
@@ -164,13 +175,13 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
     );
   }
 
-  if (cancelAnnotationAction && capturedAnnotation && !cancelledAnnotationDraft) {
+  if (cancelAnnotationAction && capturedBoxAnnotation && !cancelledAnnotationDraft) {
     return clickDecision(
       cancelAnnotationAction,
       'Cancel the first captured draft once so annotation pause cleanup and re-aiming stay in the player rotation.',
     );
   }
-  if (annotationDraftAction && capturedAnnotation && !typedAnnotation) {
+  if (annotationDraftAction && capturedBoxAnnotation && !typedAnnotation) {
     return typeDecision(
       annotationDraftAction,
       'Write a bounded debugging comment through the same visible field available to the player.',
@@ -240,7 +251,7 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
         : 'Confirm the already-requested note deletion through the second explicit click.',
     );
   }
-  if (annotationAimAction && startedAnnotation && !capturedAnnotation && annotationAimToggleCount < 2) {
+  if (annotationAimAction && startedAnnotation && !capturedBoxAnnotation && annotationAimToggleCount < 2) {
     return clickDecision(
       annotationAimAction,
       annotationAimToggleCount === 0
@@ -248,11 +259,26 @@ export function chooseLocalHeuristicDecision({ observation, history, defaultWait
         : 'Restart aiming from the Notes panel so target selection can continue after cancellation.',
     );
   }
-  if (canvasAction && startedAnnotation && !capturedAnnotation) {
+  if (annotationPointAction && startedAnnotation && annotationAimToggleCount >= 2 &&
+    !selectedAnnotationBox && !annotationPointModeConfirmed) {
     return clickDecision(
+      annotationPointAction,
+      'Select the visible Point note control once before switching modes so both annotation targeting choices are exercised.',
+    );
+  }
+  if (annotationBoxAction && startedAnnotation && selectedAnnotationPoint && !annotationBoxModeConfirmed) {
+    return clickDecision(
+      annotationBoxAction,
+      'Switch to the visible Box note control so the annotation can identify a whole visual region, not only one point.',
+    );
+  }
+  if (canvasAction && startedAnnotation && annotationBoxModeConfirmed && !capturedBoxAnnotation) {
+    return dragDecision(
       canvasAction,
-      'Choose a visible farm detail for the annotation using an exact canvas coordinate.',
-      { x: 560, y: 300 },
+      'Drag a bounded box around a visible farm region through the same canvas gesture available to the player.',
+      { x: 430, y: 240 },
+      { deltaX: 180, deltaY: 120 },
+      'The selected farm region should become a paused annotation draft with a visible bounding box and evidence preview.',
     );
   }
   if (annotationToggleAction && !startedAnnotation) {

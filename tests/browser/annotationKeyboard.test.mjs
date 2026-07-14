@@ -123,4 +123,132 @@ describe('Farm Notes keyboard ownership', () => {
       await context.close();
     }
   }, 20000);
+
+  test('every gameplay shortcut stays native inside draft and edit textareas', async () => {
+    const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
+    await context.addInitScript(() => globalThis.localStorage.clear());
+    const page = await context.newPage();
+    const shortcutText = 'wasd WASD 1234 b i n z y r B I N Z Y R 0-= +_';
+
+    const expectCaret = async (locator, expected) => {
+      expect(await locator.evaluate((element) => element.selectionStart)).toBe(expected);
+    };
+    const holdKey = async (key, duration = 140) => {
+      await page.keyboard.down(key);
+      try {
+        await page.waitForTimeout(duration);
+      } finally {
+        await page.keyboard.up(key);
+      }
+    };
+    const expectSamePosition = (before, after) => {
+      expect(after.x).toBeCloseTo(before.x, 1);
+      expect(after.y).toBeCloseTo(before.y, 1);
+    };
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.evaluate(() => {
+        globalThis.__annotationKeyAudit = [];
+        const auditKeyEvent = (event) => {
+          const target = event.target;
+          if (!(target instanceof Element) || !target.matches('[data-annotation-draft], [data-annotation-edit]')) return;
+          const entry = {
+            type: event.type,
+            key: event.key,
+            code: event.code,
+            ctrlKey: event.ctrlKey,
+            metaKey: event.metaKey,
+            shiftKey: event.shiftKey,
+            defaultPrevented: false,
+          };
+          queueMicrotask(() => {
+            entry.defaultPrevented = event.defaultPrevented;
+            globalThis.__annotationKeyAudit.push(entry);
+          });
+        };
+        globalThis.addEventListener('keydown', auditKeyEvent);
+        globalThis.addEventListener('keyup', auditKeyEvent);
+      });
+
+      const canvas = page.locator('#game-canvas canvas');
+      await canvas.focus();
+      await page.keyboard.press('n');
+      await page.keyboard.press('Enter');
+      const draft = page.locator('[data-annotation-draft]');
+      await draft.waitFor();
+
+      const beforeDraft = await page.evaluate(() => {
+        const state = globalThis.__farmDebug.getState();
+        return { farmId: state.farmId, history: state.history };
+      });
+      await page.keyboard.type(shortcutText);
+      expect(await draft.inputValue()).toBe(shortcutText);
+      expect(await page.locator('[data-command="toggle-annotations"]').getAttribute('aria-pressed')).toBe('true');
+
+      await draft.fill('abcd');
+      await draft.press('Home');
+      await expectCaret(draft, 0);
+      await draft.press('ArrowRight');
+      await expectCaret(draft, 1);
+      await draft.press('End');
+      await expectCaret(draft, 4);
+      await draft.press('ArrowLeft');
+      await expectCaret(draft, 3);
+      await draft.press('ArrowUp');
+      await draft.press('ArrowDown');
+      expect(await draft.inputValue()).toBe('abcd');
+
+      await draft.fill('line');
+      await draft.press('End');
+      await draft.press('Enter');
+      await draft.press('Shift+Enter');
+      expect(await draft.inputValue()).toBe('line\n\n');
+      await draft.fill('abcd');
+      await draft.press('Home');
+      await draft.press('Delete');
+      await draft.press('End');
+      await draft.press('Backspace');
+      expect(await draft.inputValue()).toBe('bc');
+      await draft.press('Control+A');
+      await page.keyboard.type('Draft shortcut matrix passed.');
+      await draft.press('Control+Enter');
+
+      const record = page.locator('[data-annotation-record="1"]');
+      const pin = page.locator('.annotation-pin[data-annotation-index="1"]');
+      await record.waitFor();
+      await pin.waitFor();
+      expect(await page.evaluate(() => {
+        const state = globalThis.__farmDebug.getState();
+        return { farmId: state.farmId, history: state.history };
+      })).toEqual(beforeDraft);
+
+      await record.locator('[data-command="edit-annotation"]').click();
+      const edit = page.locator('[data-annotation-edit]');
+      await edit.fill('');
+      await page.keyboard.type(shortcutText);
+      expect(await edit.inputValue()).toBe(shortcutText);
+      const beforeNavigation = await pin.boundingBox();
+      for (const key of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'Home']) {
+        await holdKey(key);
+      }
+      expectSamePosition(beforeNavigation, await pin.boundingBox());
+      expect(await edit.inputValue()).toBe(`${shortcutText}wasd`);
+
+      await edit.press('Control+Z');
+      await edit.press('Control+Y');
+      await edit.press('Control+A');
+      await page.keyboard.type('Edit shortcut matrix passed.');
+      await edit.press('Control+Enter');
+      expect(await page.locator('[data-annotation-record="1"] .annotation-message').textContent())
+        .toBe('Edit shortcut matrix passed.');
+
+      const prevented = await page.evaluate(() => globalThis.__annotationKeyAudit.filter((entry) => (
+        entry.defaultPrevented && !(entry.key === 'Enter' && (entry.ctrlKey || entry.metaKey))
+      )));
+      expect(prevented).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  }, 30000);
 });

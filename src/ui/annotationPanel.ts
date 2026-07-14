@@ -4,12 +4,15 @@ import {
   type FarmAnnotationDraft,
   type FarmAnnotationStore,
 } from '../annotations/farmAnnotations';
+import type { FarmAnnotationMode } from './annotationGesture';
 
 export interface AnnotationPanelView {
   store: FarmAnnotationStore;
   draft: FarmAnnotationDraft | null;
   editingId: string | null;
   aiming: boolean;
+  mode: FarmAnnotationMode;
+  isBoxDragging: boolean;
   selectedId: string | null;
   storageWarning: string | null;
   editorError: string | null;
@@ -29,8 +32,9 @@ export function annotationPanelMarkup(view: AnnotationPanelView): string {
           <p class="annotation-kicker">Field notebook</p>
           <h2 id="annotation-panel-title">Farm Notes <span>${view.store.records.length}</span></h2>
         </div>
-        <button data-command="start-annotation" class="annotation-new">${view.draft ? 'Cancel draft' : view.aiming ? 'Stop aiming' : 'New note'}</button>
+        <button data-command="start-annotation" class="annotation-new">${view.draft ? 'Cancel draft' : view.aiming ? 'Stop aiming' : view.mode === 'box' ? 'New box' : 'New point'}</button>
       </div>
+      ${modeSwitchMarkup(view)}
       ${view.storageWarning ? `<p class="annotation-warning" role="status">${escapeHtml(view.storageWarning)}</p>` : ''}
       <p class="annotation-editor-warning" role="alert"${view.editorError ? '' : ' hidden'}>${escapeHtml(view.editorError ?? '')}</p>
       <p class="annotation-status" role="status"${view.status ? '' : ' hidden'}>${escapeHtml(view.status ?? '')}</p>
@@ -38,8 +42,8 @@ export function annotationPanelMarkup(view: AnnotationPanelView): string {
       ${view.aiming && !view.draft ? `
         <div class="annotation-aim-card" role="status">
           <span class="annotation-aim-pixel" aria-hidden="true"></span>
-          <strong>Choose something in the farm</strong>
-          <p>Click a duck, plant, building, creek detail, or tile. <kbd>Enter</kbd> captures the center. <kbd>Esc</kbd> exits.</p>
+          <strong>${view.mode === 'box' ? view.isBoxDragging ? 'Release to capture this area' : 'Draw around an area' : 'Choose something in the farm'}</strong>
+          <p>${view.mode === 'box' ? `Drag around the detail. <kbd>Enter</kbd> captures a centered box. <kbd>Esc</kbd> cancels or exits.` : `Click a duck, plant, building, creek detail, or tile. <kbd>Enter</kbd> captures the center. <kbd>Esc</kbd> exits.`}</p>
         </div>
       ` : ''}
       ${recordSection('Current farm', current, view)}
@@ -62,20 +66,32 @@ export function annotationPanelMarkup(view: AnnotationPanelView): string {
   `;
 }
 
+function modeSwitchMarkup(view: AnnotationPanelView): string {
+  const disabled = view.draft ? ' disabled' : '';
+  return `
+    <div class="annotation-mode-switch" role="group" aria-label="Annotation shape">
+      <span>Mark with</span>
+      <button data-command="set-annotation-point" aria-pressed="${view.mode === 'point'}"${disabled}>Point</button>
+      <button data-command="set-annotation-box" aria-pressed="${view.mode === 'box'}"${disabled}>Box</button>
+    </div>
+  `;
+}
+
 function draftMarkup(view: AnnotationPanelView): string {
   if (!view.draft) return '';
+  const isBox = view.draft.capture.pick.selection?.kind === 'box';
   return `
     <div class="annotation-draft-card">
       <div class="annotation-draft-target">
-        <span>Pinning</span>
+        <span>${isBox ? 'Framing' : 'Pinning'}</span>
         <strong>${escapeHtml(view.draft.target.label)}</strong>
       </div>
-      ${view.draft.capture.previewDataUrl ? `<img class="annotation-preview" src="${view.draft.capture.previewDataUrl}" alt="Pixel preview of the selected farm detail">` : ''}
+      ${view.draft.capture.previewDataUrl ? `<img class="annotation-preview" src="${view.draft.capture.previewDataUrl}" alt="Pixel preview of the selected ${isBox ? 'farm area' : 'farm detail'}">` : ''}
       <label for="annotation-draft-message">What should I look at?</label>
       <textarea id="annotation-draft-message" data-annotation-draft aria-label="What should I look at?" maxlength="${FARM_ANNOTATION_MESSAGE_LIMIT}" rows="5" placeholder="Describe the visual or gameplay concern" autofocus>${escapeHtml(view.draftMessage)}</textarea>
       <div class="annotation-editor-actions">
         <button data-command="cancel-annotation">Cancel</button>
-        <button data-command="save-annotation" class="primary">Pin note</button>
+        <button data-command="save-annotation" class="primary">${isBox ? 'Pin box' : 'Pin note'}</button>
       </div>
       <p class="small"><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> pins · <kbd>Esc</kbd> cancels</p>
     </div>
@@ -98,6 +114,7 @@ function recordMarkup(record: FarmAnnotationBundleV1, view: AnnotationPanelView)
   const id = escapeHtml(record.id);
   const selected = view.selectedId === record.id ? ' selected' : '';
   const confirmingDelete = view.pendingDeleteId === record.id;
+  const shape = record.capture.pick.selection?.kind === 'box' ? 'Box area' : 'Point';
   if (view.editingId === record.id) {
     return `
       <article class="annotation-record${selected}" data-annotation-record="${record.index}" data-record-id="${id}">
@@ -116,7 +133,7 @@ function recordMarkup(record: FarmAnnotationBundleV1, view: AnnotationPanelView)
         <span class="annotation-index">#${record.index}</span>
         <span class="annotation-record-meta">
           <strong>${escapeHtml(record.target.label)}</strong>
-          <small>Captured tick ${escapeHtml(String(record.capture.farmState.tick))}</small>
+          <small>${shape} · captured tick ${escapeHtml(String(record.capture.farmState.tick))}</small>
         </span>
       </button>
       <p class="annotation-message">${escapeHtml(record.message)}</p>

@@ -20,6 +20,8 @@ import { resolveFarmAnnotationTarget } from '../phaser/view/farmAnnotationTarget
 import { TILE_SIZE } from '../phaser/view/farmRenderer';
 import { annotationPanelMarkup } from './annotationPanel';
 import { AnnotationMarkerLayer, type AnnotationProjector } from './annotationMarkerLayer';
+import { AnnotationGesture, createBoxPick, type FarmAnnotationMode } from './annotationGesture';
+import { copyAnnotationJsonOrDownload, downloadAnnotationJson } from './annotationSharing';
 import type { FarmShellElements } from './appShell';
 import type { FarmAnnotationUi } from './farmAnnotationUi';
 
@@ -35,11 +37,13 @@ interface FarmAnnotationControllerOptions {
   projectWorld: AnnotationProjector;
   restoreCamera(camera: FarmAnnotationPick['camera']): void;
   captureKeyboardPick(): FarmAnnotationPick | null;
+  captureKeyboardBox(): { start: FarmAnnotationPick; end: FarmAnnotationPick } | null;
 }
 
 export class FarmAnnotationController implements FarmAnnotationUi {
   readonly #options: FarmAnnotationControllerOptions;
   readonly #markers: AnnotationMarkerLayer;
+  readonly #gesture = new AnnotationGesture();
   #store: FarmAnnotationStore;
   #draft: FarmAnnotationDraft | null = null;
   #editingId: string | null = null;
@@ -52,6 +56,7 @@ export class FarmAnnotationController implements FarmAnnotationUi {
   #pendingDeleteId: string | null = null;
   #draftMessage = '';
   #editingMessage = '';
+  #pausedBeforePointer: boolean | null = null;
 
   constructor(options: FarmAnnotationControllerOptions) {
     this.#options = options;
@@ -59,17 +64,10 @@ export class FarmAnnotationController implements FarmAnnotationUi {
     this.#markers = new AnnotationMarkerLayer(options.shell.canvasHost, (id) => this.viewAnnotation(id));
   }
 
-  get isAiming(): boolean {
-    return this.#aiming;
-  }
-
-  get isDrafting(): boolean {
-    return this.#draft !== null;
-  }
-
-  get count(): number {
-    return this.#store.records.length;
-  }
+  get isAiming(): boolean { return this.#aiming; }
+  get isDrafting(): boolean { return this.#draft !== null; }
+  get ownsGameplayInput(): boolean { return this.isDrafting || this.#gesture.isDragging; }
+  get count(): number { return this.#store.records.length; }
 
   panelMarkup(): string {
     return annotationPanelMarkup({
@@ -77,6 +75,8 @@ export class FarmAnnotationController implements FarmAnnotationUi {
       draft: this.#draft,
       editingId: this.#editingId,
       aiming: this.#aiming,
+      mode: this.#gesture.mode,
+      isBoxDragging: this.#gesture.isDragging,
       selectedId: this.#selectedId,
       storageWarning: this.#storageWarning,
       editorError: this.#editorError,
@@ -92,31 +92,36 @@ export class FarmAnnotationController implements FarmAnnotationUi {
       this.cancelDraft(false);
       return;
     }
+    if (this.#aiming) {
+      this.stopAiming();
+      return;
+    }
     this.#editingId = null;
     this.#editingMessage = '';
     this.#pendingDeleteId = null;
-    this.#aiming = !this.#aiming;
-    if (this.#aiming) this.#options.openPanel();
+    this.#aiming = true;
+    this.#options.openPanel();
     this.#options.invalidatePanel();
   }
 
   stopAiming(): void {
     if (!this.#aiming) return;
+    this.cancelPointerSelection();
     this.#aiming = false;
     this.#options.invalidatePanel();
   }
 
-  capturePick(pick: FarmAnnotationPick): boolean {
+  private capturePick(pick: FarmAnnotationPick, pausedBefore = this.#options.getPaused()): boolean {
     if (this.#draft) return true;
     if (!this.#aiming) return false;
     const state = this.#options.getState();
     const canvas = this.#options.shell.canvasHost.querySelector<HTMLCanvasElement>('canvas');
     const enrichedPick: FarmAnnotationPick = {
       ...structuredClone(pick),
-      previewDataUrl: canvas ? captureFarmAnnotationPreview(canvas, pick.canvasPx) : null,
+      previewDataUrl: canvas ? captureFarmAnnotationPreview(canvas, pick.canvasPx, pick.selection) : null,
       target: resolveFarmAnnotationTarget(state, pick.worldPx, TILE_SIZE),
     };
-    this.#pausedBeforeDraft = this.#options.getPaused();
+    this.#pausedBeforeDraft = pausedBefore;
     this.#draft = createFarmAnnotationDraft({
       state,
       pick: enrichedPick,
@@ -135,12 +140,51 @@ export class FarmAnnotationController implements FarmAnnotationUi {
     return true;
   }
 
+  handlePointerDown(pick: FarmAnnotationPick): boolean {
+    if (this.#draft) return true;
+    if (!this.#aiming) return false;
+    if (this.#gesture.mode === 'point') return this.capturePick(pick);
+    if (!this.#gesture.begin(pick)) return false;
+    this.#pausedBeforePointer = this.#options.getPaused();
+    this.#options.setPaused(true);
+    this.#status = null;
+    this.#options.invalidatePanel();
+    return true;
+  }
+
+  handlePointerMove(pick: FarmAnnotationPick): boolean { return this.#gesture.move(pick); }
+
+  handlePointerUp(pick: FarmAnnotationPick): boolean {
+    const result = this.#gesture.finish(pick, TILE_SIZE);
+    if (!result) return false;
+    this.#markers.clearDraftBox();
+    const pausedBefore = this.#pausedBeforePointer ?? this.#options.getPaused();
+    this.#pausedBeforePointer = null;
+    if (!result.meetsMinimum) {
+      this.#options.setPaused(pausedBefore);
+      this.#status = 'Drag a larger box (at least 12 by 12 pixels).';
+      this.#options.invalidatePanel();
+      return true;
+    }
+    return this.capturePick(result.pick, pausedBefore);
+  }
+
+  cancelPointerSelection(): void {
+    if (!this.#gesture.cancel()) return;
+    this.#markers.clearDraftBox();
+    if (this.#pausedBeforePointer !== null) this.#options.setPaused(this.#pausedBeforePointer);
+    this.#pausedBeforePointer = null;
+    this.#options.invalidatePanel();
+  }
+
   handleClick(target: Element): boolean {
     const control = target.closest<HTMLElement>('[data-command]');
     const command = control?.dataset.command;
     if (!command || !ANNOTATION_COMMANDS.has(command)) return false;
     const id = control?.dataset.annotationId;
-    if (command === 'start-annotation') this.toggleAiming();
+    if (command === 'set-annotation-point') this.setMode('point');
+    else if (command === 'set-annotation-box') this.setMode('box');
+    else if (command === 'start-annotation') this.toggleAiming();
     else if (command === 'save-annotation') this.saveDraft();
     else if (command === 'cancel-annotation') this.cancelDraft(true);
     else if (command === 'edit-annotation' && id) this.startEditing(id);
@@ -174,7 +218,8 @@ export class FarmAnnotationController implements FarmAnnotationUi {
       'button, input, select, textarea, [contenteditable="true"], [role="button"]',
     ));
     if (event.key === 'Escape') {
-      if (this.#draft) this.cancelDraft(true);
+      if (this.#gesture.isDragging) this.cancelPointerSelection();
+      else if (this.#draft) this.cancelDraft(true);
       else if (this.#editingId) this.cancelEdit();
       else if (this.#aiming) this.stopAiming();
       else return false;
@@ -188,9 +233,15 @@ export class FarmAnnotationController implements FarmAnnotationUi {
       event.preventDefault();
       return true;
     }
+    if (event.key === 'Enter' && this.#gesture.isDragging && !targetIsControl) { event.preventDefault(); return true; }
     if (event.key === 'Enter' && this.#aiming && !targetIsControl) {
-      const pick = this.#options.captureKeyboardPick();
-      if (pick) this.capturePick(pick);
+      if (this.#gesture.mode === 'box') {
+        const box = this.#options.captureKeyboardBox();
+        if (box) this.capturePick(createBoxPick(box.start, box.end, TILE_SIZE));
+      } else {
+        const pick = this.#options.captureKeyboardPick();
+        if (pick) this.capturePick(pick);
+      }
       event.preventDefault();
       return true;
     }
@@ -203,11 +254,16 @@ export class FarmAnnotationController implements FarmAnnotationUi {
   }
 
   renderOverlay(): void {
-    this.#markers.render(this.#store.records, this.#aiming, this.#options.projectWorld);
+    this.#markers.render(this.#store.records, {
+      aiming: this.#aiming,
+      mode: this.#gesture.mode,
+      draftBox: this.#gesture.selection ?? this.#draft?.capture.pick.selection ?? null,
+    }, this.#options.projectWorld);
   }
 
   onFarmReset(): void {
     if (this.#draft) this.#options.setPaused(this.#pausedBeforeDraft);
+    else this.cancelPointerSelection();
     blurAnnotationEditor();
     this.#draft = null;
     this.#draftMessage = '';
@@ -228,7 +284,9 @@ export class FarmAnnotationController implements FarmAnnotationUi {
   }
 
   getContext(): string {
-    return formatFarmAnnotationContext(this.#store, { aiming: this.#aiming, draft: Boolean(this.#draft) });
+    return formatFarmAnnotationContext(this.#store, {
+      aiming: this.#aiming, draft: Boolean(this.#draft), mode: this.#gesture.mode, dragging: this.#gesture.isDragging,
+    });
   }
 
   exportAnnotation(id: string): string | null {
@@ -238,6 +296,14 @@ export class FarmAnnotationController implements FarmAnnotationUi {
 
   exportAnnotations(): string {
     return formatFarmAnnotationCollectionJson(this.#store);
+  }
+
+  private setMode(mode: FarmAnnotationMode): void {
+    if (this.#draft) return;
+    this.cancelPointerSelection();
+    this.#gesture.setMode(mode);
+    this.#status = null;
+    this.#options.invalidatePanel();
   }
 
   private saveDraft(): void {
@@ -251,11 +317,12 @@ export class FarmAnnotationController implements FarmAnnotationUi {
       this.#draft = null;
       this.#draftMessage = '';
       this.#editorError = null;
-      this.#status = `Pinned note #${queued.record.index}.`;
+      this.#status = `Pinned ${queued.record.capture.pick.selection ? 'box note' : 'note'} #${queued.record.index}.`;
       this.#pendingDeleteId = null;
       this.#options.setPaused(this.#pausedBeforeDraft);
       this.persist();
       this.#options.invalidatePanel();
+      this.renderOverlay();
       this.#markers.pulse(queued.record.id);
       focusOnNextFrame(annotationRecordSelector(queued.record.id));
     } catch (error) {
@@ -357,8 +424,7 @@ export class FarmAnnotationController implements FarmAnnotationUi {
     const json = this.exportAnnotation(id);
     if (!json) return;
     const index = this.find(id)?.index ?? 'unknown';
-    const copied = await copyText(json);
-    if (!copied) this.downloadJson(`farm-note-${index}.json`, json);
+    const copied = await copyAnnotationJsonOrDownload(`farm-note-${index}.json`, json);
     this.setStatus(copied ? `Copied note #${index}.` : `Clipboard unavailable; downloaded note #${index}.`);
   }
 
@@ -366,29 +432,19 @@ export class FarmAnnotationController implements FarmAnnotationUi {
     const json = this.exportAnnotation(id);
     if (!json) return;
     const index = this.find(id)?.index ?? 'unknown';
-    this.downloadJson(`farm-note-${index}.json`, json);
+    downloadAnnotationJson(`farm-note-${index}.json`, json);
     this.setStatus(`Downloaded note #${index}.`);
   }
 
   private async copyAll(): Promise<void> {
     const json = this.exportAnnotations();
-    const copied = await copyText(json);
-    if (!copied) this.downloadJson('farm-notes.json', json);
+    const copied = await copyAnnotationJsonOrDownload('farm-notes.json', json);
     this.setStatus(copied ? 'Copied all Farm Notes.' : 'Clipboard unavailable; downloaded all Farm Notes.');
   }
 
   private downloadAll(): void {
-    this.downloadJson('farm-notes.json', this.exportAnnotations());
+    downloadAnnotationJson('farm-notes.json', this.exportAnnotations());
     this.setStatus('Downloaded all Farm Notes.');
-  }
-
-  private downloadJson(filename: string, json: string): void {
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    URL.revokeObjectURL(url);
   }
 
   private find(id: string): FarmAnnotationBundleV1 | undefined {
@@ -420,6 +476,7 @@ export class FarmAnnotationController implements FarmAnnotationUi {
 }
 
 const ANNOTATION_COMMANDS = new Set([
+  'set-annotation-point', 'set-annotation-box',
   'start-annotation', 'save-annotation', 'cancel-annotation', 'edit-annotation',
   'save-edit-annotation', 'cancel-edit-annotation', 'view-annotation', 'delete-annotation',
   'copy-annotation', 'export-annotation', 'copy-annotations', 'export-annotations',
@@ -439,13 +496,4 @@ function annotationCommandSelector(command: string, id: string): string {
 
 function blurAnnotationEditor(): void {
   if (document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur();
-}
-
-async function copyText(value: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(value);
-    return true;
-  } catch {
-    return false;
-  }
 }
