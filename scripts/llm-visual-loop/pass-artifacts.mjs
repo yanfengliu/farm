@@ -51,6 +51,7 @@ export async function snapshotPassArtifacts({
       outputDir,
       snapshotDir,
       snapshotBundlePath,
+      screenshotCopies,
     });
     await fs.writeFile(
       path.join(snapshotDir, 'latest.json'),
@@ -128,16 +129,34 @@ function rewriteArtifactReferences(value, options, key = '') {
     if (key === 'bundlePath' && options.snapshotBundlePath) {
       return relativeArtifactPath(options.rootDir, options.snapshotBundlePath);
     }
-    if (!SCREENSHOT_KEYS.has(key)) return value;
-    const relativePath = screenshotRelativePath(options.outputDir, value);
-    return key === 'screenshotFile'
-      ? path.resolve(options.snapshotDir, relativePath)
-      : relativePath.split(path.sep).join('/');
+    if (SCREENSHOT_KEYS.has(key)) {
+      const relativePath = screenshotRelativePath(options.outputDir, value);
+      return key === 'screenshotFile'
+        ? path.resolve(options.snapshotDir, relativePath)
+        : relativePath.split(path.sep).join('/');
+    }
+    return rewriteEmbeddedScreenshotReferences(value, options.screenshotCopies);
   }
   return Object.fromEntries(Object.entries(value).map(([entryKey, entry]) => [
     entryKey,
     rewriteArtifactReferences(entry, options, entryKey),
   ]));
+}
+
+function rewriteEmbeddedScreenshotReferences(value, screenshotCopies) {
+  let rewritten = value;
+  for (const { sourcePath, snapshotPath } of screenshotCopies) {
+    rewritten = rewritten.replaceAll(sourcePath, snapshotPath);
+    rewritten = rewritten.replaceAll(
+      sourcePath.split(path.sep).join('/'),
+      snapshotPath.split(path.sep).join('/'),
+    );
+    rewritten = rewritten.replaceAll(
+      sourcePath.replaceAll('\\', '\\\\'),
+      snapshotPath.replaceAll('\\', '\\\\'),
+    );
+  }
+  return rewritten;
 }
 
 function screenshotRelativePath(outputDir, value) {

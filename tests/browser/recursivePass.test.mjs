@@ -31,6 +31,11 @@ function finding(id, severity, nextAction, overrides = {}) {
 function visualRunFixture({ rootDir, outputDir, runId, screenshotName = '00-step-0.png' }) {
   const screenshot = `steps/${screenshotName}`;
   const screenshotFile = path.join(outputDir, 'steps', screenshotName);
+  const prompt = [
+    `Screenshot file to inspect: ${screenshotFile}`,
+    `Normalized screenshot file: ${screenshotFile.split(path.sep).join('/')}`,
+    `Serialized screenshot file: ${screenshotFile.replaceAll('\\', '\\\\')}`,
+  ].join('\n');
   return {
     generatedAt: '2026-07-13T12:00:00.000Z',
     url: 'http://127.0.0.1:5175/',
@@ -45,6 +50,7 @@ function visualRunFixture({ rootDir, outputDir, runId, screenshotName = '00-step
         label: 'step 0',
         screenshot,
         screenshotFile,
+        prompt,
         visibleText: 'A small farm',
         availableActions: [],
         keyboardActions: [],
@@ -60,6 +66,7 @@ function visualRunFixture({ rootDir, outputDir, runId, screenshotName = '00-step
       label: 'final',
       screenshot,
       screenshotFile,
+      prompt,
       visibleText: 'A small farm',
       availableActions: [],
       keyboardActions: [],
@@ -270,6 +277,16 @@ describe('playtest-recursive script wiring', () => {
       );
       expect(stableRun.steps[0].observation.screenshotFile).toBe(stableScreenshot);
       expect(stableRun.finalObservation.screenshotFile).toBe(stableScreenshot);
+      expect(stableRun.steps[0].observation.prompt).toContain(stableScreenshot);
+      expect(stableRun.steps[0].observation.prompt)
+        .toContain(stableScreenshot.split(path.sep).join('/'));
+      expect(stableRun.steps[0].observation.prompt)
+        .toContain(stableScreenshot.replaceAll('\\', '\\\\'));
+      expect(stableRun.steps[0].observation.prompt)
+        .not.toContain(originalRun.steps[0].observation.screenshotFile);
+      expect(stableRun.steps[0].observation.prompt)
+        .not.toContain(originalRun.steps[0].observation.screenshotFile.replaceAll('\\', '\\\\'));
+      expect(stableRun.finalObservation.prompt).toBe(stableRun.steps[0].observation.prompt);
       expect(await readFile(stableScreenshot, 'utf8')).toBe('original screenshot');
       const stableReportArtifact = ledgerManifest.artifacts.find(
         (artifact) => artifact.kind === 'report',
