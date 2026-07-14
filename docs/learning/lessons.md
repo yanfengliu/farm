@@ -1,5 +1,13 @@
 # Engineering Lessons
 
+## 2026-07-13 - A mode control must activate the input route it promises
+
+- Surfaced by: direct player feedback reported that Box annotation behaved like one farm-grid cell. The existing freeform test stayed green because it always pressed `N` before clicking Box, while the actual idle-panel path clicked Box and dragged immediately.
+- Failure mode: the Box button changed `AnnotationGesture.mode` but left aiming false. Phaser then correctly rejected annotation ownership and forwarded the drag to the active grid tool; the panel also labeled a real rectangle by its center cell, reinforcing the false impression that box geometry was snapped.
+- Fix commit: the freeform-box follow-up makes Point and Box controls arm aiming when idle, reserves Box creation for a real pointer drag, reports live and saved pixel dimensions, and keeps center-cell target text secondary.
+- Regression anchors: `tests/browser/annotationBoundingBox.test.mjs` starts from an idle Notes panel, clicks Box once, reverse-drags between deliberately non-grid-aligned coordinates, requires the exact normalized rectangle plus live/draft/list dimension labels, and proves farm identity, tile kinds, and command history remain unchanged. Its red phase observed `aria-pressed=false` on the annotation toggle after clicking Box.
+- Behavior delta: one click on Box now means the very next mouse drag draws the requested arbitrary rectangle instead of editing one farm cell.
+
 ## 2026-07-13 - Rectangular evidence needs one coherent transform chain
 
 - Surfaced by: adversarial persistence review shifted a saved box's point and world bounds together while leaving the camera unchanged, and visual review compared an edge-clamped wide selection with its evidence preview. Local range checks accepted the coordinated forgery, while filling the fixed preview rectangle distorted the selected region.

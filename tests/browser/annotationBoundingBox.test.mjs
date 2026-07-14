@@ -77,12 +77,13 @@ describe('Farm Notes bounding boxes', () => {
         };
       });
 
-      await page.keyboard.press('n');
+      await page.click('[data-panel="annotations"]');
       const pointMode = page.locator('[data-command="set-annotation-point"]');
       const boxMode = page.locator('[data-command="set-annotation-box"]');
       await expect.poll(async () => pointMode.getAttribute('aria-pressed')).toBe('true');
       await boxMode.click();
       await expect.poll(async () => boxMode.getAttribute('aria-pressed')).toBe('true');
+      await expect.poll(async () => page.locator('[data-command="toggle-annotations"]').getAttribute('aria-pressed')).toBe('true');
       await expect.poll(async () => page.evaluate(() => globalThis.__farmDebug.getAnnotationContext())).toContain('annotationMode=box');
 
       const start = await pointAt(canvas, 0.68, 0.62);
@@ -98,6 +99,7 @@ describe('Farm Notes bounding boxes', () => {
       const liveBounds = await liveBox.boundingBox();
       expect(liveBounds.width).toBeGreaterThan(120);
       expect(liveBounds.height).toBeGreaterThan(90);
+      expect(await page.locator('.annotation-aim strong').textContent()).toMatch(/Release · \d+ × \d+ px/);
       expect(await page.locator('[data-annotation-draft]').count()).toBe(0);
       await page.waitForTimeout(250);
       expect(await page.evaluate(() => globalThis.__farmDebug.getState().tick)).toBe(tickAtDragStart);
@@ -107,6 +109,8 @@ describe('Farm Notes bounding boxes', () => {
       const textarea = page.locator('[data-annotation-draft]');
       await textarea.waitFor();
       await expect.poll(async () => liveBox.count()).toBe(1);
+      expect(await page.locator('.annotation-draft-target span').textContent()).toBe('Selected area');
+      expect(await page.locator('.annotation-draft-target strong').textContent()).toMatch(/^\d+ × \d+ px$/);
       await expect.poll(async () => page.evaluate(() => globalThis.__farmDebug.getAnnotationContext()))
         .toContain('annotationDragging=false');
       await expect.poll(async () => page.locator('#hud').textContent()).toContain('Paused');
@@ -153,6 +157,9 @@ describe('Farm Notes bounding boxes', () => {
           normalizedHeight: expect.closeTo(0.31, 2),
         },
       });
+      for (const value of Object.values(saved.record.capture.pick.selection.canvasRect).slice(0, 4)) {
+        expect(Math.abs(value / 32 - Math.round(value / 32))).toBeGreaterThan(0.01);
+      }
       expect(saved.record.capture.pick.canvasPx.normalizedX).toBeCloseTo(0.485, 2);
       expect(saved.record.capture.pick.canvasPx.normalizedY).toBeCloseTo(0.465, 2);
       expect(saved.record.capture.pick.selection.worldRect.width).toBeGreaterThan(0);
@@ -206,6 +213,8 @@ describe('Farm Notes bounding boxes', () => {
       expect(reloadedBounds.height).toBeGreaterThan(90);
       expect(await page.locator('[data-annotation-record="1"] .annotation-message').textContent())
         .toBe('The whole reed and lily cluster feels too regular.');
+      expect(await page.locator('[data-annotation-record="1"] .annotation-record-meta strong').textContent())
+        .toMatch(/^Area \d+ × \d+ px$/);
       expect(await page.evaluate(() => globalThis.__farmDebug.getAnnotations().records[0].capture.pick.selection))
         .toEqual(saved.record.capture.pick.selection);
       expect(pageErrors).toEqual([]);
@@ -214,7 +223,7 @@ describe('Farm Notes bounding boxes', () => {
     }
   }, 30000);
 
-  test('rejects tiny boxes, cancels active drags, and keeps keyboard and point capture usable', async () => {
+  test('rejects tiny boxes, cancels active drags, and keeps point keyboard capture usable', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     await context.addInitScript(() => globalThis.localStorage.clear());
     const page = await context.newPage();
@@ -253,7 +262,8 @@ describe('Farm Notes bounding boxes', () => {
 
       await page.keyboard.press('n');
       await page.click('[data-command="set-annotation-point"]');
-      await canvas.click({ position: { x: 320, y: 260 } });
+      await canvas.focus();
+      await page.keyboard.press('Enter');
       const pointDraft = page.locator('[data-annotation-draft]');
       await pointDraft.waitFor();
       await pointDraft.fill('Point capture still works.');
@@ -265,14 +275,8 @@ describe('Farm Notes bounding boxes', () => {
       await page.click('[data-command="set-annotation-box"]');
       await canvas.focus();
       await page.keyboard.press('Enter');
-      const keyboardDraft = page.locator('[data-annotation-draft]');
-      await keyboardDraft.waitFor();
-      await keyboardDraft.fill('Keyboard-centered area.');
-      await keyboardDraft.press('Control+Enter');
-      const keyboardSelection = await page.evaluate(() => globalThis.__farmDebug.getAnnotations().records[1].capture.pick.selection);
-      expect(keyboardSelection.kind).toBe('box');
-      expect(keyboardSelection.canvasRect.normalizedX + keyboardSelection.canvasRect.normalizedWidth / 2).toBeCloseTo(0.5, 2);
-      expect(keyboardSelection.canvasRect.normalizedY + keyboardSelection.canvasRect.normalizedHeight / 2).toBeCloseTo(0.5, 2);
+      expect(await page.locator('[data-annotation-draft]').count()).toBe(0);
+      await expect.poll(async () => page.locator('.annotation-status').textContent()).toContain('drag anywhere on the farm');
     } finally {
       await context.close();
     }

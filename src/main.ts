@@ -57,7 +57,6 @@ const annotationController = new FarmAnnotationController({
   projectWorld: (point) => farmScene.projectWorldPoint(point),
   restoreCamera: (camera) => farmScene.restoreAnnotationCamera(camera),
   captureKeyboardPick: () => farmScene.captureKeyboardAnnotationPick(),
-  captureKeyboardBox: () => farmScene.captureKeyboardAnnotationBox(),
 });
 annotations = annotationController;
 ui.attachAnnotationUi(annotationController);

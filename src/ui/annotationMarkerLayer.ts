@@ -41,7 +41,9 @@ export class AnnotationMarkerLayer {
     this.#root.classList.toggle('box-aiming', state.aiming && state.mode === 'box');
     this.#root.parentElement?.classList.toggle('annotation-aiming', state.aiming);
     this.#aim.querySelector('strong')!.textContent = state.mode === 'box'
-      ? state.draftBox ? 'Release to capture area' : 'Drag to frame an area'
+      ? state.draftBox
+        ? `Release · ${Math.round(state.draftBox.canvasRect.width)} × ${Math.round(state.draftBox.canvasRect.height)} px`
+        : 'Click and drag anywhere'
       : 'Click to pin a note';
     this.placeDraftBox(state.draftBox, projector);
 

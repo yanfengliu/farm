@@ -20,7 +20,7 @@ import { resolveFarmAnnotationTarget } from '../phaser/view/farmAnnotationTarget
 import { TILE_SIZE } from '../phaser/view/farmRenderer';
 import { annotationPanelMarkup } from './annotationPanel';
 import { AnnotationMarkerLayer, type AnnotationProjector } from './annotationMarkerLayer';
-import { AnnotationGesture, createBoxPick, type FarmAnnotationMode } from './annotationGesture';
+import { AnnotationGesture, type FarmAnnotationMode } from './annotationGesture';
 import { copyAnnotationJsonOrDownload, downloadAnnotationJson } from './annotationSharing';
 import type { FarmShellElements } from './appShell';
 import type { FarmAnnotationUi } from './farmAnnotationUi';
@@ -37,7 +37,6 @@ interface FarmAnnotationControllerOptions {
   projectWorld: AnnotationProjector;
   restoreCamera(camera: FarmAnnotationPick['camera']): void;
   captureKeyboardPick(): FarmAnnotationPick | null;
-  captureKeyboardBox(): { start: FarmAnnotationPick; end: FarmAnnotationPick } | null;
 }
 
 export class FarmAnnotationController implements FarmAnnotationUi {
@@ -236,8 +235,8 @@ export class FarmAnnotationController implements FarmAnnotationUi {
     if (event.key === 'Enter' && this.#gesture.isDragging && !targetIsControl) { event.preventDefault(); return true; }
     if (event.key === 'Enter' && this.#aiming && !targetIsControl) {
       if (this.#gesture.mode === 'box') {
-        const box = this.#options.captureKeyboardBox();
-        if (box) this.capturePick(createBoxPick(box.start, box.end, TILE_SIZE));
+        this.#status = 'Box notes are freeform: click and drag anywhere on the farm, at least 12 × 12 px.';
+        this.#options.invalidatePanel();
       } else {
         const pick = this.#options.captureKeyboardPick();
         if (pick) this.capturePick(pick);
@@ -299,11 +298,12 @@ export class FarmAnnotationController implements FarmAnnotationUi {
   }
 
   private setMode(mode: FarmAnnotationMode): void {
-    if (this.#draft) return;
+    if (this.#draft || this.#editingId) return;
     this.cancelPointerSelection();
     this.#gesture.setMode(mode);
     this.#status = null;
-    this.#options.invalidatePanel();
+    if (!this.#aiming) this.toggleAiming();
+    else this.#options.invalidatePanel();
   }
 
   private saveDraft(): void {

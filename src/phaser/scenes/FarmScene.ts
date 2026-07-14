@@ -43,7 +43,7 @@ export class FarmScene extends Phaser.Scene {
   create(): void {
     this.#renderer = new FarmRenderer(this);
     this.game.canvas.tabIndex = 0;
-    this.game.canvas.setAttribute('aria-label', 'Farm canvas. In Note mode, press Enter to capture the center target.');
+    this.game.canvas.setAttribute('aria-label', 'Farm canvas. In Point note mode, press Enter to capture the center target; in Box mode, drag to select an area.');
     this.cameras.main.setBackgroundColor('#3f5f32');
     this.frameFarm();
     this.#cursors = this.input.keyboard!.createCursorKeys();
@@ -186,19 +186,6 @@ export class FarmScene extends Phaser.Scene {
     if (!this.cameras?.main) return null;
     const camera = this.cameras.main;
     return this.annotationPick(camera.width / 2, camera.height / 2);
-  }
-
-  captureKeyboardAnnotationBox(): { start: FarmAnnotationPick; end: FarmAnnotationPick } | null {
-    if (!this.cameras?.main) return null;
-    const camera = this.cameras.main;
-    const width = Math.min(176, Math.max(12, camera.width - 16));
-    const height = Math.min(112, Math.max(12, camera.height - 16));
-    const centerX = camera.width / 2;
-    const centerY = camera.height / 2;
-    return {
-      start: this.annotationPick(centerX - width / 2, centerY - height / 2),
-      end: this.annotationPick(centerX + width / 2, centerY + height / 2),
-    };
   }
 
   private configureCameraBounds(): void {
