@@ -177,6 +177,26 @@ describe('coverage-gap findings through evaluateVisualLoop', () => {
     expect(comparison.findings.resolved).not.toContain('coverage-gap-c');
     expect(comparison.findings.persistent).toContain('coverage-gap-c');
   });
+
+  test('keeps generated annotation pin gaps persistent across reruns', () => {
+    const pinRun = (annotationId) => {
+      const run = baseRun(Array.from({ length: COVERAGE_MIN_SIGHTINGS }, (_, index) => step(
+        index,
+        [control(`[data-annotation-id="${annotationId}"]`, 'Pinned farm note')],
+      )));
+      run.findings = evaluateVisualLoop(run);
+      return run;
+    };
+    const previous = summarizeVisualLoopRun(pinRun('farm-note-run-one-1'));
+    const rerun = pinRun('farm-note-run-two-1');
+    const comparison = compareVisualLoopRuns(previous, rerun);
+
+    expect(comparison.findings).toEqual({
+      added: [],
+      persistent: ['coverage-gap-data-annotation-id'],
+      resolved: [],
+    });
+  });
 });
 
 describe('selectFixCandidate with improveHarness', () => {

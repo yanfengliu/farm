@@ -5,9 +5,9 @@
 // coverage through the normal candidate cycle instead of new machinery.
 // Identity is the semantic player selector: observations offer controls keyed
 // by `selector`, and decisions that target a control carry `action.selector`.
-// Rotating village-request IDs normalize to one accept-control family because
-// the interaction contract is shared while the content rotation is exercised
-// by the request lifecycle curriculum.
+// Rotating village-request and generated annotation IDs normalize to semantic
+// control families because their interaction contracts are shared while the
+// individual content is exercised by dedicated lifecycle curricula.
 // (selectorless kinds — wait/stop/viewport/camera presses — target no
 // offered control, which is why the guard below skips them).
 
@@ -55,5 +55,7 @@ export function coverageLedger(steps) {
 }
 
 function coverageKey(selector) {
-  return selector.startsWith('[data-accept-request=') ? '[data-accept-request]' : selector;
+  if (selector.startsWith('[data-accept-request=')) return '[data-accept-request]';
+  if (selector.startsWith('[data-annotation-id=')) return '[data-annotation-id]';
+  return selector;
 }
