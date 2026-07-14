@@ -16,12 +16,20 @@
 - Regression anchors: `tests/browser/llmVisualLoopLocalPlayerCompletion.test.mjs` pins retry behavior after all three failed action classes; `tests/browser/coverageReport.test.mjs` proves a high-ranked replacement cannot falsely resolve a gap displaced below the display cap.
 - Behavior delta: the local player retries work that did not happen, and rerun comparisons describe all open proof work even when reports remain concise.
 
+## 2026-07-13 - Dynamic selectors need semantic coverage identities
+
+- Surfaced by: final adversarial review compared two otherwise identical runs whose unexercised Farm Note pin selectors differed only by generated annotation id. The old pin appeared under `resolved` and the new pin under `added` instead of one persistent control family.
+- Failure mode: a selector can be stable within one browser run but still carry generated content identity. Cross-run coverage keyed to that literal value measures instance churn rather than whether the shared interaction contract was exercised.
+- Fix commit: `23f03ae` normalizes every `[data-annotation-id=...]` pin to the semantic `[data-annotation-id]` coverage family, matching the existing rotating-request treatment.
+- Regression anchors: `tests/browser/coverageReport.test.mjs` builds two runs with different generated note ids and requires the comparison to report one persistent `coverage-gap-data-annotation-id` with no added or resolved ids.
+- Behavior delta: changing a generated Farm Note id between recursive runs can no longer manufacture false coverage progress.
+
 ## 2026-07-13 - Immutable evidence must close its own reference graph
 
-- Surfaced by: independent artifact audit opened older pass snapshots and found their JSON `bundlePath` still resolved to the newest canonical bundle, their `screenshotFile` values pointed to mutable canonical steps, and their pass directories contained no screenshots. A byte comparison showed 161 of 161 old visual references had silently become the newer run.
-- Failure mode: copying a report file does not make the evidence immutable when paths inside that report escape to a mutable directory. A durable proof packet must archive every referenced leaf and rewrite both machine and human-readable entry points to the closed packet; missing leaves must fail atomically.
-- Fix commit: `fix: harden recursive Farm Notes proof` snapshots the replay bundle and every referenced step image, rewrites bundle and absolute screenshot paths, regenerates stable Markdown/HTML from the rewritten run, exposes screenshot/report artifacts in the pass manifest, and removes partial directories on failure.
-- Regression anchors: `tests/browser/recursivePass.test.mjs` replaces canonical JSON, report, bundle, and screenshot bytes after snapshotting and proves the immutable run still resolves only the original bundle/session and image; a missing referenced image rejects the snapshot and leaves no pass directory.
+- Surfaced by: independent artifact audit opened older pass snapshots and found their JSON `bundlePath` still resolved to the newest canonical bundle, their `screenshotFile` values pointed to mutable canonical steps, and their pass directories contained no screenshots. A byte comparison showed 161 of 161 old visual references had silently become the newer run. Final diff review then found the same absolute path duplicated inside observation prompts even after the explicit screenshot fields were rewritten.
+- Failure mode: copying a report file does not make the evidence immutable when paths inside that report escape to a mutable directory, and rewriting named fields is insufficient when generated prompts embed the same references in native, normalized, or JSON-escaped form. A durable proof packet must archive every referenced leaf, close every embedded reference, and fail atomically on missing evidence.
+- Fix commits: `e8a018a` snapshots the replay bundle and every referenced step image, rewrites bundle and explicit screenshot paths, regenerates stable Markdown/HTML, exposes all artifact kinds, and removes partial directories on failure; `7f261c9` also rewrites embedded native, forward-slash, and JSON-escaped screenshot references.
+- Regression anchors: `tests/browser/recursivePass.test.mjs` replaces canonical JSON, report, bundle, and screenshot bytes after snapshotting and proves the immutable run still resolves only the original bundle/session and image, including every prompt path spelling; a missing referenced image rejects the snapshot and leaves no pass directory. Final wrapper `farm-recursive-2026-07-14T00-05-08-979Z` archived 147 resolving screenshot references with zero canonical-path strings or byte mismatches.
 - Behavior delta: each recursive pass can be reviewed later without trusting whatever files happen to be named `latest` at that time.
 
 ## 2026-07-13 - Persisted numeric identifiers need safe-integer exhaustion behavior
