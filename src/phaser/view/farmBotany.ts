@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import type { FarmState } from '../../game/simulation/farmGame';
+import { buildFarmHedgerowPlacements, drawMixedHedgerow } from './farmHedgerow';
 import { buildFarmSceneryLayout, type PixelBounds } from './farmSceneryLayout';
 import { coordinateHash } from './farmPixelPrimitives';
 
@@ -161,12 +162,10 @@ export function drawFarmBotanyOverstory(
   state: FarmState,
   tileSize: number,
 ): void {
-  const layout = buildFarmSceneryLayout(state.width, state.height, tileSize);
   const botany = buildFarmBotanyLayout(state.width, state.height, tileSize);
-  drawMixedHedgerow(g, 17, -17, 3, 3);
-  drawMixedHedgerow(g, Math.round(layout.farm.right * 0.36), -14, 2, 7);
-  drawMixedHedgerow(g, Math.round(layout.farm.right * 0.71), -18, 3, 11);
-  drawMixedHedgerow(g, layout.farm.right + 58, 157, 5, 19);
+  for (const hedge of buildFarmHedgerowPlacements(state.width, state.height, tileSize)) {
+    drawMixedHedgerow(g, hedge.x, hedge.y, hedge.count, hedge.seed, hedge.overlap);
+  }
   for (const tree of [...botany.trees].sort((left, right) => left.y - right.y)) drawTreeCanopy(g, tree);
 }
 
@@ -341,26 +340,5 @@ function drawDecorativePlant(g: Phaser.GameObjects.Graphics, plant: FarmPlantPla
     g.fillStyle(variant % 2 ? 0xc97859 : 0xd9a45f, 1);
     g.fillRect(x - 3, y - 6, 7, 3);
     g.fillRect(x + 3, y - 4, 6, 2);
-  }
-}
-
-function drawMixedHedgerow(g: Phaser.GameObjects.Graphics, x: number, y: number, count: number, seed: number): void {
-  let cursor = x;
-  for (let index = 0; index < count; index += 1) {
-    const hash = coordinateHash(seed + index, count + index * 3);
-    const width = 17 + (hash % 8);
-    const height = 10 + (Math.floor(hash / 7) % 7);
-    const offsetY = Math.floor(hash / 41) % 5;
-    g.fillStyle(0x244b38, 1);
-    g.fillRect(cursor - 3, y + offsetY + 3, width + 7, height - 2);
-    g.fillStyle(index % 3 === 0 ? 0x467c4a : 0x3c7045, 1);
-    g.fillRect(cursor, y + offsetY, width, height);
-    g.fillStyle(0x90b968, 1);
-    g.fillRect(cursor + 4 + (hash % 5), y + offsetY + 2, 5, 2);
-    if (hash % 4 === 0) {
-      g.fillStyle(0xe9a5a1, 1);
-      g.fillRect(cursor + width - 4, y + offsetY + 5, 2, 2);
-    }
-    cursor += width + 10 + (hash % 8);
   }
 }

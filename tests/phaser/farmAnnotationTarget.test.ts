@@ -43,4 +43,14 @@ describe('annotation target picking', () => {
       cell: { x: 3, y: 2 },
     });
   });
+
+  test('identifies the east wild hedgerow instead of the meadow beneath it', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'annotation-hedgerow' }));
+
+    expect(resolveFarmAnnotationTarget(state, { x: 494.5, y: 163.25 }, TILE_SIZE)).toMatchObject({
+      kind: 'hedgerow',
+      semanticId: 'hedgerow:east',
+      label: 'Wild Hedgerow',
+    });
+  });
 });

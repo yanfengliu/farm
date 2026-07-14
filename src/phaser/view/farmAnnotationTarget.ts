@@ -5,6 +5,7 @@ import {
   decorativePlantVisualBounds,
   farmTreeVisualBounds,
 } from './farmBotany';
+import { buildFarmHedgerowPlacements, farmHedgerowVisualBounds } from './farmHedgerow';
 import { buildFarmSceneryLayout, type PixelBounds } from './farmSceneryLayout';
 import { buildCreekLilyLayout, creekCenterX } from './farmWaterside';
 import { duckWorldPosition } from './farmWildlifeArt';
@@ -46,6 +47,13 @@ export function resolveFarmAnnotationTarget(
   for (const [index, tree] of botany.trees.entries()) {
     if (inside(worldPx, farmTreeVisualBounds(tree))) {
       return target('tree', `tree:${index}`, `${capitalize(tree.species)} Tree`, null, cell, worldPx, tree);
+    }
+  }
+
+  for (const hedge of buildFarmHedgerowPlacements(state.width, state.height, tileSize)) {
+    const bounds = farmHedgerowVisualBounds(hedge);
+    if (inside(worldPx, bounds)) {
+      return target('hedgerow', `hedgerow:${hedge.id}`, hedge.label, null, cell, worldPx, { ...hedge, bounds });
     }
   }
 

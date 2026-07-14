@@ -1,5 +1,21 @@
 # Engineering Lessons
 
+## 2026-07-13 - Randomized art must be measured at the authored seed
+
+- Surfaced by: the first player-exported Farm Notes Box bundle asked what the long object east of the farm was and called it unnatural; its PNG evidence and world rectangle isolated the seed-19 mixed hedgerow.
+- Failure mode: the drawing code contained hash-based width, spacing, height, highlight, and flower branches, but the actual seed/count sequence collapsed those modulo operations to five equal 21-pixel rectangles with equal 35-pixel steps and the same flower condition. Algorithmic randomness existed in source while the authored composition remained a repeated stamp.
+- Fix commit: the exported-note hedgerow follow-up mixes independent hash coordinates, lays shrubs along a deterministic crooked rise, builds every crown from compact rounded pixel lobes, and varies highlight, blossom, shoot, shadow, and ground-sprout grammar. It also centralizes placements so rendering and annotation picking share the same bounds.
+- Regression anchors: `tests/phaser/farmHedgerow.test.ts` evaluates the real east placement, requires width, top, base, spacing, lobe-aspect, highlight-count, actual fill-width, footprint, and default-recenter containment invariants, and was mutation-proven red by injecting one shrub-width renderer rectangle; `tests/phaser/farmAnnotationTarget.test.ts` replays the original note center and requires `hedgerow:east` / `Wild Hedgerow` instead of meadow. Headless evidence replays the captured camera after the renderer settles and checks the complete thicket with four pixels of world-space breathing room at the supported 1280x800 and 1024x720 framings.
+- Behavior delta: the border now reads as an irregular living thicket, and a future comment on it names the graphic rather than only the ground tile underneath.
+
+## 2026-07-13 - Fix scenery clipping at the placement before changing the shared camera frame
+
+- Surfaced by: independent visual review of the first rounded east-hedgerow screenshot found its outer shrubs clipped at both supported desktop sizes.
+- Failure mode: enlarging the shared scenery frame made the hedge fit, but also rescaled and shifted the whole world. Six existing browser contracts then failed across annotation clicks, landmark palette sampling, and crop-coordinate mapping even though the hedge itself looked correct.
+- Fix commit: the final east placement overlaps its five unequal shrub masses into one dense thicket while retaining the established frame and camera composition.
+- Regression anchors: `tests/phaser/farmHedgerow.test.ts` derives the padded recenter viewport from production scenery geometry and requires every authored hedge to keep four pixels of breathing room; the four directly affected browser suites pass 46 tests, and 1280x800 plus 1024x720 captures show the complete silhouette.
+- Behavior delta: the east hedge is fully visible without moving the farm, changing click mapping, or shrinking established landmarks.
+
 ## 2026-07-13 - Terminal gates must include promised coverage obligations
 
 - Surfaced by: recursive pass `farm-recursive-2026-07-14T03-39-50-565Z` stopped at decision 150 with a low-severity `coverage-gap-data-sell-tomato` finding after the Tomato control was visible 25 times but never exercised.
