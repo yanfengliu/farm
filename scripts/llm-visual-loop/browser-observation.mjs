@@ -1,4 +1,89 @@
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
+
+// The farm authors no pure black: the Phaser clear color is #3f5f32 and every
+// black in the stylesheet is a translucent shadow, so real frames measure an
+// exactBlackRatio of exactly 0. Any opaque black coverage is therefore already
+// anomalous, and the geometric trips stay independent of the coverage trip --
+// gating them behind a coverage floor would discard a band of pure black
+// spanning the entire frame width simply for being thin.
+const COMPOSITOR_COVERAGE_TRIP = 0.002;
+const COMPOSITOR_RUN_TRIP = 0.25;
+
+export function screenshotLooksCompositorCorrupt(metrics) {
+  return metrics.exactBlackRatio >= COMPOSITOR_COVERAGE_TRIP
+    || metrics.longestBlackRowRatio >= COMPOSITOR_RUN_TRIP
+    || metrics.longestBlackColumnRatio >= COMPOSITOR_RUN_TRIP;
+}
+
+// Retries the whole observe-and-shoot attempt rather than the screenshot alone,
+// so an accepted frame always pairs with the DOM sample taken microseconds
+// before it. Settling between attempts advances the world, so re-shooting
+// without re-observing would hand the player stale text beside a fresh frame.
+//
+// Exhaustion keeps the least-corrupt attempt and reports it as degraded instead
+// of throwing: the final observation is captured outside any catch, so throwing
+// here would discard an entire completed run's report, bundle, and ledger row
+// over one bad frame. Callers must surface `degraded` -- silently archiving a
+// corrupt frame as proof is the failure this guard exists to prevent.
+export async function selectStableCapture({ attempt, inspect, settle, maxAttempts = 4 }) {
+  const limit = Math.max(1, maxAttempts);
+  let best = null;
+  for (let attemptIndex = 1; attemptIndex <= limit; attemptIndex += 1) {
+    const value = await attempt();
+    const metrics = await inspect(value);
+    if (!screenshotLooksCompositorCorrupt(metrics)) {
+      return { value, metrics, attempts: attemptIndex, degraded: false };
+    }
+    if (!best || metrics.exactBlackRatio < best.metrics.exactBlackRatio) best = { value, metrics };
+    if (attemptIndex < limit) await settle();
+  }
+  return { value: best.value, metrics: best.metrics, attempts: limit, degraded: true };
+}
+
+export async function screenshotPixelMetrics(page, buffer) {
+  return page.evaluate(async (base64) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${base64}`;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const columnRuns = new Uint32Array(canvas.width);
+    let exactBlackPixels = 0;
+    let longestBlackRow = 0;
+    let longestBlackColumn = 0;
+    for (let y = 0; y < canvas.height; y += 1) {
+      let rowRun = 0;
+      for (let x = 0; x < canvas.width; x += 1) {
+        const index = (y * canvas.width + x) * 4;
+        const black = pixels[index] <= 1 && pixels[index + 1] <= 1 && pixels[index + 2] <= 1 && pixels[index + 3] >= 250;
+        if (black) {
+          exactBlackPixels += 1;
+          rowRun += 1;
+          columnRuns[x] += 1;
+          longestBlackRow = Math.max(longestBlackRow, rowRun);
+          longestBlackColumn = Math.max(longestBlackColumn, columnRuns[x]);
+        } else {
+          rowRun = 0;
+          columnRuns[x] = 0;
+        }
+      }
+    }
+    const area = Math.max(1, canvas.width * canvas.height);
+    return {
+      width: canvas.width,
+      height: canvas.height,
+      exactBlackPixels,
+      exactBlackRatio: exactBlackPixels / area,
+      longestBlackRowRatio: longestBlackRow / Math.max(1, canvas.width),
+      longestBlackColumnRatio: longestBlackColumn / Math.max(1, canvas.height),
+    };
+  }, buffer.toString('base64'));
+}
 
 export async function captureVisualObservation(page, stepIndex, label, options) {
   const { cwd, screenshotDir, playerActionSelector } = options;
@@ -7,6 +92,23 @@ export async function captureVisualObservation(page, stepIndex, label, options) 
   const absoluteScreenshotFile = path.resolve(cwd, screenshotFile);
   const screenshotPath = path.join('steps', screenshotName).replaceAll('\\', '/');
 
+  const capture = await selectStableCapture({
+    attempt: () => observeAndShoot(page, { stepIndex, label, screenshotPath, absoluteScreenshotFile, playerActionSelector }),
+    inspect: ({ buffer }) => screenshotPixelMetrics(page, buffer),
+    settle: () => settleScreenshotCompositor(page),
+  });
+  await writeFile(screenshotFile, capture.value.buffer);
+  const observation = capture.value.observation;
+  // Attached only when it carries signal: a clean first attempt is the norm, and
+  // stamping every observation with an all-zero metrics block would bloat the
+  // packet while burying the frames that actually needed a retry.
+  if (capture.attempts > 1 || capture.degraded) {
+    observation.screenshotCapture = { attempts: capture.attempts, degraded: capture.degraded, metrics: capture.metrics };
+  }
+  return observation;
+}
+
+async function observeAndShoot(page, { stepIndex, label, screenshotPath, absoluteScreenshotFile, playerActionSelector }) {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
   const observation = await page.evaluate(({ observationIndex, observationLabel, screenshotPath, screenshotFile, playerActionSelector }) => {
     const visibleText = visibleTextForPlayer();
@@ -234,6 +336,13 @@ export async function captureVisualObservation(page, stepIndex, label, options) 
     observationIndex: stepIndex, observationLabel: label, screenshotPath,
     screenshotFile: absoluteScreenshotFile, playerActionSelector,
   });
-  await page.screenshot({ path: screenshotFile, fullPage: false });
-  return observation;
+  const buffer = await page.screenshot({ fullPage: false });
+  return { observation, buffer };
+}
+
+async function settleScreenshotCompositor(page) {
+  await page.evaluate(() => new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+  await page.waitForTimeout(50);
 }

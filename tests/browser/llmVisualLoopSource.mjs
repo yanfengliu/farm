@@ -11,6 +11,7 @@ export const VISUAL_LOOP_MODULES = [
   'scripts/llm-visual-loop/local-player-support.mjs',
   'scripts/llm-visual-loop/report-renderers.mjs',
   'scripts/llm-visual-loop/improvement-report.mjs',
+  'scripts/llm-visual-loop/report-support.mjs',
 ];
 
 export async function readFile(file, encoding) {

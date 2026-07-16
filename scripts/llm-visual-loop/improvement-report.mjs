@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { assertImprovementFinding, improvementFindingToVisualPlaytestFinding, minimalImprovementFindingSchemaVersion } from 'civ-engine';
 import { coverageGapFindingId, coverageLedger } from './coverage-report.mjs';
+import { actionCountDelta, actionCounts, finalObservationEvidence, formatEvidence, hasActionableGuidance, jsonSafe, metricEvidence, nonEmptyString, nonNegativeInteger, slug, stableRunId, stepEvidence, textEvidence, withoutUndefined } from './report-support.mjs';
 export const FARM_VISUAL_LOOP_OBJECTIVE = 'Play Farm like a real desktop player and find player-facing pain points.';
 const SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
 const CATEGORIES = new Set(['visual', 'usability', 'rules', 'performance', 'accessibility', 'regression', 'bug', 'opportunity']);
@@ -51,6 +52,19 @@ export function strongReplayVerification(verification) {
   return (verification.checkedSegments ?? 0) > 0 && skipped === 0;
 }
 
+// `screenshotCapture` is attached only to frames that needed a retry, so an
+// absent field means a clean first attempt rather than a missing measurement.
+export function degradedScreenshotFrames(run) {
+  return [...(run.steps ?? []).map((step) => step?.observation), run.finalObservation]
+    .filter((observation) => observation?.screenshotCapture?.degraded)
+    .map((observation) => ({
+      label: observation.label ?? `step-${observation.index}`,
+      screenshot: observation.screenshot,
+      attempts: observation.screenshotCapture.attempts,
+      metrics: observation.screenshotCapture.metrics,
+    }));
+}
+
 export function evaluateVisualLoop(run, options = {}) {
   const deterministic = deterministicStatusFields(run, options.verification);
   const findings = [];
@@ -74,6 +88,31 @@ export function evaluateVisualLoop(run, options = {}) {
       ...deterministic,
       nextAction: 'autoFix',
       data: { source: 'farm.visual-loop' },
+    }));
+  }
+
+  // A degraded frame means the compositor never settled and the least-corrupt
+  // attempt was archived anyway. That frame is still in the packet, so the run
+  // must say so rather than let a corrupt image pass review as ordinary proof.
+  const degradedFrames = degradedScreenshotFrames(run);
+  if (degradedFrames.length > 0) {
+    findings.push(makeFinding(run, {
+      id: 'screenshot-compositor-degraded',
+      severity: 'medium',
+      category: 'regression',
+      title: 'Archived screenshots kept opaque black regions after repeated capture attempts',
+      observed: degradedFrames
+        .map((frame) => `${frame.label}: ${frame.attempts} attempts, black=${frame.metrics.exactBlackRatio.toFixed(4)}, `
+          + `longest row=${frame.metrics.longestBlackRowRatio.toFixed(4)}, longest column=${frame.metrics.longestBlackColumnRatio.toFixed(4)}`)
+        .slice(0, 5)
+        .join('\n'),
+      expected: 'Every archived proof frame should show the rendered farm, with no opaque black bands or tiles.',
+      suggestion: 'Treat these screenshots as unreliable evidence and investigate the browser compositor before trusting visual findings from this run.',
+      area: 'playtest evidence',
+      evidence: degradedFrames.slice(0, 8).map((frame) => textEvidence('degraded screenshot', `${frame.label} (${frame.screenshot})`)),
+      ...deterministic,
+      nextAction: 'triage',
+      data: { source: 'farm.visual-loop', class: 'screenshot-compositor-degraded', degradedFrames: degradedFrames.length },
     }));
   }
 
@@ -413,85 +452,8 @@ function deterministicStatusFields(run, verification) {
   return { verificationStatus: 'verified', verificationMethod: 'metric' };
 }
 
-function stableRunId(run) {
-  const startedAt = run.generatedAt ?? 'unknown-start';
-  return `farm-visual-loop-${startedAt.replace(/[^0-9A-Za-z]+/g, '-').replace(/^-|-$/g, '') || 'unknown'}`;
-}
-
-function slug(value) { return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80); }
-
 function normalizeRunSummary(value) {
   if (Array.isArray(value.findingIds)) return value;
   return summarizeVisualLoopRun(value);
 }
 
-function actionCounts(steps) {
-  const counts = {};
-  for (const step of steps) {
-    const kind = step.decision?.action?.kind;
-    if (!kind) continue;
-    counts[kind] = (counts[kind] ?? 0) + 1;
-  }
-  return counts;
-}
-
-function actionCountDelta(previous, current) {
-  const keys = [...new Set([...Object.keys(previous), ...Object.keys(current)])].sort();
-  return Object.fromEntries(keys.map((key) => [key, Number(current[key] ?? 0) - Number(previous[key] ?? 0)]));
-}
-
-function hasActionableGuidance(visibleText) {
-  return /FARM GUIDE (Open Goals|Buy Seeds|Claim|Tune Crop Mix|Add (?:Tomatoes|Pumpkins) To Mix|Open Inventory|Sell Crops|Select Plot|Paint Empty Land|Meet The Village|Pin A Neighbor Basket)|Restock seeds|Paint plots on empty land|Tier \d+ ready|Active basket|Harvest the missing crops/i.test(visibleText);
-}
-
-function stepEvidence(step, extra = []) {
-  return [
-    { kind: 'step', step: Number(step.index ?? 0) },
-    ...(step.observation?.screenshot ? [{ kind: 'screenshot', step: Number(step.index ?? 0), screenshotPath: step.observation.screenshot }] : []),
-    ...(step.observation?.visibleText ? [textEvidence('visible text', step.observation.visibleText)] : []),
-    ...extra,
-  ];
-}
-
-function finalObservationEvidence(run) {
-  return [
-    ...(run.finalObservation?.screenshot ? [{ kind: 'screenshot', screenshotPath: run.finalObservation.screenshot }] : []),
-    ...(run.finalObservation?.visibleText ? [textEvidence('final visible text', run.finalObservation.visibleText)] : []),
-  ];
-}
-
-function textEvidence(label, value) {
-  return { kind: 'text', label, value: String(value).slice(0, 4000) };
-}
-
-function metricEvidence(label, value) {
-  return [{ kind: 'metric', label, value: String(value) }];
-}
-
-function nonEmptyString(value) {
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-
-function nonNegativeInteger(value) {
-  return Number.isInteger(value) && value >= 0 ? value : undefined;
-}
-
-function formatEvidence(evidence) {
-  if (evidence.kind === 'screenshot') return `screenshot:${evidence.screenshotPath}`;
-  if (evidence.kind === 'step') return `step:${evidence.step}`;
-  if (evidence.kind === 'metric') return `${evidence.label}=${evidence.value}`;
-  if (evidence.kind === 'text') return `${evidence.label}=${JSON.stringify(evidence.value)}`;
-  return `${evidence.kind}:${evidence.label ?? evidence.value ?? ''}`;
-}
-
-function jsonSafe(value) {
-  return value === undefined ? null : JSON.parse(JSON.stringify(value));
-}
-
-function withoutUndefined(value) {
-  if (Array.isArray(value)) return value.map(withoutUndefined);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value)
-    .filter(([, entryValue]) => entryValue !== undefined)
-    .map(([key, entryValue]) => [key, withoutUndefined(entryValue)]));
-}
