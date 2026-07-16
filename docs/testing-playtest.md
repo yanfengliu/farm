@@ -10,6 +10,8 @@ npm test
 
 Simulation tests should verify user-visible mechanics: worker autonomy, crop growth, seed recovery, storage capacity, auto-sell overflow, milestones, undo/redo, and save/load.
 
+`vitest.config.ts` caps fork concurrency because each suite under `tests/browser` launches its own Chromium and Vite dev server while declaring its own inline 15s per-test budget. Vitest's default of one fork per core oversubscribes a large machine badly enough that those budgets are missed, which surfaces as widespread timeouts rather than assertion failures and makes the gate unable to distinguish a real regression from runner noise. Keep the cap bounded by the browser cost of the suite rather than by core count, and treat a timeout as a real signal to diagnose rather than as expected background noise. `tests/browser/testRunnerConcurrency.test.mjs` pins the cap.
+
 ## Browser Playtest
 
 Use `npm run dev` for the user-facing local server. Farm reserves `http://127.0.0.1:5175/` so it does not collide with other local games.
