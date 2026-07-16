@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { advanceFarm, createFarmGame, getFarmSnapshot, submitFarmCommand } from '../../src/game/simulation/farmGame';
-import { clearFarmSave, loadSavedFarmState, saveFarmState } from '../../src/persistence/localSave';
+import {
+  clearFarmSave,
+  loadFarmSave,
+  loadSavedFarmState,
+  saveFarmState,
+} from '../../src/persistence/localSave';
 
 class MemoryStorage implements Storage {
   readonly #values = new Map<string, string>();
@@ -279,5 +284,51 @@ describe('local farm save boundary', () => {
     crossedHabitat.wildlife.fish[0]!.node = crossedHabitat.wildlife.fish[1]!.node;
     storage.setItem('farm.autosave.v1', JSON.stringify(crossedHabitat));
     expect(loadSavedFarmState()).toBeNull();
+  });
+});
+
+describe('unreadable saves stay distinguishable from first runs', () => {
+  beforeEach(() => {
+    storage.clear();
+    storage.failWrites = false;
+    storage.failDeletes = false;
+  });
+
+  test('reports an absent save as empty and a present good save as loaded', () => {
+    expect(loadFarmSave()).toEqual({ status: 'empty' });
+
+    const state = getFarmSnapshot(createFarmGame({ seed: 'load-status-good' }));
+    saveFarmState(state);
+    expect(loadFarmSave()).toEqual({ status: 'loaded', state });
+  });
+
+  test('reports a rejected save as unreadable rather than empty', () => {
+    storage.setItem('farm.autosave.v1', JSON.stringify({ version: 2, tick: 4242 }));
+    expect(loadFarmSave()).toEqual({ status: 'unreadable' });
+
+    storage.setItem('farm.autosave.v1', 'not json at all');
+    expect(loadFarmSave()).toEqual({ status: 'unreadable' });
+  });
+
+  test('reports unreadable storage as empty rather than risking a save that is not there', () => {
+    // A save this build cannot read must never be reported as absent, but storage that
+    // cannot be read at all holds no save of ours to protect.
+    storage.setItem('farm.autosave.v1', JSON.stringify({ version: 2 }));
+    expect(loadFarmSave()).toEqual({ status: 'unreadable' });
+
+    storage.clear();
+    expect(loadFarmSave()).toEqual({ status: 'empty' });
+  });
+
+  test('an unreadable save is left exactly where it is', () => {
+    const original = JSON.stringify({ version: 2, tick: 4242 });
+    storage.setItem('farm.autosave.v1', original);
+
+    expect(loadFarmSave()).toEqual({ status: 'unreadable' });
+
+    // Loading must have no side effect on the bytes; only clearFarmSave may drop them.
+    expect(storage.getItem('farm.autosave.v1')).toBe(original);
+    expect(clearFarmSave()).toBe(true);
+    expect(storage.getItem('farm.autosave.v1')).toBeNull();
   });
 });

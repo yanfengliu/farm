@@ -11,20 +11,30 @@ import {
 } from './game/simulation/farmGame';
 import type { SessionBundle } from './game/simulation/civEngine';
 import { FarmScene } from './phaser/scenes/FarmScene';
-import { clearFarmSave, loadSavedFarmState, saveFarmState } from './persistence/localSave';
+import { clearFarmSave, loadFarmSave, saveFarmState } from './persistence/localSave';
 import { FarmUiController } from './ui/farmUiController';
 import { FarmAnnotationController } from './ui/farmAnnotationController';
 
-let farmGame: FarmGame = createFarmGame({ state: loadSavedFarmState() ?? undefined });
+const savedFarm = loadFarmSave();
+let farmGame: FarmGame = createFarmGame({ state: savedFarm.status === 'loaded' ? savedFarm.state : undefined });
 const farmReplayWindow = new FarmReplayWindow(farmGame, import.meta.env.DEV);
 let simulationRemainderMs = 0;
 let lastSavedAt = 0;
+// A save we cannot read is still the player's farm. Autosaving over it would be
+// unrecoverable loss they never agreed to, so persistence stops until Reset says otherwise.
+let autosaveBlocked = savedFarm.status === 'unreadable';
 
 const ui = new FarmUiController({
   getState: () => getFarmSnapshot(farmGame),
   submit: (command) => submitFarmCommand(farmGame, command),
   resetFarm,
 });
+
+if (autosaveBlocked) {
+  // Under ~55 characters: the HUD alert ellipsizes at 1024x720, and anything longer
+  // loses the half naming the way out. `persistFarm` leaves this standing while blocked.
+  ui.setPersistenceWarning('Saved farm unreadable - autosave off until Reset.');
+}
 
 let annotations: FarmAnnotationController | null = null;
 const farmScene = new FarmScene({
@@ -99,10 +109,13 @@ function autosave(): void {
 }
 
 function persistFarm(): void {
+  // Returning early is the whole guard: the unreadable save stays untouched, and the
+  // standing warning stays on screen because nothing here clears it.
+  if (autosaveBlocked) return;
   const saved = saveFarmState(getFarmSnapshot(farmGame));
   ui.setPersistenceWarning(saved
     ? null
-    : 'Autosave unavailable - progress remains in this tab. Free browser storage, then keep playing to retry.');
+    : 'Autosave unavailable - free browser storage to retry.');
 }
 
 function advanceRealtime(ms: number): void {
@@ -119,10 +132,12 @@ function resetFarm(): void {
   farmGame = createFarmGame({ seed: 'farm' });
   farmReplayWindow.replaceGame(farmGame);
   simulationRemainderMs = 0;
+  // Reset is the player consenting to drop the unreadable save, so persistence resumes.
+  autosaveBlocked = false;
   farmScene.recenter();
   ui.setPersistenceWarning(saveCleared
     ? null
-    : 'Stored save could not be cleared - this tab was reset and autosave will keep retrying.');
+    : 'Stored save could not be cleared - this tab is reset.');
   ui.invalidateAfterReset();
 }
 

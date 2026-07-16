@@ -15,15 +15,40 @@ const SAVE_KEY = 'farm.autosave.v1';
 const LEGACY_CROP_IDS: CropId[] = ['carrot', 'wheat', 'tomato'];
 const MIN_OWNED_TILES = 25;
 
-export function loadSavedFarmState(): FarmState | null {
+/**
+ * `empty` and `unreadable` must stay distinct: starting a new farm is correct for
+ * the first, and silent data loss for the second.
+ *
+ * `unreadable` deliberately carries no payload. The caller cannot repair the save,
+ * only decline to destroy it — copying it elsewhere would need twice the storage
+ * exactly when the save is largest, and would fail on the farms worth keeping.
+ */
+export type LoadedFarmSave =
+  | { status: 'loaded'; state: FarmState }
+  | { status: 'empty' }
+  | { status: 'unreadable' };
+
+export function loadFarmSave(): LoadedFarmSave {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    return isFarmState(parsed) ? parsed : null;
+    raw = localStorage.getItem(SAVE_KEY);
   } catch {
-    return null;
+    // Storage cannot be read at all, so no save of ours is at risk here.
+    return { status: 'empty' };
   }
+  if (!raw) return { status: 'empty' };
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (isFarmState(parsed)) return { status: 'loaded', state: parsed };
+  } catch {
+    return { status: 'unreadable' };
+  }
+  return { status: 'unreadable' };
+}
+
+export function loadSavedFarmState(): FarmState | null {
+  const result = loadFarmSave();
+  return result.status === 'loaded' ? result.state : null;
 }
 
 export function saveFarmState(state: FarmState): boolean {

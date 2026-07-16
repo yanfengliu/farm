@@ -77,4 +77,64 @@ describe('browser autosave failure', () => {
       await context.close();
     }
   }, 15000);
+
+  // The assertions above read textContent, which keeps the whole string no matter how
+  // it renders. `.hud-alert` ellipsizes rather than wraps, so a message can be fully
+  // present in the DOM and still lose its actionable half on screen.
+  test.each([
+    { width: 1280, height: 800 },
+    { width: 1024, height: 720 },
+  ])('persistence warnings stay readable in the HUD at $width x $height', async (viewport) => {
+    const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+    await context.addInitScript(() => {
+      const originalSetItem = Storage.prototype.setItem;
+      const originalRemoveItem = Storage.prototype.removeItem;
+      Storage.prototype.setItem = function setItem(key, value) {
+        if (key === 'farm.autosave.v1') throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+        return originalSetItem.call(this, key, value);
+      };
+      Storage.prototype.removeItem = function removeItem(key) {
+        if (key === 'farm.autosave.v1') throw new DOMException('Storage access denied', 'SecurityError');
+        return originalRemoveItem.call(this, key);
+      };
+    });
+    const page = await context.newPage();
+
+    const measureAlert = () => page.evaluate(() => {
+      const element = globalThis.document.querySelector('.hud-alert');
+      const rect = element.getBoundingClientRect();
+      return {
+        text: element.textContent.trim(),
+        truncated: element.scrollWidth > element.clientWidth + 1,
+        offRight: Math.round(rect.right) > globalThis.innerWidth,
+        bodyScrollsX: globalThis.document.body.scrollWidth > globalThis.innerWidth,
+      };
+    });
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.waitForFunction(() => (
+        globalThis.document.querySelector('.hud-alert')?.textContent?.includes('Autosave unavailable')
+      ));
+
+      const autosaveAlert = await measureAlert();
+      expect(autosaveAlert.text).toContain('Autosave unavailable');
+      expect(autosaveAlert.truncated).toBe(false);
+      expect(autosaveAlert.offRight).toBe(false);
+      expect(autosaveAlert.bodyScrollsX).toBe(false);
+
+      await page.keyboard.press('Shift+R');
+      await page.waitForFunction(() => (
+        globalThis.document.querySelector('.hud-alert')?.textContent?.includes('Stored save could not be cleared')
+      ));
+
+      const resetAlert = await measureAlert();
+      expect(resetAlert.text).toContain('Stored save could not be cleared');
+      expect(resetAlert.truncated).toBe(false);
+      expect(resetAlert.offRight).toBe(false);
+      expect(resetAlert.bodyScrollsX).toBe(false);
+    } finally {
+      await context.close();
+    }
+  }, 30000);
 });
