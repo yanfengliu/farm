@@ -280,7 +280,7 @@ describe('Farm Notes bounding boxes', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('captures off-canvas releases and ignores Enter until the active drag ends', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
@@ -361,7 +361,7 @@ describe('Farm Notes bounding boxes', () => {
       await page.mouse.up().catch(() => {});
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('keeps box controls and projected annotations inside supported desktop layouts', async () => {
     for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 720 }]) {

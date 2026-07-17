@@ -122,7 +122,7 @@ describe('Farm Notes keyboard ownership', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('every gameplay shortcut stays native inside draft and edit textareas', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });

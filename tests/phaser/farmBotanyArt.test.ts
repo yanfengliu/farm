@@ -56,12 +56,18 @@ function findSolidBlock(
       for (let x = fill.x; x < fill.x + fill.width; x += 1) occupied.add(`${x},${y}`);
     }
   }
-  const xs = fills.flatMap((fill) => [fill.x, fill.x + fill.width]);
-  const ys = fills.flatMap((fill) => [fill.y, fill.y + fill.height]);
-  const left = Math.min(...xs);
-  const right = Math.max(...xs);
-  const top = Math.min(...ys);
-  const bottom = Math.max(...ys);
+  // Loop rather than spread: the border woodland pushed the recorded fill count
+  // past what a spread argument list tolerates.
+  let left = Infinity;
+  let right = -Infinity;
+  let top = Infinity;
+  let bottom = -Infinity;
+  for (const fill of fills) {
+    left = Math.min(left, fill.x);
+    right = Math.max(right, fill.x + fill.width);
+    top = Math.min(top, fill.y);
+    bottom = Math.max(bottom, fill.y + fill.height);
+  }
 
   for (let y = top; y <= bottom - blockHeight; y += 1) {
     for (let x = left; x <= right - blockWidth; x += 1) {

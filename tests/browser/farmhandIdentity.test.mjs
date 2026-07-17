@@ -135,7 +135,13 @@ describe('farmhand identity and storybook chrome', () => {
       // Run long enough for real planting/watering work, so effects have spawned.
       await page.evaluate(() => globalThis.advanceTime(30000));
       await page.click('[data-command="pause"]');
-      await page.waitForTimeout(300);
+      // Autosave trails the state by its one-second throttle. Let it flush the
+      // frozen state before snapshotting, or the throttled rewrite lands inside
+      // the comparison window and the bytes differ for a boring reason.
+      await page.waitForFunction(() => {
+        const raw = globalThis.localStorage.getItem('farm.autosave.v1');
+        return raw !== null && JSON.parse(raw).tick === globalThis.__farmDebug.getState().tick;
+      });
 
       const before = await page.evaluate(() => ({
         save: globalThis.localStorage.getItem('farm.autosave.v1'),

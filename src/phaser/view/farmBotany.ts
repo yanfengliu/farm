@@ -2,8 +2,9 @@ import type Phaser from 'phaser';
 import type { FarmState } from '../../game/simulation/farmGame';
 import { drawDecorativePlant, drawTreeBase, drawTreeCanopy } from './farmBotanyArt';
 import { buildFarmHedgerowPlacements, drawMixedHedgerow } from './farmHedgerow';
-import { buildFarmSceneryLayout, type PixelBounds } from './farmSceneryLayout';
+import { buildFarmSceneryLayout, type FarmSceneryLayout, type PixelBounds } from './farmSceneryLayout';
 import { coordinateHash } from './farmPixelPrimitives';
+import { creekCenterX } from './farmWaterside';
 
 export type TreeSpecies = 'apple' | 'birch' | 'elder' | 'hazel' | 'willow';
 export type DecorativePlantKind = 'berry' | 'fern' | 'foxglove' | 'lavender' | 'mushroom';
@@ -100,7 +101,70 @@ export function buildFarmBotanyLayout(width: number, height: number, tileSize: n
     'tree-shelter-elder': { x: westernGrove.x + elderOffset[0], y: westernGrove.y + elderOffset[1] },
     'tree-shelter-hazel': { x: westernGrove.x + hazelOffset[0], y: westernGrove.y + hazelOffset[1] },
   };
+  trees.push(...borderWoodlandTrees(width, height, tileSize));
   return { groves, trees, plants, shelters };
+}
+
+/**
+ * A deterministic woodland ringing the legal camera world, so panning to any
+ * edge meets forest instead of open quilt. Trees grow from a jittered lattice
+ * with density thinning from the world edge toward the framed view; species
+ * pools differ per side so the forest reads as terrain, not decoration. Every
+ * placement keeps its visual bounds inside the environment, outside the framed
+ * view (which contains all protected landmarks), and off the creek water.
+ */
+function borderWoodlandTrees(width: number, height: number, tileSize: number): FarmTreePlacement[] {
+  const layout = buildFarmSceneryLayout(width, height, tileSize);
+  const { environment, frame } = layout;
+  const breathing = 26;
+  const step = 52;
+  const trees: FarmTreePlacement[] = [];
+  for (let latticeY = environment.top + 30; latticeY <= environment.bottom - 30; latticeY += step) {
+    for (let latticeX = environment.left + 30; latticeX <= environment.right - 30; latticeX += step) {
+      const hash = coordinateHash(latticeX + 101, latticeY + 57);
+      const x = latticeX + (hash % 37) - 18;
+      const y = latticeY + ((hash >> 3) % 33) - 16;
+      const edgeDistance = Math.min(
+        x - environment.left,
+        environment.right - x,
+        y - environment.top,
+        environment.bottom - y,
+      );
+      const presence = edgeDistance < 130 ? 88 : edgeDistance < 250 ? 55 : 30;
+      if (hash % 100 >= presence) continue;
+      const species = borderSpecies(frame, x, y, hash);
+      const candidate: FarmTreePlacement = { x, y, species, variant: 100 + (hash % 97) };
+      if (!borderTreeFits(candidate, layout, breathing)) continue;
+      trees.push(candidate);
+    }
+  }
+  return trees;
+}
+
+function borderSpecies(frame: PixelBounds, x: number, y: number, hash: number): TreeSpecies {
+  const pools: Record<'north' | 'south' | 'west' | 'east', TreeSpecies[]> = {
+    north: ['birch', 'hazel', 'birch', 'elder'],
+    south: ['willow', 'elder', 'hazel', 'willow'],
+    west: ['elder', 'willow', 'hazel', 'elder'],
+    east: ['apple', 'hazel', 'birch', 'apple'],
+  };
+  const side = y < frame.top ? 'north' : y > frame.bottom ? 'south' : x < frame.left ? 'west' : 'east';
+  const pool = pools[side];
+  return pool[(hash >> 5) % pool.length] ?? 'elder';
+}
+
+function borderTreeFits(tree: FarmTreePlacement, layout: FarmSceneryLayout, breathing: number): boolean {
+  const bounds = farmTreeVisualBounds(tree);
+  const { environment, frame, creek } = layout;
+  if (bounds.left < environment.left || bounds.right > environment.right) return false;
+  if (bounds.top < environment.top || bounds.bottom > environment.bottom) return false;
+  const nearFrame = bounds.right >= frame.left - breathing && bounds.left <= frame.right + breathing &&
+    bounds.bottom >= frame.top - breathing && bounds.top <= frame.bottom + breathing;
+  if (nearFrame) return false;
+  const creekLeft = creekCenterX(creek.centerX, tree.y) - 6;
+  const creekRight = creekCenterX(creek.centerX, tree.y) + creek.width + 6;
+  if (bounds.right >= creekLeft && bounds.left <= creekRight) return false;
+  return true;
 }
 
 export function farmGroveAnchors(state: Pick<FarmState, 'width' | 'height'>, tileSize: number): FarmGroveAnchor[] {

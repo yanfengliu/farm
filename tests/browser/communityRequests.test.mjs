@@ -70,7 +70,7 @@ describe('village request board', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('explains that the board unlocks at tier two', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });

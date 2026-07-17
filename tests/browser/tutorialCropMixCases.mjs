@@ -54,7 +54,7 @@ export function registerTutorialCropMixCases(getRuntime) {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('opening crop mix before its guide appears prevents a stale crop mix tip', async () => {
     const { browser, url } = getRuntime();

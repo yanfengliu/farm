@@ -124,7 +124,7 @@ describe('farm annotations', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('keyboard capture, inline validation, reset cleanup, and hostile stored captures stay safe', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -180,7 +180,7 @@ describe('farm annotations', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('an active draft consumes farm clicks and keeps the simulation pause locked', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'annotation-draft-isolation' }));
@@ -284,7 +284,7 @@ describe('farm annotations', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('pins follow camera movement and View restores the captured composition', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });

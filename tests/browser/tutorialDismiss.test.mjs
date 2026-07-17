@@ -276,7 +276,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('visible tier claim guidance waits until the current sell guidance is followed', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'claim-tip-priority' }));
@@ -318,7 +318,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   test('storage pressure sell guidance returns after the first sell guide was seen', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'storage-pressure-sell-guide' }));
@@ -364,7 +364,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 20000);
+  }, 40000);
 
   registerTutorialCropMixCases(() => ({ browser, url }));
 

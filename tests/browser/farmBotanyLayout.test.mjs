@@ -69,7 +69,12 @@ describe('farm botany layout', () => {
       expect(pointInside(tree, bridge), `${tree.species} tree blocks the bridge`).toBe(false);
       expect(boundsIntersect(visualBounds, scenery.farm), `${tree.species} pixels intrude on expandable land`).toBe(false);
       expect(boundsIntersect(visualBounds, bridge), `${tree.species} pixels block the bridge`).toBe(false);
-      expect(boundsInside(visualBounds, scenery.frame, TILE_SIZE / 2), `${tree.species} pixels clip at recenter`).toBe(true);
+      // The rule's intent is that no tree straddles the default recenter crop
+      // edge as a half-tree. Authored trees sit wholly inside the framed view;
+      // the border woodland sits wholly outside it with breathing room.
+      const wholeInsideFrame = boundsInside(visualBounds, scenery.frame, TILE_SIZE / 2);
+      const clearOutsideFrame = !boundsIntersect(visualBounds, scenery.frame);
+      expect(wholeInsideFrame || clearOutsideFrame, `${tree.species} pixels straddle the recenter crop edge`).toBe(true);
     }
 
     for (const plant of botany.plants) {
