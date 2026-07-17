@@ -74,8 +74,14 @@ describe('speed preference', () => {
       await page.goto(url, { waitUntil: 'networkidle' });
       await page.locator('[data-panel="goals"]').focus();
       await page.keyboard.press('Space');
-      await page.waitForSelector('#panel-content h2');
+      // Panel DOM updates on the next Phaser frame. A bare `#panel-content h2` selector is
+      // already satisfied by the still-rendered previous panel, so wait for the Goals
+      // heading itself before asserting anything.
+      await page.waitForFunction(() => (
+        globalThis.document.querySelector('#panel-content h2')?.textContent?.includes('Tier')
+      ));
 
+      // Read speed only after that frame rendered, so a wrongly-paused farm is visible.
       const speedText = await page.evaluate(() => Array.from(globalThis.document.querySelectorAll('#hud div')).find((item) => (
         item.querySelector('strong')?.textContent?.trim() === 'Speed'
       ))?.querySelector('span')?.textContent?.trim());

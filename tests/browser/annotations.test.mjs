@@ -308,12 +308,24 @@ describe('farm annotations', () => {
 
       await canvas.focus();
       await page.keyboard.press('n');
-      await expect.poll(async () => page.locator('[data-command="toggle-annotations"]').getAttribute('aria-pressed'), { timeout: 2000 }).toBe('true');
+      // Toolbar aria-pressed and the overlay's pin click-through class update in the same
+      // synchronous ui.render() pass, so once this poll passes the pin cannot swallow the
+      // click. The budgets are sized for parallel-suite frame stalls, not for the app:
+      // every one of these conditions arrives on the next rendered Phaser frame, and under
+      // full-suite load headless frames can stall for several seconds.
+      await expect.poll(async () => page.locator('[data-command="toggle-annotations"]').getAttribute('aria-pressed'), { timeout: 5000 }).toBe('true');
       await page.mouse.click(captured.x + captured.width / 2, captured.y + captured.height / 2);
-      await page.locator('[data-annotation-draft]').waitFor({ timeout: 2000 });
-      await page.click('[data-command="cancel-annotation"]');
+      // The draft opening IS the assertion: the existing pin did not intercept the aim click.
+      await page.locator('[data-annotation-draft]').waitFor({ timeout: 5000 });
+      // Clean up through the keyboard, not the panel. Around draft-open the panel legally
+      // rebuilds more than once (the stale save-time card, the aim card, then the draft
+      // card), and each rebuild detaches the Cancel node - a real player only ever sees
+      // the settled states, but a DOM click can keep resolving nodes that are replaced
+      // under it. Escape is the documented cancel path and cannot race the panel:
+      // the first returns to aiming, the second exits it.
       await page.keyboard.press('Escape');
-      await expect.poll(async () => page.locator('[data-command="toggle-annotations"]').getAttribute('aria-pressed'), { timeout: 2000 }).toBe('false');
+      await page.keyboard.press('Escape');
+      await expect.poll(async () => page.locator('[data-command="toggle-annotations"]').getAttribute('aria-pressed'), { timeout: 5000 }).toBe('false');
       await canvas.focus();
 
       await page.keyboard.down('ArrowRight');
@@ -327,7 +339,7 @@ describe('farm annotations', () => {
     } finally {
       await context.close();
     }
-  }, 30000);
+  }, 45000);
 
   test('annotation controls fit at both supported desktop viewports', async () => {
     for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 720 }]) {
