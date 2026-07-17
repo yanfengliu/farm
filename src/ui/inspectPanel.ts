@@ -1,5 +1,6 @@
 import { CROPS } from '../game/content/crops';
 import { farmhandName } from '../game/content/farmhands';
+import { SOUTHERN_MEADOW_VIGNETTES } from '../phaser/view/farmEnvironment';
 import type { FarmState, FarmTile, FarmWorker } from '../game/simulation/farmGame';
 
 export function inspectMarkup(state: FarmState, selectedCell: { x: number; y: number } | null): string {
@@ -33,6 +34,24 @@ export function inspectMarkup(state: FarmState, selectedCell: { x: number; y: nu
     `;
   }
   if (!tile) {
+    // Wild meadow stories introduce themselves; Inspect is the tool players
+    // reach for when the world makes them curious. The cell stays buyable, so
+    // purchase guidance remains, and buying the land clears the story.
+    const vignette = SOUTHERN_MEADOW_VIGNETTES.find((entry) => (
+      entry.cell.x === selectedCell.x && entry.cell.y === selectedCell.y
+    ));
+    if (vignette) {
+      return `
+        <h2>${vignette.label}</h2>
+        <p class="small">Tile ${selectedCell.x}, ${selectedCell.y}</p>
+        <p>${vignette.description}</p>
+        ${inspectDetails([
+          { label: 'Status', value: 'Wild meadow story' },
+          { label: 'Land', value: 'Not owned yet · buying clears it' },
+          { label: 'Action', value: 'Use Land on adjacent locked tiles' },
+        ])}
+      `;
+    }
     return `
       <h2>Locked Land</h2>
       <p class="small">Tile ${selectedCell.x}, ${selectedCell.y}</p>

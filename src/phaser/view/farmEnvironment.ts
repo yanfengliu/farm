@@ -67,9 +67,26 @@ export function drawWildMeadowCell(g: Phaser.GameObjects.Graphics, x: number, y:
  * vignettes yield to purchased land, so the names apply only while wild.
  */
 export const SOUTHERN_MEADOW_VIGNETTES = [
-  { id: 'hay-bales', label: 'Hay Bales', cell: { x: 7, y: 7 } },
-  { id: 'scarecrow', label: 'Scarecrow', cell: { x: 9, y: 7 } },
-  { id: 'bee-skeps', label: 'Bee Skeps', cell: { x: 1, y: 8 } },
+  {
+    id: 'hay-bales',
+    label: 'Hay Bales',
+    cell: { x: 7, y: 7 },
+    description: 'Rolled straw from the summer cut, stacked to dry.',
+  },
+  {
+    id: 'scarecrow',
+    label: 'Scarecrow',
+    cell: { x: 9, y: 7 },
+    description: 'A patchwork guard keeping the crows honest. Mostly.',
+  },
+  {
+    // Labelled in plain language: a player note captured the old "Bee Skeps"
+    // label and the player still asked what it was.
+    id: 'bee-skeps',
+    label: 'Straw Beehives',
+    cell: { x: 1, y: 8 },
+    description: 'Coiled straw hives humming with meadow bees.',
+  },
 ] as const;
 
 function drawSouthernMeadowStory(g: Phaser.GameObjects.Graphics, x: number, y: number, tileSize: number): void {
