@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { createFarmGame, getFarmSnapshot } from '../../src/game/simulation/farmGame';
 import { resolveFarmAnnotationTarget } from '../../src/phaser/view/farmAnnotationTarget';
 import { buildFarmBotanyLayout } from '../../src/phaser/view/farmBotany';
+import { SOUTHERN_MEADOW_VIGNETTES } from '../../src/phaser/view/farmEnvironment';
 import { buildCreekLilyLayout } from '../../src/phaser/view/farmWaterside';
 import { duckWorldPosition } from '../../src/phaser/view/farmWildlifeArt';
 
@@ -51,6 +52,47 @@ describe('annotation target picking', () => {
       kind: 'hedgerow',
       semanticId: 'hedgerow:east',
       label: 'Wild Hedgerow',
+    });
+  });
+});
+
+describe('southern vignette and farmhand naming', () => {
+  test('names the authored wild-cell vignettes instead of anonymous wild land', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'vignette-targets' }));
+    for (const vignette of SOUTHERN_MEADOW_VIGNETTES) {
+      const worldPx = {
+        x: vignette.cell.x * TILE_SIZE + TILE_SIZE / 2,
+        y: vignette.cell.y * TILE_SIZE + TILE_SIZE / 2,
+      };
+      expect(state.tiles[`${vignette.cell.x},${vignette.cell.y}`]).toBeUndefined();
+      expect(resolveFarmAnnotationTarget(state, worldPx, TILE_SIZE)).toMatchObject({
+        kind: 'vignette',
+        semanticId: `vignette:${vignette.id}`,
+        label: vignette.label,
+        cell: vignette.cell,
+      });
+    }
+  });
+
+  test('a purchased vignette cell falls back to the real tile because the story yields to land', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'vignette-owned' }));
+    const hay = SOUTHERN_MEADOW_VIGNETTES[0];
+    state.tiles[`${hay.cell.x},${hay.cell.y}`] = { x: hay.cell.x, y: hay.cell.y, kind: 'empty' };
+
+    const worldPx = { x: hay.cell.x * TILE_SIZE + TILE_SIZE / 2, y: hay.cell.y * TILE_SIZE + TILE_SIZE / 2 };
+    expect(resolveFarmAnnotationTarget(state, worldPx, TILE_SIZE)).toMatchObject({
+      kind: 'empty',
+      label: `Empty Land / ${hay.cell.x},${hay.cell.y}`,
+    });
+  });
+
+  test('a note pinned on a farmhand uses their authored name', () => {
+    const state = getFarmSnapshot(createFarmGame({ seed: 'named-worker-target' }));
+    const worker = state.workers[0];
+    const worldPx = { x: worker.x * TILE_SIZE + TILE_SIZE / 2 - 9, y: worker.y * TILE_SIZE + TILE_SIZE / 2 - 10 };
+    expect(resolveFarmAnnotationTarget(state, worldPx, TILE_SIZE)).toMatchObject({
+      kind: 'worker',
+      label: 'Fern',
     });
   });
 });

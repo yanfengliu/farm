@@ -60,6 +60,18 @@ export function drawWildMeadowCell(g: Phaser.GameObjects.Graphics, x: number, y:
   drawSouthernMeadowStory(g, x, y, tileSize);
 }
 
+/**
+ * Authored wild-cell story objects south of the farm. One list feeds both the
+ * renderer and semantic annotation picking, so a player note on one of these
+ * cells names the object instead of reporting anonymous wild land. The
+ * vignettes yield to purchased land, so the names apply only while wild.
+ */
+export const SOUTHERN_MEADOW_VIGNETTES = [
+  { id: 'hay-bales', label: 'Hay Bales', cell: { x: 7, y: 7 } },
+  { id: 'scarecrow', label: 'Scarecrow', cell: { x: 9, y: 7 } },
+  { id: 'bee-skeps', label: 'Bee Skeps', cell: { x: 1, y: 8 } },
+] as const;
+
 function drawSouthernMeadowStory(g: Phaser.GameObjects.Graphics, x: number, y: number, tileSize: number): void {
   const px = x * tileSize;
   const py = y * tileSize;
@@ -69,9 +81,10 @@ function drawSouthernMeadowStory(g: Phaser.GameObjects.Graphics, x: number, y: n
     drawFlowerClump(g, px + 7, py + 23, x + y);
     drawFlowerClump(g, px + 23, py + 11, x + y + 1);
   }
-  if (x === 7 && y === 7) drawHayBales(g, px, py);
-  if (x === 9 && y === 7) drawScarecrow(g, px, py);
-  if (x === 1 && y === 8) drawBeeSkeps(g, px, py);
+  const vignette = SOUTHERN_MEADOW_VIGNETTES.find((entry) => entry.cell.x === x && entry.cell.y === y);
+  if (vignette?.id === 'hay-bales') drawHayBales(g, px, py);
+  else if (vignette?.id === 'scarecrow') drawScarecrow(g, px, py);
+  else if (vignette?.id === 'bee-skeps') drawBeeSkeps(g, px, py);
 }
 
 export function drawSouthPathStone(g: Phaser.GameObjects.Graphics, x: number, y: number, seed: number): void {
@@ -84,25 +97,63 @@ export function drawSouthPathStone(g: Phaser.GameObjects.Graphics, x: number, y:
   });
 }
 
-function drawHayBales(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
+export function drawHayBales(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
+  // Broken ground shadow, one segment per bale.
   g.fillStyle(0x304a31, 0.38);
-  g.fillRect(px + 3, py + 23, 27, 5);
-  g.fillStyle(0x9a6b32, 1);
-  g.fillRect(px + 4, py + 11, 26, 15);
+  g.fillRect(px + 3, py + 24, 15, 3);
+  g.fillStyle(0x304a31, 0.3);
+  g.fillRect(px + 20, py + 25, 9, 2);
+
+  // Large round bale, seen from the coiled side: stepped circular silhouette.
   g.fillStyle(0xdaab48, 1);
-  g.fillRect(px + 6, py + 9, 21, 15);
-  g.fillRect(px + 9, py + 6, 15, 5);
-  g.fillStyle(0xf0cd68, 1);
-  g.fillRect(px + 8, py + 10, 17, 2);
-  g.fillRect(px + 11, py + 7, 9, 1);
+  g.fillRect(px + 7, py + 8, 8, 1);
+  g.fillRect(px + 5, py + 9, 12, 2);
+  g.fillRect(px + 4, py + 11, 14, 4);
+  g.fillRect(px + 3, py + 15, 16, 5);
+  g.fillRect(px + 4, py + 20, 14, 3);
+  g.fillRect(px + 6, py + 23, 10, 2);
+  // Spiral coil face: broken curved strokes in deeper straw.
+  g.fillStyle(0x9a6b32, 1);
+  g.fillRect(px + 8, py + 11, 6, 1);
+  g.fillRect(px + 6, py + 14, 3, 1);
+  g.fillRect(px + 13, py + 14, 4, 1);
+  g.fillRect(px + 7, py + 18, 8, 1);
+  g.fillRect(px + 10, py + 21, 5, 1);
+  // Core swirl and pale catch-light.
   g.fillStyle(0x8a5b2d, 1);
-  g.fillRect(px + 13, py + 9, 2, 15);
-  g.fillRect(px + 22, py + 10, 2, 14);
+  g.fillRect(px + 10, py + 15, 3, 2);
+  g.fillStyle(0xf7e39b, 1);
+  g.fillRect(px + 8, py + 9, 4, 1);
+  g.fillRect(px + 5, py + 12, 2, 2);
+
+  // Smaller leaning bale tucked behind on the right.
+  g.fillStyle(0xcf9f43, 1);
+  g.fillRect(px + 20, py + 13, 7, 1);
+  g.fillRect(px + 19, py + 14, 9, 3);
+  g.fillRect(px + 18, py + 17, 10, 5);
+  g.fillRect(px + 20, py + 22, 8, 2);
+  g.fillStyle(0x8a5b2d, 1);
+  g.fillRect(px + 21, py + 16, 5, 1);
+  g.fillRect(px + 23, py + 19, 4, 1);
+  g.fillStyle(0xf0cd68, 1);
+  g.fillRect(px + 21, py + 14, 3, 1);
+
+  // Loose straw: wisps at the silhouettes and dropped strands on the ground.
+  g.fillStyle(0xe8c661, 1);
+  g.fillRect(px + 2, py + 17, 1, 1);
+  g.fillRect(px + 16, py + 7, 2, 1);
+  g.fillRect(px + 28, py + 15, 2, 1);
+  g.fillRect(px + 5, py + 25, 3, 1);
+  g.fillRect(px + 24, py + 25, 2, 1);
+  g.fillRect(px + 13, py + 26, 2, 1);
 }
 
-function drawScarecrow(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
+export function drawScarecrow(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
+  // Broken shadow: post and coat cast separate patches.
   g.fillStyle(0x304a31, 0.35);
-  g.fillRect(px + 3, py + 27, 27, 3);
+  g.fillRect(px + 4, py + 27, 12, 3);
+  g.fillStyle(0x304a31, 0.28);
+  g.fillRect(px + 19, py + 28, 9, 2);
   g.fillStyle(0x6b4329, 1);
   g.fillRect(px + 15, py + 5, 3, 25);
   g.fillRect(px + 2, py + 12, 29, 3);
@@ -113,18 +164,30 @@ function drawScarecrow(g: Phaser.GameObjects.Graphics, px: number, py: number): 
   g.fillRect(px + 28, py + 10, 4, 2);
   g.fillRect(px + 27, py + 14, 5, 2);
 
+  // Patchwork coat: stepped shoulders, pinched waist, tattered uneven hem.
   g.fillStyle(0xa36f43, 1);
-  g.fillRect(px + 6, py + 12, 21, 6);
-  g.fillRect(px + 10, py + 16, 13, 9);
-  g.fillRect(px + 8, py + 18, 17, 5);
+  g.fillRect(px + 7, py + 12, 19, 3);
+  g.fillRect(px + 9, py + 15, 15, 4);
+  g.fillRect(px + 10, py + 19, 13, 3);
+  g.fillRect(px + 9, py + 22, 6, 2);
+  g.fillRect(px + 17, py + 22, 5, 2);
+  g.fillRect(px + 11, py + 24, 3, 1);
+  g.fillRect(px + 19, py + 24, 2, 1);
   g.fillStyle(0x70472f, 1);
-  g.fillRect(px + 8, py + 17, 3, 6);
-  g.fillRect(px + 22, py + 15, 3, 8);
+  g.fillRect(px + 9, py + 16, 2, 5);
+  g.fillRect(px + 22, py + 14, 2, 7);
+  g.fillRect(px + 24, py + 18, 1, 1);
   g.fillStyle(0x7f9d8d, 1);
   g.fillRect(px + 17, py + 18, 4, 4);
   g.fillStyle(0xd8a34e, 1);
-  g.fillRect(px + 11, py + 22, 5, 3);
-  g.fillRect(px + 19, py + 23, 4, 3);
+  g.fillRect(px + 11, py + 21, 4, 2);
+  g.fillRect(px + 19, py + 22, 3, 2);
+  // Straw poking from the sleeves and hem.
+  g.fillStyle(0xe8c661, 1);
+  g.fillRect(px + 6, py + 15, 1, 1);
+  g.fillRect(px + 26, py + 13, 1, 2);
+  g.fillRect(px + 13, py + 25, 1, 2);
+  g.fillRect(px + 20, py + 25, 1, 1);
   g.fillStyle(0x6b4329, 1);
   g.fillRect(px + 2, py + 13, 29, 2);
   g.fillRect(px + 15, py + 23, 3, 7);
@@ -160,21 +223,55 @@ function drawPerchedCrow(g: Phaser.GameObjects.Graphics, x: number, y: number): 
   g.fillRect(x + 2, y + 3, 1, 2);
 }
 
-function drawBeeSkeps(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
+export function drawBeeSkeps(g: Phaser.GameObjects.Graphics, px: number, py: number): void {
+  // One broken shadow segment per hive.
   g.fillStyle(0x2f4b32, 0.36);
-  g.fillRect(px + 2, py + 24, 28, 4);
-  for (const offset of [4, 17]) {
-    g.fillStyle(0x8a5b2d, 1);
-    g.fillRect(px + offset, py + 12, 11, 14);
-    g.fillStyle(0xdaab48, 1);
-    g.fillRect(px + offset + 2, py + 9, 7, 17);
-    g.fillRect(px + offset + 1, py + 12, 9, 10);
-    g.fillStyle(0x5b4328, 1);
-    g.fillRect(px + offset + 4, py + 20, 3, 3);
-    g.fillStyle(0xf0cd68, 1);
-    g.fillRect(px + offset + 3, py + 11, 5, 1);
-    g.fillRect(px + offset + 2, py + 15, 7, 1);
+  g.fillRect(px + 3, py + 25, 12, 3);
+  g.fillStyle(0x2f4b32, 0.3);
+  g.fillRect(px + 17, py + 26, 11, 2);
+
+  // Two coiled straw domes at different heights, stepped silhouettes with
+  // alternating coil ridges. Boards beneath, dark entrance arches, and a few
+  // bees drifting nearby.
+  drawSkepDome(g, px + 4, py + 10, 11, 15);
+  drawSkepDome(g, px + 18, py + 13, 10, 12);
+
+  g.fillStyle(0x241f16, 1);
+  g.fillRect(px + 8, py + 21, 3, 3);
+  g.fillRect(px + 22, py + 22, 2, 2);
+  g.fillStyle(0x6e4a2c, 1);
+  g.fillRect(px + 3, py + 24, 13, 1);
+  g.fillRect(px + 17, py + 25, 12, 1);
+
+  g.fillStyle(0x2c2417, 1);
+  g.fillRect(px + 15, py + 8, 1, 1);
+  g.fillRect(px + 28, py + 17, 1, 1);
+  g.fillRect(px + 12, py + 5, 1, 1);
+  g.fillStyle(0xe8dfa8, 0.95);
+  g.fillRect(px + 16, py + 7, 1, 1);
+  g.fillRect(px + 13, py + 4, 1, 1);
+}
+
+function drawSkepDome(
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const coils = [0xdaab48, 0xc79441, 0xe8c661, 0xb98a3c];
+  for (let row = 0; row < height; row += 1) {
+    // Dome curve: rows widen quickly near the top, then settle near full width.
+    const curve = Math.min(width, Math.round(width * Math.sqrt((row + 1) / height) + (row % 2 === 0 ? 0 : -1)));
+    const inset = Math.floor((width - curve) / 2);
+    g.fillStyle(coils[row % coils.length] ?? 0xdaab48, 1);
+    g.fillRect(x + inset, y + row, curve, 1);
   }
+  // Coil bindings and a topknot.
+  g.fillStyle(0x8a5b2d, 1);
+  g.fillRect(x + Math.floor(width / 2) - 1, y - 2, 2, 2);
+  g.fillRect(x + 2, y + Math.floor(height / 2), 1, 1);
+  g.fillRect(x + width - 3, y + Math.floor(height / 2) + 2, 1, 1);
 }
 
 function drawMeadowQuilt(g: Phaser.GameObjects.Graphics, state: FarmState, tileSize: number): void {

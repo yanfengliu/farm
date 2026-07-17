@@ -1,10 +1,12 @@
 import type { FarmAnnotationTarget } from '../../annotations/farmAnnotations';
+import { farmhandName } from '../../game/content/farmhands';
 import type { FarmState, FarmWorker } from '../../game/simulation/farmGame';
 import {
   buildFarmBotanyLayout,
   decorativePlantVisualBounds,
   farmTreeVisualBounds,
 } from './farmBotany';
+import { SOUTHERN_MEADOW_VIGNETTES } from './farmEnvironment';
 import { buildFarmHedgerowPlacements, farmHedgerowVisualBounds } from './farmHedgerow';
 import { buildFarmSceneryLayout, type PixelBounds } from './farmSceneryLayout';
 import { buildCreekLilyLayout, creekCenterX } from './farmWaterside';
@@ -32,7 +34,7 @@ export function resolveFarmAnnotationTarget(
   for (const worker of state.workers) {
     const position = workerWorldPosition(worker, tileSize);
     if (distanceSquared(position, worldPx) <= 18 * 18) {
-      return target('worker', `worker:${worker.id}`, `Farmhand ${worker.id}`, `worker:${worker.id}`, cell, worldPx, worker);
+      return target('worker', `worker:${worker.id}`, farmhandName(worker.id), `worker:${worker.id}`, cell, worldPx, worker);
     }
   }
 
@@ -95,6 +97,14 @@ export function resolveFarmAnnotationTarget(
   const x = Math.floor(worldPx.x / tileSize);
   const y = Math.floor(worldPx.y / tileSize);
   const tile = cell ? state.tiles[`${x},${y}`] ?? null : null;
+  if (cell && !tile) {
+    // Authored wild-cell stories deserve their names; they yield to purchased
+    // land, so the name applies only while the cell is unowned.
+    const vignette = SOUTHERN_MEADOW_VIGNETTES.find((entry) => entry.cell.x === x && entry.cell.y === y);
+    if (vignette) {
+      return target('vignette', `vignette:${vignette.id}`, vignette.label, null, cell, worldPx, vignette);
+    }
+  }
   const kind = tile?.kind ?? (cell ? 'wild-land' : 'meadow');
   const semanticId = cell ? `tile:${x},${y}` : `world:${Math.round(worldPx.x)},${Math.round(worldPx.y)}`;
   return target(kind, semanticId, tileLabel(tile?.kind, cell, x, y), null, cell, worldPx, tile);
