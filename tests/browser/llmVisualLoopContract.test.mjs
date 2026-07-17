@@ -84,6 +84,38 @@ describe('LLM visual loop harness contract', () => {
     expect(captureSource).toContain('return observation;');
   });
 
+  test('save/reload check runs after replay evidence export and before evaluation', async () => {
+    const source = await readFileFromDisk('scripts/llm-visual-loop.mjs', 'utf8');
+    const bundleExport = source.indexOf('exportBundle');
+    const selfCheck = source.indexOf('verifyBundleWithReplaySelfCheck(bundle');
+    const reloadCheck = source.indexOf('runSaveReloadCheck(page)');
+    const evaluate = source.indexOf('evaluateVisualLoop(run');
+
+    // Reloading destroys the in-page SessionRecorder, so the reload check must be
+    // the last evidence stage: after the bundle is exported and self-checked, and
+    // before findings are evaluated from the run packet.
+    expect(bundleExport).toBeGreaterThan(-1);
+    expect(selfCheck).toBeGreaterThan(bundleExport);
+    expect(reloadCheck).toBeGreaterThan(selfCheck);
+    expect(evaluate).toBeGreaterThan(reloadCheck);
+
+    // The context storage clear must stay guarded to once per context: an unguarded
+    // addInitScript clear reruns on every navigation and wipes the very autosave the
+    // reload check is proving - the lane then false-positives on every clean run.
+    expect(source).toContain('farm-visual-loop-storage-cleared');
+    expect(source).toContain('sessionStorage.getItem');
+  });
+
+  test('the reload oracle is registered as a reviewable loop module and feeds the manifest', async () => {
+    const { VISUAL_LOOP_MODULES } = await import('./llmVisualLoopSource.mjs');
+    expect(VISUAL_LOOP_MODULES).toContain('scripts/llm-visual-loop/reload-check.mjs');
+
+    const report = await readFileFromDisk('scripts/llm-visual-loop/improvement-report.mjs', 'utf8');
+    expect(report).toContain("id: 'autosave-reload-lost-state'");
+    expect(report).toContain("class: 'autosave-reload-lost-state'");
+    expect(report).toContain('saveReloadStatus');
+  });
+
   test('visual action selectors preserve readable data attribute values', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

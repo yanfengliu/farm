@@ -38,8 +38,8 @@ const passId = `farm-recursive-${startedAt.replace(/[:.]/g, '-')}`;
 const loopEnvironment = recursiveVisualLoopEnvironment(process.env);
 const discoveryScope = {
   mode: 'deterministic-regression',
-  id: `local-heuristic-full-surface-${loopEnvironment.FARM_VISUAL_LOOP_STEPS}-step`,
-  findingSource: 'mechanical-oracles-plus-semantic-control-coverage',
+  id: `local-heuristic-full-surface-${loopEnvironment.FARM_VISUAL_LOOP_STEPS}-step-plus-save-reload`,
+  findingSource: 'mechanical-oracles-plus-semantic-control-coverage-plus-save-reload-restore',
   supportsBroadQualityClaim: false,
 };
 const [gitCommit, sourceTreeDirty] = await Promise.all([

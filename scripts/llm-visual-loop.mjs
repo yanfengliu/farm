@@ -22,6 +22,7 @@ import {
   ORDINARY_DEFAULT_VISUAL_LOOP_STEPS,
 } from './llm-visual-loop/loop-budget.mjs';
 import { chooseVisualLoopAction, executePlayerDecision } from './llm-visual-loop/player-provider.mjs';
+import { runSaveReloadCheck } from './llm-visual-loop/reload-check.mjs';
 import { renderVisualLoopHtml, renderVisualLoopMarkdown } from './llm-visual-loop/report-renderers.mjs';
 
 const cwd = process.cwd();
@@ -65,7 +66,14 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   await context.addInitScript(() => {
     try {
-      localStorage.clear();
+      // Clear once per context, not once per navigation: the save/reload restore
+      // check reloads the page at the end of the run, and an unguarded clear here
+      // would wipe the very autosave whose restoration it is proving.
+      const cleanBootKey = 'farm-visual-loop-storage-cleared';
+      if (!sessionStorage.getItem(cleanBootKey)) {
+        localStorage.clear();
+        sessionStorage.setItem(cleanBootKey, 'true');
+      }
     } catch {
       // Storage access can be denied for restricted pre-navigation documents; this reruns on the game origin.
     }
@@ -169,6 +177,14 @@ try {
     verification = await verifyBundleWithReplaySelfCheck(bundle, server);
     run.summary.replayVerification = verification;
   }
+
+  // The reload check must stay after bundle export and self-check: reloading
+  // destroys the in-page SessionRecorder, so it is the last evidence stage.
+  run.saveReload = await runSaveReloadCheck(page);
+  run.summary.saveReload = {
+    status: run.saveReload.status,
+    violations: run.saveReload.violations?.length ?? 0,
+  };
 
   run.improvementRun = createImprovementRunManifest(run);
   run.findings = evaluateVisualLoop(run, { verification });

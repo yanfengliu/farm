@@ -7,6 +7,7 @@ export const VISUAL_LOOP_MODULES = [
   'scripts/llm-visual-loop/browser-observation.mjs',
   'scripts/llm-visual-loop/action-adapter.mjs',
   'scripts/llm-visual-loop/player-provider.mjs',
+  'scripts/llm-visual-loop/reload-check.mjs',
   'scripts/llm-visual-loop/local-player.mjs',
   'scripts/llm-visual-loop/local-player-support.mjs',
   'scripts/llm-visual-loop/report-renderers.mjs',

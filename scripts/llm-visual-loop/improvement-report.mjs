@@ -36,6 +36,8 @@ export function createImprovementRunManifest(run) {
       visualLoopOk: run.summary?.visualLoop?.ok,
       stopReason: run.summary?.visualLoop?.stopReason,
       traceEntries: run.summary?.visualLoop?.traceEntries,
+      saveReloadStatus: run.saveReload?.status,
+      saveReloadViolations: run.saveReload?.violations?.length,
     }),
   });
 }
@@ -113,6 +115,40 @@ export function evaluateVisualLoop(run, options = {}) {
       ...deterministic,
       nextAction: 'triage',
       data: { source: 'farm.visual-loop', class: 'screenshot-compositor-degraded', degradedFrames: degradedFrames.length },
+    }));
+  }
+
+  // The resurrected autosave-reload-lost-state oracle. Its P1 predecessor in the
+  // deprecated scripted harness went orphaned when that harness became a shim, and
+  // silent progress loss on refresh is the worst failure an idle game has, so any
+  // reload violation outranks everything else this evaluator can raise.
+  const saveReload = run.saveReload;
+  if (saveReload && (saveReload.status === 'error' || (saveReload.violations?.length ?? 0) > 0)) {
+    const violations = saveReload.violations ?? [];
+    findings.push(makeFinding(run, {
+      id: 'autosave-reload-lost-state',
+      severity: 'critical',
+      category: 'bug',
+      title: saveReload.status === 'error'
+        ? 'The save/reload restore check could not complete'
+        : 'Reloading the page lost deterministic farm progress',
+      observed: saveReload.status === 'error'
+        ? saveReload.error
+        : violations.map((violation) => (
+          `${violation.rule}: saved=${JSON.stringify(violation.saved)} restored=${JSON.stringify(violation.restored)}`
+        )).join('\n'),
+      expected: 'Reloading the page restores the exact farm the autosave recorded, with progress only ever moving forward.',
+      suggestion: 'Fix the persistence load boundary before trusting any other finding: silent progress loss on refresh destroys real players.',
+      area: 'persistence',
+      evidence: [
+        metricEvidence('saveReload.status', saveReload.status),
+        ...violations.slice(0, 6).map((violation) => (
+          metricEvidence(`saveReload.${violation.rule}`, `saved=${JSON.stringify(violation.saved)} restored=${JSON.stringify(violation.restored)}`)
+        )),
+      ].flat(),
+      ...deterministic,
+      nextAction: 'autoFix',
+      data: { source: 'farm.reload-check', class: 'autosave-reload-lost-state', violations: jsonSafe(violations) },
     }));
   }
 
