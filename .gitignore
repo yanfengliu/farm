@@ -152,3 +152,6 @@ output/playwright/
 tmp/
 tmp-*.log
 tmp-*.pid
+
+# Local Claude Code app-launch config
+.claude/launch.json
