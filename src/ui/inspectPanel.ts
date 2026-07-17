@@ -1,4 +1,5 @@
 import { CROPS } from '../game/content/crops';
+import { farmhandName } from '../game/content/farmhands';
 import type { FarmState, FarmTile, FarmWorker } from '../game/simulation/farmGame';
 
 export function inspectMarkup(state: FarmState, selectedCell: { x: number; y: number } | null): string {
@@ -16,8 +17,13 @@ export function inspectMarkup(state: FarmState, selectedCell: { x: number; y: nu
   const worker = state.workers.find((item) => item.x === selectedCell?.x && item.y === selectedCell.y);
   if (worker) {
     return `
-      <h2>Worker ${worker.id}</h2>
-      <p class="small">Position: ${worker.x}, ${worker.y}</p>
+      <div class="inspect-portrait-row">
+        <canvas class="inspect-portrait" data-inspect-portrait="${worker.id}" aria-label="Pixel portrait of ${farmhandName(worker.id)}"></canvas>
+        <div>
+          <h2>${farmhandName(worker.id)}</h2>
+          <p class="small">Farmhand ${worker.id} · Position: ${worker.x}, ${worker.y}</p>
+        </div>
+      </div>
       ${inspectDetails([
         { label: 'Task', value: workerTaskLabel(worker) },
         { label: 'Target', value: worker.task.target ? `${worker.task.target.x}, ${worker.task.target.y}` : 'None' },

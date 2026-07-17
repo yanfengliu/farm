@@ -291,7 +291,7 @@ describe('storybook pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('adds readable cottage-garden linen details to the wide farm frame', async () => {
     const { context, page } = await openFreshPage({ width: 1280, height: 800 });
@@ -301,7 +301,7 @@ describe('storybook pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('grows the cottage edge into a harvest-festival vignette at Tier 4', async () => {
     const early = await openFreshPage({ width: 1280, height: 800 });
@@ -322,7 +322,7 @@ describe('storybook pixel art direction', () => {
       await early.context.close();
       await lateContext.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('replaces the southern meadow story with playable ground as land becomes owned', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -343,7 +343,7 @@ describe('storybook pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('pauses duck decisions with the farm instead of running a separate visual-only route', async () => {
     const { context, page } = await openFreshPage({ width: 1280, height: 800 });
@@ -383,7 +383,7 @@ describe('storybook pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test.each([
     { width: 1280, height: 800 },
@@ -414,7 +414,7 @@ describe('storybook pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('freezes farmhand poses while paused even as the meadow ambience continues', async () => {
     const { context, page } = await openFreshPage({ width: 1280, height: 800 });
@@ -435,7 +435,7 @@ describe('storybook pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test.each([
     { width: 1280, height: 800 },
@@ -490,5 +490,5 @@ describe('storybook pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

@@ -149,7 +149,29 @@ button:disabled .button-icon {
     rgba(0, 0, 0, 0.18);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(240, 195, 106, 0.06),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.035),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.14),
     0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.hud > div.coin-flash {
+  animation: coin-pulse 0.65s ease-out;
+}
+
+@keyframes coin-pulse {
+  0% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 2px rgba(240, 195, 106, 0.75),
+      0 0 18px rgba(240, 195, 106, 0.5);
+  }
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 1px rgba(240, 195, 106, 0.06),
+      0 8px 18px rgba(0, 0, 0, 0.18);
+  }
 }
 
 .hud strong {

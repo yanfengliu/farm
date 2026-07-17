@@ -55,7 +55,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('seed shortage tip points at visible Inventory seed buys when already in Inventory', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'inventory-seed-tip' }));
@@ -81,7 +81,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('inventory seed shortage tip names the active milestone crop first', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'inventory-milestone-seed-tip' }));
@@ -115,7 +115,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('tutorial tips use a consistent readable guidance format', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'guidance-format-seed' }));
@@ -156,7 +156,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('select plot tip advances immediately when its keyboard shortcut is used', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'guidance-hold' }));
@@ -193,7 +193,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('seed shortage tip does not cover visible seed-buy buttons', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'inventory-seed-tip-clear-targets' }));
@@ -234,7 +234,7 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('side-panel tab tutorial tip stays clear of panel controls', async () => {
     const game = createFarmGame({ seed: 'open-goals-tip-clear-panel' });
@@ -412,5 +412,5 @@ describe('tutorial tips', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

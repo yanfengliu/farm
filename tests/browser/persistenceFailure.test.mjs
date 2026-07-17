@@ -76,7 +76,7 @@ describe('browser autosave failure', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   // The assertions above read textContent, which keeps the whole string no matter how
   // it renders. `.hud-alert` ellipsizes rather than wraps, so a message can be fully

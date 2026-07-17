@@ -1,5 +1,5 @@
-import type Phaser from 'phaser';
 import type { CropId } from '../../game/content/crops';
+import type { PixelPainter } from './pixelPainter';
 import type { FarmState, FarmWorker } from '../../game/simulation/farmGame';
 
 const FARMHAND_PALETTES = [
@@ -17,8 +17,8 @@ const CROP_COLORS: Record<CropId, number> = {
 };
 
 export function drawFarmhand(
-  g: Phaser.GameObjects.Graphics,
-  state: FarmState,
+  g: PixelPainter,
+  state: Pick<FarmState, 'tick'>,
   worker: FarmWorker,
   px: number,
   py: number,
@@ -60,7 +60,7 @@ export function drawFarmhand(
 }
 
 function drawTaskProp(
-  g: Phaser.GameObjects.Graphics,
+  g: PixelPainter,
   worker: FarmWorker,
   px: number,
   py: number,
@@ -84,7 +84,7 @@ function drawTaskProp(
   }
 }
 
-function drawWateringCan(g: Phaser.GameObjects.Graphics, x: number, y: number, facing: number, tick: number): void {
+function drawWateringCan(g: PixelPainter, x: number, y: number, facing: number, tick: number): void {
   g.fillStyle(0x3f7890, 1);
   g.fillRect(x - 3, y + 1, 8, 8);
   g.fillRect(x + facing * 5, y + 2, 4, 2);
@@ -97,7 +97,7 @@ function drawWateringCan(g: Phaser.GameObjects.Graphics, x: number, y: number, f
   }
 }
 
-function drawSeedPouch(g: Phaser.GameObjects.Graphics, x: number, y: number, tick: number): void {
+function drawSeedPouch(g: PixelPainter, x: number, y: number, tick: number): void {
   g.fillStyle(0x9b6238, 1);
   g.fillRect(x - 3, y + 1, 8, 9);
   g.fillStyle(0xeac66e, 1);
@@ -105,7 +105,7 @@ function drawSeedPouch(g: Phaser.GameObjects.Graphics, x: number, y: number, tic
   if (tick % 4 === 0) g.fillRect(x + 4, y + 10, 1, 1);
 }
 
-function drawHarvestBasket(g: Phaser.GameObjects.Graphics, x: number, y: number, cropId: CropId | undefined): void {
+function drawHarvestBasket(g: PixelPainter, x: number, y: number, cropId: CropId | undefined): void {
   drawEmptyBasket(g, x, y);
   const cropColor = cropId ? CROP_COLORS[cropId] : 0xe0a04d;
   g.fillStyle(cropColor, 1);
@@ -115,7 +115,7 @@ function drawHarvestBasket(g: Phaser.GameObjects.Graphics, x: number, y: number,
   g.fillRect(x, y - 2, 1, 2);
 }
 
-function drawEmptyBasket(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
+function drawEmptyBasket(g: PixelPainter, x: number, y: number): void {
   g.fillStyle(0x7c4b2b, 1);
   g.fillRect(x - 4, y + 2, 10, 8);
   g.fillStyle(0xc58a4b, 1);
@@ -123,10 +123,27 @@ function drawEmptyBasket(g: Phaser.GameObjects.Graphics, x: number, y: number): 
   g.fillRect(x - 2, y + 7, 6, 1);
 }
 
-function drawSickle(g: Phaser.GameObjects.Graphics, x: number, y: number, facing: number): void {
+function drawSickle(g: PixelPainter, x: number, y: number, facing: number): void {
   g.fillStyle(0x8c6a3d, 1);
   g.fillRect(x, y - 3, 2, 11);
   g.fillStyle(0xe6d6a7, 1);
   g.fillRect(x + facing, y - 5, 5, 2);
   g.fillRect(x + facing * 5, y - 3, 2, 3);
+}
+
+export const FARMHAND_PORTRAIT_SIZE = { width: 24, height: 32 } as const;
+
+/**
+ * Renders a farmhand's standing pose for DOM surfaces such as the Inspect
+ * panel. The synthetic frozen state lives here so pose knowledge stays local
+ * to the art module; callers only pick a worker id and a painter.
+ */
+export function drawFarmhandPortrait(g: PixelPainter, workerId: number): void {
+  const standing: FarmWorker = {
+    id: workerId,
+    x: 0,
+    y: 0,
+    task: { kind: 'idle', path: [], progress: 0 },
+  };
+  drawFarmhand(g, { tick: 0 }, standing, 12, 16);
 }

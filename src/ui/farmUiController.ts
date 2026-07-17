@@ -11,6 +11,7 @@ import { inspectMarkup } from './inspectPanel';
 import { milestoneProgressText, panelStateSignature, storedCropCount } from './panelState';
 import { PanelResizeController } from './panelResize';
 import { buttonContent, iconSvg, toolbarButtonContent } from './pixelIcons';
+import { paintFarmhandPortrait } from './inspectPortrait';
 import { villageRequestBoardMarkup } from './requestBoard';
 import { TutorialOverlay } from './tutorialOverlay';
 import type { FarmAnnotationUi } from './farmAnnotationUi';
@@ -39,6 +40,7 @@ export class FarmUiController {
   #speed = loadSpeed();
   #panelCollapsed = false;
   #lastHudMarkup = '';
+  #lastCoinsShown: number | null = null;
   #lastToolbarMarkup = '';
   #lastPanelMarkup = '';
   #lastRenderedPanel: Panel | null = null;
@@ -172,6 +174,14 @@ export class FarmUiController {
     if (markup !== this.#lastHudMarkup) {
       this.shell.hud.innerHTML = markup;
       this.#lastHudMarkup = markup;
+      // A coin change always rewrites the HUD, so the chip is a fresh element and
+      // adding the class replays the pulse. Presentation-only feedback.
+      if (this.#lastCoinsShown !== null && state.coins !== this.#lastCoinsShown) {
+        for (const chip of this.shell.hud.querySelectorAll('div')) {
+          if (chip.querySelector('strong')?.textContent === 'Coins') chip.classList.add('coin-flash');
+        }
+      }
+      this.#lastCoinsShown = state.coins;
     }
   }
 
@@ -238,6 +248,11 @@ export class FarmUiController {
     if (markup !== this.#lastPanelMarkup) {
       this.shell.panelContent.innerHTML = markup;
       this.#lastPanelMarkup = markup;
+      // Canvas pixels do not survive an innerHTML rewrite, so portraits repaint
+      // exactly when their host canvas is recreated.
+      for (const canvas of this.shell.panelContent.querySelectorAll<HTMLCanvasElement>('[data-inspect-portrait]')) {
+        paintFarmhandPortrait(canvas, Number(canvas.dataset.inspectPortrait));
+      }
     }
     this.#lastRenderedPanel = this.#activePanel;
     this.#lastRenderedCollapsed = this.#panelCollapsed;

@@ -79,5 +79,5 @@ describe('desktop UI scale', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

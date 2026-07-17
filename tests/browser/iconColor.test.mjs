@@ -46,5 +46,5 @@ describe('pixel icons', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

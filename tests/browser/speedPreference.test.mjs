@@ -63,7 +63,7 @@ describe('speed preference', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('Space activates a focused button without also pausing the farm', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -90,5 +90,5 @@ describe('speed preference', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

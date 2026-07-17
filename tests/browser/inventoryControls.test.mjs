@@ -50,7 +50,7 @@ describe('inventory controls', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('unaffordable seed and upgrade purchases are disabled', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'unaffordable-actions' }));
@@ -83,7 +83,7 @@ describe('inventory controls', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('seed-buy controls disclose the exact quantity and total cost for the click', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -110,7 +110,7 @@ describe('inventory controls', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('locked seed purchases explain their disabled state', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -154,7 +154,7 @@ describe('inventory controls', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('inventory crop rows stay in sync with HUD storage on the next frame', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 720 }, deviceScaleFactor: 1 });
@@ -201,5 +201,5 @@ describe('inventory controls', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

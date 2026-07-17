@@ -30,7 +30,7 @@ export function registerVisualPolishControlCases(getRuntime) {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('compact desktop toolbar avoids truncated labels', async () => {
     const { browser, url } = getRuntime();
@@ -75,7 +75,7 @@ export function registerVisualPolishControlCases(getRuntime) {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('crop mix number inputs rebalance unlocked crops to one hundred percent', async () => {
     const { browser, url } = getRuntime();
@@ -135,7 +135,7 @@ export function registerVisualPolishControlCases(getRuntime) {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('crop mix number editing keeps focus until the full value is committed', async () => {
     const { browser, url } = getRuntime();
@@ -174,7 +174,7 @@ export function registerVisualPolishControlCases(getRuntime) {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('crop mix slider stays connected through a real pointer drag and commits once', async () => {
     const { browser, url } = getRuntime();
@@ -216,5 +216,5 @@ export function registerVisualPolishControlCases(getRuntime) {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 }

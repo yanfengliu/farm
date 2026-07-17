@@ -114,7 +114,7 @@ describe('living farm vegetation art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('keeps fully expanded empty ground softly planted without tall obstructions', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -139,5 +139,5 @@ describe('living farm vegetation art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

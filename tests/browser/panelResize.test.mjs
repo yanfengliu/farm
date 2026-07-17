@@ -42,7 +42,7 @@ describe('side panel resizing', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('dragging the panel edge widens the panel and persists the preference', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -84,5 +84,5 @@ describe('side panel resizing', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

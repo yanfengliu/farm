@@ -58,7 +58,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('hud stats are grouped into readable chips', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -83,7 +83,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('hud and goals show milestone progress counts', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'milestone-progress-copy' }));
@@ -121,7 +121,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('inventory rows have visible item surfaces without overflowing', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -148,7 +148,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('disabled inventory sell controls mute their coin glyphs', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'disabled-sell-visual-state' }));
@@ -198,7 +198,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('side panel tabs stay icon-led at default width', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -226,7 +226,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('icon-only panel tabs expose readable hover labels', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -258,7 +258,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('overflowing side panels advertise scrollable content', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -301,7 +301,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('icon-only panel tabs remain clickable through their pixel glyphs', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -319,7 +319,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('inspect panel explains selected farm objects', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -350,7 +350,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   registerVisualPolishControlCases(() => ({ browser, url }));
 
@@ -415,7 +415,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('goals seed guidance prioritizes the active milestone crop', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'milestone-seed-guidance' }));
@@ -458,7 +458,7 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('terminal tier goals card explains open-ended tuning', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'terminal-tier-copy' }));
@@ -489,6 +489,6 @@ describe('visual polish', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
 });

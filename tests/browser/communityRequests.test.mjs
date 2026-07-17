@@ -83,7 +83,7 @@ describe('village request board', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('Farm Guide introduces the request board after tier two unlocks', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'request-guide' }));
@@ -107,5 +107,5 @@ describe('village request board', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

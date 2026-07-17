@@ -247,3 +247,43 @@
   margin: 0 3px;
   color: rgba(255, 218, 136, 0.48);
 }
+
+/* Inspect farmhand portrait: the scene's own pixel art at 3x, framed like a
+   storybook card. Sizes are fixed so panel text metrics do not shift. */
+.inspect-portrait-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.inspect-portrait {
+  width: 72px;
+  height: 96px;
+  flex: 0 0 auto;
+  image-rendering: pixelated;
+  border: 1px solid var(--line-warm);
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(240, 195, 106, 0.08), rgba(0, 0, 0, 0.22)),
+    rgba(0, 0, 0, 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(240, 195, 106, 0.12),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.05),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.2),
+    0 8px 18px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+}
+
+.inspect-portrait-row h2 {
+  margin: 0 0 2px;
+}
+
+/* Storybook heading flourish: a stepped harvest-gold underline on panel
+   headings, drawn with backgrounds so no text metric moves. */
+.panel-content h2 {
+  padding-bottom: 6px;
+  background:
+    linear-gradient(90deg, rgba(240, 195, 106, 0.55) 0 34px, rgba(240, 195, 106, 0.18) 34px 58px, transparent 58px) left calc(100% - 2px) / 100% 2px no-repeat,
+    linear-gradient(90deg, rgba(240, 195, 106, 0.35) 0 12px, transparent 12px) left bottom / 100% 1px no-repeat;
+}

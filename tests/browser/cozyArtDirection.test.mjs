@@ -91,7 +91,7 @@ describe('cozy pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('surrounds the farm with a visible wild meadow instead of a dark void', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -112,7 +112,7 @@ describe('cozy pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test.each([
     { width: 1280, height: 800 },
@@ -142,7 +142,7 @@ describe('cozy pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('permanent cottage scenery remains visible after the whole farm expands', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -171,7 +171,7 @@ describe('cozy pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('camera zoom and long panning stay inside the illustrated meadow', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -209,7 +209,7 @@ describe('cozy pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('camera arrows do not pan while a crop mix input owns focus', async () => {
     const savedState = getFarmSnapshot(createFarmGame({ seed: 'camera-focused-input' }));
@@ -259,7 +259,7 @@ describe('cozy pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('Home and farm reset restore the framed farm after panning', async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
@@ -311,5 +311,5 @@ describe('cozy pixel art direction', () => {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 });

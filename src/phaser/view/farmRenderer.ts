@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CROPS, type CropId } from '../../game/content/crops';
 import type { FarmState, FarmTile, FarmWorker } from '../../game/simulation/farmGame';
 import { drawFarmAmbience } from './farmAmbience';
+import { FarmWorkEffects } from './farmWorkEffects';
 import { drawCarrotCrop, drawCloverPatch, drawPumpkinCrop, drawTomatoCrop, drawWheatCrop } from './farmCultivatedPlantArt';
 import { drawFarmEnvironment, drawFarmOverstory, drawFarmScenery, drawWildMeadowCell } from './farmEnvironment';
 import { exponentialApproach } from './farmMotionMath';
@@ -22,6 +23,7 @@ export class FarmRenderer {
   readonly #actors: Phaser.GameObjects.Graphics;
   readonly #overstory: Phaser.GameObjects.Graphics;
   readonly #effects: Phaser.GameObjects.Graphics;
+  readonly #workEffects = new FarmWorkEffects();
   readonly #interaction: Phaser.GameObjects.Graphics;
   readonly #workerVisuals = new Map<number, WorkerVisual>();
   #meadowSignature = '';
@@ -94,6 +96,10 @@ export class FarmRenderer {
     }
 
     drawFarmAmbience(this.#water, this.#actors, this.#effects, state, TILE_SIZE, presentationTick);
+    // Work celebrations spawn from simulation-stat diffs and animate on
+    // presentation time; they never touch simulation state, saves, or replay.
+    this.#workEffects.observe(state, presentationTimeMs);
+    this.#workEffects.draw(this.#effects, TILE_SIZE, presentationTimeMs);
     if (selectedCell) this.drawSelection(state, selectedCell, selectedTool);
   }
 

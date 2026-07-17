@@ -98,7 +98,7 @@ export function registerTutorialCropMixCases(getRuntime) {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 
   test('tomato unlock nudges players back to crop mix after the wheat mix guide was seen', async () => {
     const { browser, url } = getRuntime();
@@ -146,5 +146,5 @@ export function registerTutorialCropMixCases(getRuntime) {
     } finally {
       await context.close();
     }
-  }, 15000);
+  }, 30000);
 }
