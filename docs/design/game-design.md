@@ -40,7 +40,7 @@ The player can:
 - Claim the next milestone tier once its requirement is met.
 - Sell a selected crop amount or sell all sellable crops.
 - Pin one Village Request, abandon it without penalty, or deliver it once every requested crop is in storage.
-- Pause and set 1x, 2x, or 4x speed.
+- Pause and set 1x, 2x, or 4x speed. Pausing halts autonomous work — workers, crops, and wildlife stop — but the player's own edits still apply immediately: placing, painting, bulldozing, buying, selling, undoing, and claiming while paused each advance the simulation by exactly one deterministic tick so the edit is visible the moment it is made, rather than queueing silently until resume.
 - Undo and redo player-issued farm edits, upgrade purchases, and tier claims.
 - Pan and zoom the camera with mouse and keyboard.
 - Use visible keyboard shortcuts for all tools.

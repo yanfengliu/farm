@@ -26,7 +26,14 @@ let autosaveBlocked = savedFarm.status === 'unreadable';
 
 const ui = new FarmUiController({
   getState: () => getFarmSnapshot(farmGame),
-  submit: (command) => submitFarmCommand(farmGame, command),
+  submit: (command) => {
+    submitFarmCommand(farmGame, command);
+    // Commands queue into the engine world and apply on the next tick, and a
+    // paused farm never ticks on its own - without this, every paused click
+    // looks dead and then bursts on resume. One recorded tick per edit keeps
+    // paused edits visible and deterministic while autonomous work stays halted.
+    if (ui.paused) farmReplayWindow.advance(1);
+  },
   resetFarm,
 });
 
