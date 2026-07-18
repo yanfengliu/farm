@@ -100,6 +100,37 @@ describe('collapsed side panel stays reopenable', () => {
     }
   }, 40000);
 
+  test('a human-speed press on the toggle expands the panel', async () => {
+    const { context, page } = await boot();
+    try {
+      await page.click('.panel-toggle');
+      await page.waitForFunction(() => globalThis.document.querySelector('.play-area').classList.contains('panel-collapsed'));
+
+      // A real click holds the button across several rendered frames. The
+      // toggle's icon must keep its identity through the hold: rebuilding it
+      // between mousedown and mouseup destroys the press target and the
+      // browser swallows the click entirely.
+      const box = await page.locator('.panel-toggle').boundingBox();
+      await page.evaluate(() => {
+        globalThis.document.querySelector('.panel-toggle svg').__pressTarget = 'held';
+      });
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(250);
+      const survived = await page.evaluate(() => (
+        globalThis.document.querySelector('.panel-toggle svg')?.__pressTarget === 'held'
+      ));
+      await page.mouse.up();
+
+      expect(survived).toBe(true);
+      await page.waitForFunction(() => (
+        !globalThis.document.querySelector('.play-area').classList.contains('panel-collapsed')
+      ), undefined, { timeout: 3000 });
+    } finally {
+      await context.close();
+    }
+  }, 40000);
+
   test('the toggle itself still collapses and expands', async () => {
     const { context, page } = await boot();
     try {

@@ -44,6 +44,7 @@ export class FarmUiController {
   #panelCollapsed = false;
   #lastHudMarkup = '';
   #lastCoinsShown: number | null = null;
+  #lastToggleCollapsed: boolean | null = null;
   #lastToolbarMarkup = '';
   #lastPanelMarkup = '';
   #lastRenderedPanel: Panel | null = null;
@@ -227,11 +228,18 @@ export class FarmUiController {
 
   private renderPanel(state: FarmState): void {
     this.shell.playArea.classList.toggle('panel-collapsed', this.#panelCollapsed);
-    const toggle = document.querySelector<HTMLButtonElement>('.panel-toggle');
-    if (toggle) {
-      toggle.innerHTML = iconSvg(this.#panelCollapsed ? 'undo' : 'redo');
-      toggle.title = this.#panelCollapsed ? 'Expand panel' : 'Collapse panel';
-      toggle.setAttribute('aria-label', toggle.title);
+    // Rewrite the toggle only when its state flips. A per-frame innerHTML
+    // reassignment destroys the icon a real press is resting on - the press
+    // target dies between mousedown and mouseup and the browser swallows the
+    // click, which read as "the expand button does not work".
+    if (this.#lastToggleCollapsed !== this.#panelCollapsed) {
+      const toggle = document.querySelector<HTMLButtonElement>('.panel-toggle');
+      if (toggle) {
+        toggle.innerHTML = iconSvg(this.#panelCollapsed ? 'undo' : 'redo');
+        toggle.title = this.#panelCollapsed ? 'Expand panel' : 'Collapse panel';
+        toggle.setAttribute('aria-label', toggle.title);
+        this.#lastToggleCollapsed = this.#panelCollapsed;
+      }
     }
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-panel]')) {
       button.classList.toggle('active', button.dataset.panel === this.#activePanel);

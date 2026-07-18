@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed the expand-panel arrow eating real clicks. The toggle's icon was rebuilt with innerHTML on every rendered frame - the one uncached element in the UI - so a human-speed press (which holds the button across several frames) had its press target destroyed between mouse-down and mouse-up and the browser swallowed the click entirely. Automated instant clicks slipped between frames, which is why it looked fine in tests. The icon now rewrites only when the collapsed state actually flips, and a contract presses the button at human speed and requires the icon to survive the hold.
+
 - The collapsed side panel can always be reopened. Collapsing used to hide every tab and leave one small unlabeled arrow that jumped to the far corner - functionally unfindable, reported by a player as "cannot be re-opened". The collapsed strip now keeps every tab icon visible in a vertical column: clicking any tab reopens the panel on that tab, inspecting the farm while collapsed reopens it with the result, and the arrow toggle still works as before.
 
 - Stopped the side panels flickering. Goals, Inventory, and every other panel now update by morphing the existing DOM instead of rewriting it, so live numbers (harvest counts, coins, prices) change in place while the buttons under your cursor keep their identity - hover highlights and transitions no longer restart on every farm heartbeat. A browser contract pins element identity across a minute of live farm churn.
