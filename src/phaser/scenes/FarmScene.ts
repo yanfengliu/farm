@@ -13,6 +13,7 @@ export interface FarmSceneBridge {
   renderUi(): void;
   getSelectedTool(): string;
   getSelectedCell(): Cell | null;
+  getSelectedFarmhandId?(): number | null;
   applyTool(x: number, y: number): void;
   canDragTool(): boolean;
   annotationPointerDown(pick: FarmAnnotationPick): boolean;
@@ -132,6 +133,7 @@ export class FarmScene extends Phaser.Scene {
       this.#bridge.getSelectedTool(),
       time,
       delta,
+      this.#bridge.getSelectedFarmhandId?.() ?? null,
     );
     this.#bridge.renderUi();
   }

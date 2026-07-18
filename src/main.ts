@@ -53,6 +53,7 @@ const farmScene = new FarmScene({
   renderUi: () => ui.render(),
   getSelectedTool: () => ui.selectedTool,
   getSelectedCell: () => ui.selectedCell,
+  getSelectedFarmhandId: () => ui.selectedFarmhandId,
   applyTool: (x, y) => ui.applyTool(x, y),
   canDragTool: () => ui.canDragTool(),
   annotationPointerDown: (pick) => annotations?.handlePointerDown(pick) ?? false,

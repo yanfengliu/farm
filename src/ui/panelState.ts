@@ -72,6 +72,14 @@ export function panelStateSignature(state: FarmState, activePanel: Panel): strin
       ].join(':')),
     ].join('|');
   }
+  if (activePanel === 'farmhands') {
+    return [
+      activePanel,
+      ...state.workers.map((worker) => (
+        `${worker.id}:${worker.x},${worker.y}:${worker.task.kind}:${worker.cargo?.kind ?? 'none'}`
+      )),
+    ].join('|');
+  }
   if (activePanel !== 'inventory') return activePanel;
   return [
     activePanel,

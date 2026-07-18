@@ -3,8 +3,17 @@ import { farmhandName } from '../game/content/farmhands';
 import { SOUTHERN_MEADOW_VIGNETTES } from '../phaser/view/farmEnvironment';
 import type { FarmState, FarmTile, FarmWorker } from '../game/simulation/farmGame';
 
-export function inspectMarkup(state: FarmState, selectedCell: { x: number; y: number } | null): string {
-  if (!selectedCell) {
+export type InspectTarget = { x: number; y: number } | { kind: 'worker'; id: number };
+
+export function inspectMarkup(state: FarmState, target: InspectTarget | null): string {
+  // A farmhand shows here only through explicit selection - clicking the hand
+  // or their roster row. A selected cell never morphs into a worker card just
+  // because someone walked across it.
+  const worker = target && 'kind' in target
+    ? state.workers.find((item) => item.id === target.id)
+    : undefined;
+  const selectedCell = target && !('kind' in target) ? target : null;
+  if (!selectedCell && !worker) {
     return `
       <h2>Inspect</h2>
       <p>Select a tile or worker.</p>
@@ -14,8 +23,6 @@ export function inspectMarkup(state: FarmState, selectedCell: { x: number; y: nu
       ])}
     `;
   }
-  const tile = state.tiles[`${selectedCell.x},${selectedCell.y}`];
-  const worker = state.workers.find((item) => item.x === selectedCell?.x && item.y === selectedCell.y);
   if (worker) {
     return `
       <div class="inspect-portrait-row">
@@ -33,6 +40,13 @@ export function inspectMarkup(state: FarmState, selectedCell: { x: number; y: nu
       ])}
     `;
   }
+  if (!selectedCell) {
+    return `
+      <h2>Inspect</h2>
+      <p>Select a tile or worker.</p>
+    `;
+  }
+  const tile = state.tiles[`${selectedCell.x},${selectedCell.y}`];
   if (!tile) {
     // Wild meadow stories introduce themselves; Inspect is the tool players
     // reach for when the world makes them curious. The cell stays buyable, so
@@ -133,14 +147,14 @@ function tileInspectRows(tile: FarmTile): Array<{ label: string; value: string }
   ];
 }
 
-function workerTaskLabel(worker: FarmWorker): string {
+export function workerTaskLabel(worker: FarmWorker): string {
   const task = worker.task;
   const crop = task.cropId ? ` ${CROPS[task.cropId].label}` : '';
   const phase = task.phase ? ` (${task.phase.replaceAll('-', ' ')})` : '';
   return `${capitalize(task.kind)}${crop}${phase}`;
 }
 
-function workerCargoLabel(worker: FarmWorker): string {
+export function workerCargoLabel(worker: FarmWorker): string {
   if (!worker.cargo) return 'None';
   if (worker.cargo.kind === 'water') return 'Water';
   if (worker.cargo.cropId) return `${capitalize(worker.cargo.kind)} ${CROPS[worker.cargo.cropId].label}`;

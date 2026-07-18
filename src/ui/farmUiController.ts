@@ -1,16 +1,18 @@
 import { CROP_IDS, type CropId } from '../game/content/crops';
 import type { VillageRequestId } from '../game/content/communityRequests';
-import { FARM_TIER_LIST } from '../game/content/tiers';
-import { UPGRADE_IDS, type UpgradeId } from '../game/content/upgrades';
+import { type UpgradeId } from '../game/content/upgrades';
 import type { FarmAnnotationInteraction } from '../annotations/farmAnnotations';
 import type { FarmCommand, FarmState } from '../game/simulation/farmGame';
 import { cropMixAllocationMarkup, cropMixPercentages, cropMixRow, rebalanceCropMixPercentages } from './cropMixPanel';
 import { FARM_TOOLS, mountFarmShell, toolLabel, type FarmShellElements, type Panel, type Tool } from './appShell';
-import { inventoryRow, seedGuidanceRow, seedRow, tierUnlockRow, upgradeRow } from './farmPanelRows';
+import { inventoryRow, seedRow } from './farmPanelRows';
+import { farmhandsMarkup } from './farmhandsPanel';
+import { goalsMarkup } from './goalsPanel';
 import { inspectMarkup } from './inspectPanel';
 import { milestoneProgressText, panelStateSignature, storedCropCount } from './panelState';
 import { PanelResizeController } from './panelResize';
 import { buttonContent, iconSvg, toolbarButtonContent } from './pixelIcons';
+import { morphInto } from './domMorph';
 import { paintFarmhandPortrait } from './inspectPortrait';
 import { villageRequestBoardMarkup } from './requestBoard';
 import { TutorialOverlay } from './tutorialOverlay';
@@ -36,6 +38,7 @@ export class FarmUiController {
   #selectedTool: Tool = 'inspect';
   #activePanel: Panel = 'inventory';
   #selectedCell: { x: number; y: number } | null = null;
+  #selectedFarmhandId: number | null = null;
   #paused = false;
   #speed = loadSpeed();
   #panelCollapsed = false;
@@ -68,6 +71,10 @@ export class FarmUiController {
 
   get selectedCell(): { x: number; y: number } | null {
     return this.#selectedCell;
+  }
+
+  get selectedFarmhandId(): number | null {
+    return this.#selectedFarmhandId;
   }
 
   get paused(): boolean {
@@ -119,6 +126,13 @@ export class FarmUiController {
 
   applyTool(x: number, y: number): void {
     this.#selectedCell = { x, y };
+    if (this.#selectedTool === 'inspect') {
+      // Explicit selection is decided at click time: clicking a farmhand's
+      // tile selects that hand (and follows him); clicking anything else
+      // selects the cell, which never morphs into a worker card later.
+      const worker = this.#bridge.getState().workers.find((item) => item.x === x && item.y === y);
+      this.#selectedFarmhandId = worker?.id ?? null;
+    }
     const command = this.commandForTool(x, y);
     if (command) this.#bridge.submit(command);
   }
@@ -246,10 +260,13 @@ export class FarmUiController {
 
     const markup = this.panelMarkup(state);
     if (markup !== this.#lastPanelMarkup) {
-      this.shell.panelContent.innerHTML = markup;
+      // Morph rather than rewrite: unchanged controls keep their identity, so
+      // hover, focus, and transitions survive live-data re-renders instead of
+      // flickering under the player's cursor.
+      morphInto(this.shell.panelContent, markup);
       this.#lastPanelMarkup = markup;
-      // Canvas pixels do not survive an innerHTML rewrite, so portraits repaint
-      // exactly when their host canvas is recreated.
+      // The morph preserves painted canvases; repainting is cheap and covers
+      // canvases the morph just created.
       for (const canvas of this.shell.panelContent.querySelectorAll<HTMLCanvasElement>('[data-inspect-portrait]')) {
         paintFarmhandPortrait(canvas, Number(canvas.dataset.inspectPortrait));
       }
@@ -275,6 +292,7 @@ export class FarmUiController {
     }
     if (this.#activePanel === 'requests') return villageRequestBoardMarkup(state);
     if (this.#activePanel === 'goals') return goalsMarkup(state);
+    if (this.#activePanel === 'farmhands') return farmhandsMarkup(state, this.#selectedFarmhandId);
     if (this.#activePanel === 'mix') {
       const percentages = cropMixPercentages(state);
       return `
@@ -285,7 +303,9 @@ export class FarmUiController {
       `;
     }
     if (this.#activePanel === 'annotations') return this.#annotations?.panelMarkup(state) ?? '';
-    return inspectMarkup(state, this.#selectedCell);
+    return inspectMarkup(state, this.#selectedFarmhandId !== null
+      ? { kind: 'worker', id: this.#selectedFarmhandId }
+      : this.#selectedCell);
   }
 
   private syncPanelScrollAffordance(): void {
@@ -319,6 +339,12 @@ export class FarmUiController {
     if (panel) {
       this.#activePanel = panel;
       if (panel === 'mix') this.markMixTutorialsSeen();
+    }
+
+    const selectFarmhand = target.closest<HTMLElement>('[data-select-farmhand]')?.dataset.selectFarmhand;
+    if (selectFarmhand) {
+      const id = Number(selectFarmhand);
+      this.#selectedFarmhandId = this.#selectedFarmhandId === id ? null : id;
     }
 
     if (this.#annotations?.ownsGameplayInput) {
@@ -459,35 +485,6 @@ export class FarmUiController {
       // Local storage can fail in private or restricted browser contexts.
     }
   }
-}
-
-function goalsMarkup(state: FarmState): string {
-  return `
-    <h2>Tier ${state.tier.level}</h2>
-    <p>${state.tier.label}</p>
-    <h3>Next milestone</h3>
-    <p>${milestoneProgressText(state)}</p>
-    ${tierUnlockRow(state)}
-    ${seedGuidanceRow(state)}
-    <h3>Tool Upgrades</h3>
-    ${UPGRADE_IDS.map((id) => upgradeRow(state, id)).join('')}
-    <h3>Progression</h3>
-    <div class="tier-list">
-      ${FARM_TIER_LIST.map((tier) => `
-        <div class="${tier.level === state.tier.level ? 'current' : ''}">
-          <strong>Tier ${tier.level}: ${tier.label}</strong>
-          <span>${tier.nextMilestone}</span>
-          <span>${tier.reward}</span>
-        </div>
-      `).join('')}
-    </div>
-    <h3>Stats</h3>
-    <p class="small">Planted carrots: ${state.stats.lifetimePlanted.carrot}</p>
-    <p class="small">Harvested carrots: ${state.stats.lifetimeHarvested.carrot}</p>
-    <p class="small">Worker distance: ${state.stats.lifetimeWorkerDistance}</p>
-    <p class="small">Land purchased: ${state.stats.lifetimeLandPurchased}</p>
-    <p class="small">Village requests: ${state.stats.lifetimeRequestsCompleted}</p>
-  `;
 }
 
 function loadSpeed(): 1 | 2 | 4 {

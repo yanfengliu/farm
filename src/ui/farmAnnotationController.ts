@@ -232,7 +232,11 @@ export class FarmAnnotationController implements FarmAnnotationUi {
       event.preventDefault();
       return true;
     }
-    if (event.key === 'Enter' && this.#gesture.isDragging && !targetIsControl) { event.preventDefault(); return true; }
+    // While a box drag is active, Enter is inert no matter what has focus.
+    // Panel morphing preserves the Box button through re-renders, so without
+    // this a focused button would receive Enter's activation click mid-drag
+    // and setMode would cancel the very drag the player is holding.
+    if (event.key === 'Enter' && this.#gesture.isDragging) { event.preventDefault(); return true; }
     if (event.key === 'Enter' && this.#aiming && !targetIsControl) {
       if (this.#gesture.mode === 'box') {
         this.#status = 'Box notes are freeform: click and drag anywhere on the farm, at least 12 × 12 px.';

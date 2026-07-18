@@ -148,7 +148,9 @@ Side panels provide:
 - Upgrades and unlocks.
 - Inspect details for the selected tile, worker, plot, well, or storage bin.
 
-Worker task state is visible only on hover or inspect, not as permanent icons over every worker.
+Worker task state is visible in the dedicated Farmhands tab, which lists every hand with their portrait, name, live task, cargo, and position. A farmhand is highlighted and inspected only through explicit selection - clicking the hand on the farm or clicking their roster row - and the selection follows them as they work, marked by warm corner brackets. A farmhand walking across an inspected cell never replaces that cell's inspection.
+
+Side panels re-render by morphing the existing DOM rather than rewriting it, so live numbers update in place while unchanged controls keep their identity - hover states, focus, and transitions survive re-renders instead of flickering under the cursor.
 
 The side panel can be collapsed for more playfield space or resized from its inner edge when text-heavy inventory, goals, crop-mix, or inspect content needs more room. The chosen side-panel width is a UI preference and is separate from the deterministic farm save.
 

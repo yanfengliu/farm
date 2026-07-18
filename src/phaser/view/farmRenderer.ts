@@ -47,6 +47,7 @@ export class FarmRenderer {
     selectedTool: string,
     presentationTimeMs = 0,
     deltaMs = 1000 / 60,
+    selectedFarmhandId: number | null = null,
   ): void {
     const presentationTick = Math.floor(presentationTimeMs / 100);
     const meadowSignature = `${state.width}x${state.height}:tier${state.tier.level}`;
@@ -95,6 +96,10 @@ export class FarmRenderer {
       drawFarmhand(this.#actors, state, worker, position.x, position.y);
     }
 
+    if (selectedFarmhandId !== null) {
+      const visual = this.#workerVisuals.get(selectedFarmhandId);
+      if (visual) this.drawFarmhandRing(visual.x, visual.y);
+    }
     drawFarmAmbience(this.#water, this.#actors, this.#effects, state, TILE_SIZE, presentationTick);
     // Work celebrations spawn from simulation-stat diffs and animate on
     // presentation time; they never touch simulation state, saves, or replay.
@@ -155,6 +160,25 @@ export class FarmRenderer {
     g.fillRect(px + 27, py + 4, 3, 23);
     g.fillStyle(0xc08447, 0.9);
     g.fillRect(px + 4, py + 3, 23, 1);
+  }
+
+  // Warm corner brackets around the explicitly selected farmhand, in the
+  // topmost interaction lane so the highlight survives canopy overlap.
+  private drawFarmhandRing(px: number, py: number): void {
+    const g = this.#interaction;
+    const left = px - 11;
+    const top = py - 19;
+    const right = px + 11;
+    const bottom = py + 15;
+    g.fillStyle(0xf0c36a, 0.95);
+    g.fillRect(left, top, 5, 1);
+    g.fillRect(left, top, 1, 5);
+    g.fillRect(right - 4, top, 5, 1);
+    g.fillRect(right, top, 1, 5);
+    g.fillRect(left, bottom, 5, 1);
+    g.fillRect(left, bottom - 4, 1, 5);
+    g.fillRect(right - 4, bottom, 5, 1);
+    g.fillRect(right, bottom - 4, 1, 5);
   }
 
   private drawFarmBoundary(state: FarmState): void {

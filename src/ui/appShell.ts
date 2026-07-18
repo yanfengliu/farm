@@ -2,7 +2,7 @@ import { buttonContent, iconSvg, type IconName } from './pixelIcons';
 import { PANEL_WIDTH_DEFAULT, PANEL_WIDTH_MAX, PANEL_WIDTH_MIN } from './panelResize';
 
 export type Tool = 'inspect' | 'plot' | 'well' | 'storage' | 'land' | 'bulldoze';
-export type Panel = 'inventory' | 'requests' | 'goals' | 'mix' | 'inspect' | 'annotations';
+export type Panel = 'inventory' | 'farmhands' | 'requests' | 'goals' | 'mix' | 'inspect' | 'annotations';
 
 export interface ToolDefinition {
   id: Tool;
@@ -62,6 +62,7 @@ export function mountFarmShell(): FarmShellElements {
           ></div>
           <div class="panel-tabs">
             <button data-panel="inventory" title="Inventory" aria-label="Inventory">${buttonContent('backpack', 'Inventory')}</button>
+            <button data-panel="farmhands" title="Farmhands" aria-label="Farmhands">${buttonContent('farmhand', 'Farmhands')}</button>
             <button data-panel="requests" title="Village Requests" aria-label="Village Requests">${buttonContent('basket', 'Requests')}</button>
             <button data-panel="goals" title="Goals" aria-label="Goals">${buttonContent('flag', 'Goals')}</button>
             <button data-panel="mix" title="Crop Mix" aria-label="Crop Mix">${buttonContent('sliders', 'Mix')}</button>
