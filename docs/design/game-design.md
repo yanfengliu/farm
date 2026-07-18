@@ -152,7 +152,7 @@ Worker task state is visible in the dedicated Farmhands tab, which lists every h
 
 Side panels re-render by morphing the existing DOM rather than rewriting it, so live numbers update in place while unchanged controls keep their identity - hover states, focus, and transitions survive re-renders instead of flickering under the cursor.
 
-The side panel can be collapsed for more playfield space or resized from its inner edge when text-heavy inventory, goals, crop-mix, or inspect content needs more room. The chosen side-panel width is a UI preference and is separate from the deterministic farm save.
+The side panel can be collapsed for more playfield space; the collapsed strip keeps every tab icon visible, any tab click reopens the panel on that tab, and actions whose results appear in a panel (such as inspecting a tile) reopen it themselves. The panel can also be resized from its inner edge when text-heavy inventory, goals, crop-mix, or inspect content needs more room. The chosen side-panel width is a UI preference and is separate from the deterministic farm save.
 
 Long side-panel content should visibly advertise its scroll state with a lightweight rail or edge fade, and bottom content should remain comfortably readable above the toolbar when scrolled to the end.
 

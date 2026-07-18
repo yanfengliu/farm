@@ -160,6 +160,9 @@ export class FarmUiController {
     switch (this.#selectedTool) {
       case 'inspect':
         this.#activePanel = 'inspect';
+        // Inspection results live in the panel, so inspecting while collapsed
+        // reopens it - a collapsed panel must never swallow a click's result.
+        this.#panelCollapsed = false;
         return null;
       case 'plot':
         return { type: 'paintTile', x, y, tile: 'plot' };
@@ -338,6 +341,9 @@ export class FarmUiController {
     const panel = target.closest<HTMLElement>('[data-panel]')?.dataset.panel as Panel | undefined;
     if (panel) {
       this.#activePanel = panel;
+      // A tab click is a request to see that panel; reopening a collapsed
+      // panel is part of honoring it.
+      this.#panelCollapsed = false;
       if (panel === 'mix') this.markMixTutorialsSeen();
     }
 

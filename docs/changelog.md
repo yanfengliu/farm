@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The collapsed side panel can always be reopened. Collapsing used to hide every tab and leave one small unlabeled arrow that jumped to the far corner - functionally unfindable, reported by a player as "cannot be re-opened". The collapsed strip now keeps every tab icon visible in a vertical column: clicking any tab reopens the panel on that tab, inspecting the farm while collapsed reopens it with the result, and the arrow toggle still works as before.
+
 - Stopped the side panels flickering. Goals, Inventory, and every other panel now update by morphing the existing DOM instead of rewriting it, so live numbers (harvest counts, coins, prices) change in place while the buttons under your cursor keep their identity - hover highlights and transitions no longer restart on every farm heartbeat. A browser contract pins element identity across a minute of live farm churn.
 - Added a dedicated Farmhands tab listing every hand with portrait, name, live task, cargo, and position. Selection is now explicit: click a farmhand on the farm or click their roster row to highlight them with warm corner brackets and inspect their details; click again to clear. A farmhand walking across an inspected cell no longer hijacks the panel - the cell stays inspected until you choose otherwise.
 - Fixed a latent Farm Notes bug the flicker fix exposed: pressing Enter while holding an active box drag could re-trigger the still-focused Box button and silently cancel the drag. Enter is now inert during a drag regardless of focus.

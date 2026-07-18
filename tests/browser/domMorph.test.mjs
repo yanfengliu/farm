@@ -33,7 +33,9 @@ describe('dom morph', () => {
       content: "import { morphInto } from '/src/ui/domMorph.ts'; globalThis.__morphInto = morphInto;",
     });
     await page.waitForFunction(() => typeof globalThis.__morphInto === 'function');
-  });
+    // Booting the app lives in this hook, unlike sibling suites that goto inside
+    // tests - so the hook needs the same contention-aware budget they carry.
+  }, 40000);
 
   afterAll(async () => {
     await browser?.close();

@@ -379,10 +379,16 @@ body.panel-resizing .panel-resizer::before {
   padding: 4px;
 }
 
-.play-area.panel-collapsed .panel-tabs button:not(.panel-toggle),
+/* Collapsed mode keeps every tab icon visible in the strip: the tabs are the
+   affordance players actually reach for, so any of them reopens the panel. */
 .play-area.panel-collapsed .panel-content,
 .play-area.panel-collapsed .panel-resizer {
   display: none;
+}
+
+.play-area.panel-collapsed .panel-tabs button {
+  width: 30px;
+  justify-self: center;
 }
 
 .play-area.panel-collapsed .side-panel::before,
