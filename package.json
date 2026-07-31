@@ -13,7 +13,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests scripts --no-error-on-unmatched-pattern",
-    "build": "tsc --noEmit && vite build"
+    "build": "tsc --noEmit && vite build",
+    "lessons:check": "node scripts/check-lessons.mjs"
   },
   "dependencies": {
     "civ-engine": "file:../civ-engine",
