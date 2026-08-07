@@ -34,7 +34,7 @@ Desktop-first: do not add mobile-specific scope unless the user asks.
 
 ## Session start
 
-Read `docs/devlog/summary.md` and `docs/architecture/architecture.md` before starting work. Read `docs/learning/lessons.md` too — it records what has already been tried and what it cost, and a lessons file nothing tells anyone to open is write-only.
+Read `docs/devlog/summary.md` and `docs/architecture/architecture.md` before starting work.
 
 ## Invariants & boundaries
 
