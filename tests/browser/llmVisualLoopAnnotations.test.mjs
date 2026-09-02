@@ -1,3 +1,13 @@
+// Visual-agent progress needs observed UI evidence as well as execution history. Automation
+// history reports what the adapter returned; the current UI reports what state actually survived.
+// Either source can be incomplete at an event boundary, so a stateful curriculum requires
+// compatible observed mode/draft evidence and tolerates a partial-success action whose effect is
+// already visible on screen.
+//
+// A selector proves which element was named, not which operations it supports. An observed
+// action-hint/kind matrix is what keeps a provider from "adjusting" a textarea, and coverage is
+// counted only after execution.ok -- treating attempts as coverage turns failed automation into
+// false proof.
 import { describe, expect, test } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import {

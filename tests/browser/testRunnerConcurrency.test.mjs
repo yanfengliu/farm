@@ -1,3 +1,8 @@
+// A gate that is not scheduled cannot be trusted. Scheduling left to a default that scales with
+// core count gets LESS reliable on better hardware, and it fails in the one shape -- a timeout --
+// that is easiest to dismiss as a flake and hardest to tell from a real regression. Sixteen of
+// these suites launch their own Chromium and their own dev server, so the cap belongs to the
+// browser cost of the suite, never to the machine it happens to run on.
 import { readdir, readFile } from 'node:fs/promises';
 import { describe, expect, test } from 'vitest';
 

@@ -1,3 +1,7 @@
+// Ambient pixels belong to presentation time. Deriving decorative motion from the deterministic
+// farm tick freezes the world when the player pauses and makes shimmer change speed with the
+// economy; worker locomotion and crop state stay simulation-bound so saves and replays are
+// unaffected.
 import { chromium } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';

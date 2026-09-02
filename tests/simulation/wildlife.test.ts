@@ -1,3 +1,6 @@
+// Historical replay snapshots must not acquire state that did not exist when they were recorded.
+// A blanket default makes previously recorded deterministic evidence change meaning; an ecology-free
+// world has to apply, step, render its legacy text surface and undo without inventing wildlife.
 import { describe, expect, test } from 'vitest';
 import {
   advanceFarm,

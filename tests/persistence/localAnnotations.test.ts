@@ -1,3 +1,17 @@
+// A debugging bundle feels internal because the app created it, but localStorage, copied JSON,
+// devtools, extensions and older versions can all change it: debug artifacts are persisted
+// UNTRUSTED input. Validating only the outer record leaves every nested field that rendering,
+// camera restore or export assumes as a crash or injection surface.
+//
+// Rectangular evidence needs one coherent transform chain. Checking each rectangle against its own
+// range accepts a coordinated forgery: client, canvas, normalized, world, camera-scroll, viewport
+// and zoom must be re-derived from one another, or a saved box can claim a different world region
+// by shifting several mutually consistent-looking fields at once.
+//
+// Persisted numeric identifiers need safe-integer exhaustion behavior. Number.isInteger admits
+// values past MAX_SAFE_INTEGER where adding one is not guaranteed to produce a distinct number,
+// so a persisted allocator needs safe-integer validation AND a collision check -- storage is
+// untrusted and older versions leave sparse or duplicate-looking sequences behind.
 import { describe, expect, test } from 'vitest';
 import { createFarmGame, getFarmSnapshot, renderFarmToText } from '../../src/game/simulation/farmGame';
 import {
@@ -230,6 +244,17 @@ describe('local annotation bundles', () => {
       pick.worldPx.x += 100;
     });
     cameraOriginDrift.target.worldPx.x += 100;
+    // The forgery that survives every per-field range check: world rect, world
+    // point and target all move together and stay internally consistent, while
+    // the camera that produced them is untouched. Only re-deriving the world
+    // rect from the camera catches it -- `cameraOriginDrift` above moves the
+    // camera too, so it is caught by the camera's own coherence rule instead and
+    // cannot stand in for this case.
+    const worldOriginDrift = corrupt('world-origin-drift', 11, (selection, pick) => {
+      selection.worldRect.x += 100;
+      pick.worldPx.x += 100;
+    });
+    worldOriginDrift.target.worldPx.x += 100;
     const overflowingWorldRect = corrupt('overflowing-world-rect', 8, (selection, pick) => {
       selection.worldRect.x = 0;
       selection.worldRect.width = Number.MAX_VALUE;
@@ -257,6 +282,7 @@ describe('local annotation bundles', () => {
         worldScaleDrift,
         centerDrift,
         cameraOriginDrift,
+        worldOriginDrift,
         overflowingWorldRect,
         scrollOriginDrift,
         viewportScaleDrift,

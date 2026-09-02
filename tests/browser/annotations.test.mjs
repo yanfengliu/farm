@@ -1,3 +1,12 @@
+// Modal debug tools must own the gameplay input boundary. Pausing simulation time and consuming
+// canvas picks are separate from isolating document-level controls: an editor that returns early
+// only for its own keys still lets the same bubbled event reach global UI and Phaser listeners,
+// and toolbar buttons can mutate history behind it. Writing a note has to be an actual modal
+// pause, not a visual pause with deferred side effects.
+//
+// Malformed persisted notes fail closed to the remaining valid queue, while valid comments stay
+// visibly literal -- display strings are intentionally user-authored, so output escaping is still
+// required after validation.
 import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import process from 'node:process';
@@ -243,12 +252,24 @@ describe('farm annotations', () => {
       await page.keyboard.press('Tab');
       expect(await canvas.evaluate((element) => element === globalThis.document.activeElement)).toBe(false);
       await canvas.focus();
+      // Returning early only stops THIS handler. The same event keeps bubbling to
+      // every other document listener -- Phaser's, and any UI added later -- so a
+      // modal editor that owns the input boundary has to end the event, not just
+      // decline it. This listener is registered after the app's and must never see
+      // a key the draft claims to have consumed.
+      await page.evaluate(() => {
+        globalThis.__lateGameplayKeys = [];
+        globalThis.document.addEventListener('keydown', (event) => {
+          globalThis.__lateGameplayKeys.push(event.key.toLowerCase());
+        });
+      });
       await page.keyboard.press('Space');
       await page.keyboard.press('z');
       await page.keyboard.press('y');
       await page.keyboard.press('Shift+r');
       await page.keyboard.press('2');
       await page.keyboard.press('-');
+      expect(await page.evaluate(() => globalThis.__lateGameplayKeys)).toEqual(['shift']);
       await page.click('[data-panel="mix"]');
       const wheatMix = page.locator('[data-mix-number="wheat"]');
       await wheatMix.fill('50');

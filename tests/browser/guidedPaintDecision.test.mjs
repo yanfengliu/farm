@@ -1,3 +1,7 @@
+// Guided canvas actions must bind the intended tool. Playwright reports a successful click even
+// when the active tool makes it the wrong game action, so guidance that says "paint plots" has to
+// select Plot first -- otherwise the same guidance repeats until the step cap with every click
+// reported as a success.
 import { describe, expect, test } from 'vitest';
 import { selectGuidedPaintAction } from '../../scripts/llm-visual-loop/guided-paint.mjs';
 

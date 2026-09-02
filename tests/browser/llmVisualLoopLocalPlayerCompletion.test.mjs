@@ -1,3 +1,9 @@
+// Terminal gates must include promised coverage obligations. A stop condition that lists waits and
+// milestones but not the control tour it documented will fire while a promised control has never
+// been touched -- here the Tomato sale, visible 25 times and exercised none.
+//
+// Automation state must come from successful executions: a failed accept-request, canvas paint or
+// Undo is work that did not happen, and the curriculum has to retry it rather than advance.
 import { describe, expect, test } from 'vitest';
 import { nextPaintPosition } from '../../scripts/llm-visual-loop/local-player-support.mjs';
 import {

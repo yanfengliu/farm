@@ -1,3 +1,14 @@
+// A mode control must activate the input route it promises. The Box button once set the gesture
+// mode without arming aiming, so Phaser correctly refused annotation ownership and forwarded the
+// drag to the active grid tool -- one click on Box has to mean the very next drag draws a box.
+// The old freeform test missed it by always pressing N first, so these cases start from an idle
+// panel and click Box exactly the way the panel does.
+//
+// A multi-event gesture also owns more state than its current pointer coordinates. Without native
+// pointer capture a release outside the hit area strands the drag; without an explicit interleave
+// rule a second capture path overwrites the pause boundary the first one established. Release
+// beyond the canvas, capture loss, cancellation and an interleaved Enter are all part of the
+// contract, and a farm the player had already paused stays paused through every one of them.
 import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import process from 'node:process';

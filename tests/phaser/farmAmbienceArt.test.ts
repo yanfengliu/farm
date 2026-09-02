@@ -1,3 +1,7 @@
+// Tiny pixel calls can still composite into a large rectangle. Constraining each fillRect is
+// necessary and not sufficient: many legal one-pixel calls tile into one opaque slab, so a
+// source-level claim about narrow primitives proves nothing about the final raster. Rasterize
+// and measure the composited result.
 import { describe, expect, test } from 'vitest';
 import { createFarmGame, getFarmSnapshot } from '../../src/game/simulation/farmGame';
 import { drawChimneySmoke } from '../../src/phaser/view/farmAmbience';

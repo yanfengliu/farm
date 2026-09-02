@@ -1,3 +1,8 @@
+// Player-editable controls cannot be rebuilt every render frame. Replacing the panel innerHTML on
+// every snapshot detaches the focused number or range input between input events, so multi-digit
+// edits and continuous drags commit partial values or lose focus. Three separate guards hold this
+// today -- the focused-control early return, the markup-change check and the morph -- and any one
+// of them alone is enough, so only removing all three reproduces the defect.
 import { chromium } from '@playwright/test';
 import process from 'node:process';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';

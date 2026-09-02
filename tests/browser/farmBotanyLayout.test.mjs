@@ -1,3 +1,10 @@
+// Decorative anchors are not visual clearance contracts. An anchor says where an object starts,
+// not where its pixel silhouette ends, and renderer layer order can hide an invalid placement
+// without making the world geometry valid. Check the real painted bounds against the farm, the
+// bridge, the garden and the default recenter viewport.
+//
+// A tree's array index is not an identity either: naming the duck shelters independently is what
+// stops an innocent art-direction reorder from silently moving a named home.
 import { describe, expect, test } from 'vitest';
 import {
   buildFarmBotanyLayout,

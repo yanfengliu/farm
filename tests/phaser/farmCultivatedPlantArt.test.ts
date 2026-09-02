@@ -1,3 +1,6 @@
+// Tiny pixel calls can still composite into a large rectangle -- a source-level claim about
+// narrow primitives or randomness says nothing about the raster they add up to. Measure the
+// composited pixels of every authored stage, not the drawing calls.
 import { describe, expect, test, vi } from 'vitest';
 import { createFarmGame, getFarmSnapshot } from '../../src/game/simulation/farmGame';
 import { FarmRenderer } from '../../src/phaser/view/farmRenderer';

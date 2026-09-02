@@ -1,3 +1,12 @@
+// A detector whose threshold is not derived from a measured baseline is decoration. This farm
+// authors no pure black, so the measured baseline is exactly zero opaque black pixels and any
+// coverage at all is already anomalous -- which is why the geometric run-length trips stay
+// INDEPENDENT of the coverage trip rather than gated behind it: ANDing them discards a black
+// band spanning the whole frame for being thin, the exact class the guard is named for.
+// Failing closed also has an altitude: throwing here would discard a completed run's report,
+// bundle and ledger row over one frame, so exhaustion degrades and raises a finding instead.
+// And a metric is only pinned by fixtures between its extremes -- a suite that only ever sees
+// 100%-black and 0%-black frames does not distinguish a longest run from a per-column total.
 import { chromium } from '@playwright/test';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import {

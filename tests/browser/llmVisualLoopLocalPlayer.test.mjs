@@ -1,3 +1,8 @@
+// Request-aware automation must distinguish reserves, deficits and pressure. Treating every stored
+// crop as reserved deadlocks a full bin; continuously selling every surplus drains the basket the
+// player is trying to fill. A reserve is what is left after the pinned basket is paid, a deficit is
+// what it still needs, and pressure is the bin being full -- three different numbers, and ranking
+// by the wrong one picks exactly the crop the player cannot spare.
 import { describe, expect, test } from 'vitest';
 import {
   decide,
@@ -161,6 +166,30 @@ describe('LLM visual-loop deterministic local player', () => {
     expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-sell="wheat"]' });
   });
 
+  // A reserve is what is left after the pinned basket is paid, not what is on
+  // the shelf: ranking a pressure sale by raw stock picks the crop the player
+  // most needs. The fixture is deliberately one where the two rankings disagree
+  // -- carrot holds the larger pile and the smaller surplus -- because a fixture
+  // where the same crop wins either way cannot tell the two rules apart.
+  test('ranks a pressure sale by surplus above the basket reserve, not by raw stock', () => {
+    const decision = decide(
+      observation(
+        'Coins 171 Storage 15/15 Inventory Carrot: 9 Wheat: 6 Tomato: 0 Pumpkin: 0',
+        [
+          visibleAction('[data-panel="requests"]', 'Village Requests', { active: false }),
+          visibleAction('[data-sell="carrot"]', 'Sell 1 Carrot'),
+          visibleAction('[data-sell="wheat"]', 'Sell 1 Wheat'),
+        ],
+      ),
+      [{
+        observation: { visibleText: 'Active basket Stew Pot 0/8 Carrot 0/2 Wheat Harvest the missing crops.' },
+        decision: { action: { kind: 'click', selector: '[data-accept-request="stew-pot"]' } },
+      }],
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-sell="wheat"]' });
+  });
+
   test('stops pressure selling after two storage slots are free', () => {
     const decision = decide(
       observation(
@@ -248,6 +277,29 @@ describe('LLM visual-loop deterministic local player', () => {
     );
 
     expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-buy-seeds="carrot"]' });
+  });
+
+  // The same distinction on the buying side: a deficit is need minus stock, and
+  // the crop with the largest one is bought first regardless of where it sits in
+  // the authored crop order. Here carrot is already over its need while wheat is
+  // short, so a rule that ranks anything but the deficit falls back to crop order
+  // and buys the wrong seed.
+  test('ranks zero-stock seed buying by basket deficit, not by authored crop order', () => {
+    const decision = decide(
+      observation(
+        'Restock seeds to keep farmers planting. Inventory Carrot: 9 Wheat: 1 Carrot seeds: 0 Wheat seeds: 0',
+        [
+          visibleAction('[data-buy-seeds="carrot"]', 'Buy 5 Carrot seeds'),
+          visibleAction('[data-buy-seeds="wheat"]', 'Buy 5 Wheat seeds'),
+        ],
+      ),
+      [{
+        observation: { visibleText: 'Active basket Barn Raising 9/3 Carrot 1/7 Wheat Harvest the missing crops.' },
+        decision: { action: { kind: 'click', selector: '[data-accept-request="barn-raising"]' } },
+      }],
+    );
+
+    expect(decision.action).toMatchObject({ kind: 'click', selector: '[data-buy-seeds="wheat"]' });
   });
 
   test('does not carry an abandoned basket seed deficit into later play', () => {

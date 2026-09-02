@@ -70,4 +70,5 @@ Read `docs/devlog/summary.md` and `docs/architecture/architecture.md` before sta
 - Devlog: `docs/devlog/summary.md` (current project history) plus dated per-day files under `docs/devlog/detailed/`.
 - `docs/changelog.md` — user-visible changes get an entry.
 - `docs/debug.md` — browser debug API guide; `docs/testing-playtest.md` — testing and playtest guide.
-- `docs/learning/lessons.md` — per the fleet evidence-anchor rule.
+- `docs/learning/lessons.md` — per the fleet evidence-anchor rule; a queue, empty at rest. `docs/learning/gate-proofs.md` — for each retired lesson, the gate that replaced it and the mutation proving that gate goes red. `docs/learning/canon-candidates.md` — fleet-wide knowledge staged for the constitution.
+- `docs/policies/local-rules.md` — rules true for this repo only, never fleet canon.

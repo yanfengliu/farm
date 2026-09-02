@@ -1,3 +1,17 @@
+// Save validation must protect graph and actor invariants, not just field presence. Disconnected
+// owned tiles, duplicate coordinates, off-map or unstandable worker positions, fractional
+// inventory and overlapping workers all pass a presence check and then produce unreachable jobs,
+// invalid economy math, or invisible actors.
+//
+// Additive save migrations must normalize command history too. Normalizing only the loaded
+// top-level snapshot makes startup look healthy while Undo later restores an unnormalized
+// historical snapshot and erases the new fields.
+//
+// Additive simulation state has distinct save, history and replay policies. They look like one
+// JSON-normalization problem and promise different things: local saves GAIN current content,
+// current history restores a complete coherent snapshot, and historical replay snapshots must not
+// acquire state that did not exist when they were recorded. Validating references alone also
+// misses a fixed authored roster that has been silently shortened.
 import { beforeEach, describe, expect, test } from 'vitest';
 import { advanceFarm, createFarmGame, getFarmSnapshot, submitFarmCommand } from '../../src/game/simulation/farmGame';
 import {
@@ -164,6 +178,20 @@ describe('local farm save boundary', () => {
       task: { kind: 'idle', path: [], progress: 0 },
     });
     storage.setItem('farm.autosave.v1', JSON.stringify(duplicateWorkers));
+    expect(loadSavedFarmState()).toBeNull();
+
+    // Owned and in bounds is not the same as standable: a worker parked on the
+    // well or the storage shed passes every coordinate check and then renders
+    // inside a building, so occupancy is its own invariant rather than a
+    // corollary of the position checks above.
+    const occupiedUtility = getFarmSnapshot(createFarmGame({ seed: 'worker-on-utility' }));
+    const utilityTile = Object.values(occupiedUtility.tiles)
+      .find((tile) => tile.kind === 'well' || tile.kind === 'storage');
+    expect(utilityTile).toBeDefined();
+    occupiedUtility.workers[0]!.x = utilityTile!.x;
+    occupiedUtility.workers[0]!.y = utilityTile!.y;
+    occupiedUtility.workers[0]!.task = { kind: 'idle', path: [], progress: 0 };
+    storage.setItem('farm.autosave.v1', JSON.stringify(occupiedUtility));
     expect(loadSavedFarmState()).toBeNull();
   });
 

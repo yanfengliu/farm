@@ -1,3 +1,12 @@
+// Immutable evidence must close its own reference graph. Copying a report file does not make the
+// evidence immutable while paths inside it still resolve to a mutable directory, and rewriting the
+// named fields is not enough when generated prompts embed the same references in native,
+// forward-slash and JSON-escaped form. A durable proof packet archives every referenced leaf,
+// closes every embedded reference, and fails atomically -- leaving no partial directory behind.
+//
+// Guided canvas actions must bind the intended tool: Playwright reports a successful click even
+// when the active tool makes it the wrong game action, so guidance that says "paint" has to select
+// Plot first rather than trusting the click to mean what it said.
 import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

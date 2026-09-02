@@ -1,3 +1,12 @@
+// Randomized art must be measured at the AUTHORED seed. Hash-based width, spacing, height and
+// flower branches all existed in this renderer while the real seed/count sequence collapsed them
+// to five equal rectangles at equal steps -- algorithmic randomness in source, a repeated stamp
+// on screen. Every case here reads its inputs from buildFarmHedgerowPlacements() so it measures
+// the composition the player sees; a gate that measures at any other seed proves nothing.
+//
+// Clearance is checked at the PLACEMENT, in the frame the game already ships. Enlarging the
+// shared scenery frame to make one hedge fit rescaled and shifted the whole world and broke six
+// browser contracts across annotation clicks, palette sampling and crop-coordinate mapping.
 import { describe, expect, test } from 'vitest';
 import {
   buildFarmHedgerowPlacements,

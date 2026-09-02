@@ -1,3 +1,13 @@
+// Visible presentation loops must be continuous at their boundaries. Modulo is right for cycling a
+// phase and wrong for a visible position: it teleports an object from the end of its route to the
+// start, and a short test that only proves pixels moved cannot observe the discontinuity.
+// Independently clamping a frame delta breaks the composition law of exponential smoothing too,
+// making interpolation depend on how the renderer happens to partition elapsed time.
+//
+// Pixel contracts must isolate the object and prove the fixture state they name. Whole-canvas
+// palette counts pass or fail for the wrong object as an art palette evolves, and a visually named
+// fixture is not evidence unless the underlying debug state is asserted too -- autonomous workers
+// can change ripe plots before the screenshot is sampled.
 import { chromium } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';
@@ -221,6 +231,16 @@ describe('storybook pixel art direction', () => {
     const combined = exponentialApproach(200, 42);
     const half = exponentialApproach(100, 42);
     expect(combined).toBeCloseTo(1 - (1 - half) ** 2, 12);
+
+    // 200 ms against a 42 ms constant is ~99% of the way there, which is also
+    // where a per-frame clamped ramp saturates -- so the composition law above
+    // holds for a clamped approach too and proves nothing about it. Repeat it at
+    // a delta short enough that the two curves disagree: a law measured only
+    // where every candidate agrees is not a law, it is a coincidence.
+    const shortCombined = exponentialApproach(40, 42);
+    const shortHalf = exponentialApproach(20, 42);
+    expect(shortCombined).toBeLessThan(0.75);
+    expect(shortCombined).toBeCloseTo(1 - (1 - shortHalf) ** 2, 12);
   });
 
   test('keeps every duck habitat route below a cozy per-tick pixel step', () => {

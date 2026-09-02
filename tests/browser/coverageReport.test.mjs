@@ -1,3 +1,10 @@
+// A decision log records intent, not evidence. Automation state must come from SUCCESSFUL
+// executions: treating a failed action as completed poisons every derived state machine and turns
+// a clean coverage report into a list of controls the browser never exercised.
+//
+// Dynamic selectors need semantic coverage identities. A selector can be stable within one run and
+// still carry generated content identity, so cross-run coverage keyed to the literal value measures
+// instance churn rather than whether the shared interaction contract was ever exercised.
 import { describe, expect, test } from 'vitest';
 import { assertImprovementFinding } from 'civ-engine';
 import { coverageLedger, COVERAGE_MIN_SIGHTINGS } from '../../scripts/llm-visual-loop/coverage-report.mjs';

@@ -518,6 +518,26 @@ describe('LLM visual loop harness contract', () => {
     expect(source).not.toContain("lastAction?.kind === 'wait' && tierClaims >= 3 && waitCount >= 7");
   });
 
+  // A terminal gate whose coverage obligations are a literal list stops where the
+  // list stops: the two pins above would keep passing word for word after a fifth
+  // crop shipped, and a run would declare itself complete having never sold it.
+  // Derive the obligation from the crop content instead, so adding a crop without
+  // adding its sale to the stop condition is a failure rather than a silence.
+  test('the terminal stop condition names a sale obligation for every authored crop', async () => {
+    const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
+    const { CROP_IDS } = await import('../../src/game/content/crops.ts');
+    const terminalLine = source
+      .split(/\r?\n/)
+      .find((line) => line.includes("lastAction?.kind === 'wait'") && line.includes('waitsAfterClaim'));
+
+    expect(terminalLine, 'terminal stop condition not found in the visual loop source').toBeDefined();
+    expect(CROP_IDS.length).toBeGreaterThan(0);
+    for (const cropId of CROP_IDS) {
+      expect(terminalLine, `terminal stop condition omits the ${cropId} sale obligation`)
+        .toContain(`${cropId}Sold`);
+    }
+  });
+
   test('visual loop replay viewer keeps screenshots in the viewport while metadata scrolls', async () => {
     const source = await readFile('scripts/llm-visual-loop.mjs', 'utf8');
 

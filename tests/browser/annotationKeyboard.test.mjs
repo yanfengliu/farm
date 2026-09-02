@@ -1,3 +1,9 @@
+// Focus ownership and browser-default capture are separate keyboard contracts. Checking
+// document.activeElement stops camera movement but not text suppression: Phaser's addKeys and
+// cursor helper also capture browser defaults for every key they register, so their global
+// listeners can preventDefault before or after a textarea handles the event. Testing only
+// printable keydown misses it -- the cursor helper's implicit Shift leaked through keyup alone.
+// Type with a real keyboard and audit both event phases; .fill() proves nothing here.
 import { chromium } from '@playwright/test';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createServer } from 'vite';

@@ -1,3 +1,8 @@
+// Browser replay evidence needs a bounded time window. A recorder that captures a whole accelerated
+// browser lifetime accumulates per-tick deterministic diffs into one protocol response until the
+// export dies of ERR_STRING_TOO_LONG -- after every action has already completed. Screenshot size
+// was never the problem. The bundle carries a recent, strongly checkable window and says so in its
+// source label, and a long idle tail must not erase the last window that actually held a command.
 import { describe, expect, test } from 'vitest';
 import { SessionReplayer, type SessionBundle } from 'civ-engine';
 import {
@@ -16,7 +21,23 @@ type ReplayEvents = Record<string, never>;
 type ReplayCommands = { farmCommand: Parameters<typeof submitFarmCommand>[1] };
 type ReplayState = { farm: FarmState };
 
+// The bound this file exists to hold is an absolute one: the recorder must not
+// hand Playwright's pipe transport a whole accelerated browser lifetime. Every
+// other assertion here compares against FARM_REPLAY_WINDOW_TICKS, which moves
+// with the constant it is meant to pin -- widen the constant and those
+// assertions widen with it and stay green. This literal ceiling does not, and
+// the size assertion below cannot stand in for it: a session short enough to run
+// in a unit test never approaches the string limit that produced the defect, so
+// it is the tick bound, not the byte count, that is actually load-bearing.
+const REPLAY_WINDOW_ABSOLUTE_CEILING_TICKS = 256;
+
 describe('farm replay evidence window', () => {
+  test('bounds the replay window by an absolute tick ceiling, not by its own constant', () => {
+    expect(FARM_REPLAY_WINDOW_TICKS).toBeGreaterThan(0);
+    expect(FARM_REPLAY_WINDOW_TICKS).toBeLessThanOrEqual(REPLAY_WINDOW_ABSOLUTE_CEILING_TICKS);
+  });
+
+
   test('returns the last complete window when export lands exactly on a rotation boundary', () => {
     const game = createFarmGame({ seed: 'exact-replay-boundary' });
     const replayWindow = new FarmReplayWindow(game, true);

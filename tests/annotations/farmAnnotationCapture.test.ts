@@ -1,3 +1,10 @@
+// Evidence markers must follow the transformed sample, not its nominal center. Centering a
+// crosshair is correct only while the sample window can stay centered; once cropping, camera
+// bounds or viewport clipping shifts that window, the marker must be mapped through the final
+// CLAMPED source rectangle or the evidence contradicts its own coordinates.
+//
+// Correct source bounds do not preserve evidence when the destination silently changes aspect
+// ratio -- an edge-limited crop is letterboxed, never stretched.
 import { describe, expect, test } from 'vitest';
 import {
   farmAnnotationBoxPreviewGeometry,
