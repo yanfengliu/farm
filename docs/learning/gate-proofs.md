@@ -2,6 +2,18 @@
 
 The standing answer to "did the gates actually do their job". Every lesson this repo retired on 2026-09-02 was retired because the gate named here was made to go RED by reintroducing the defect in product code, then green again after the revert. A lesson deleted on the strength of an unproved gate is knowledge silently lost, which is the one outcome this file exists to prevent.
 
+
+## If a gate here is wrong
+
+A gate and the claim in its header can be wrong together, and when they are they look exactly like a gate that is right: retiring 356 lessons across this fleet found 43 that named a defect their own named test did not catch. Auditing one means reaching what was actually believed, measured, and abandoned — never the sentence the gate carries about itself, which is the same self-agreement these gates exist to catch.
+
+That evidence was deleted in the retirement commits, not lost. This repo's evidence file as it stood immediately before, all 31 entries with their anchors:
+
+    git show 251a1ab:docs/learning/lessons-evidence.md
+
+`git log -- docs/learning/lessons-evidence.md` lists every earlier revision, and `git log -S'<phrase from the gate header>' -- docs/learning/` finds the entry a particular gate came from.
+
+
 Every gate below is run by `npm test` (`vitest run`). Where a gate turned out to be green with the defect live, the entry says so and names the case that was added to close it — those are the most valuable rows here.
 
 Mutations were applied to product code only, never to a test, and reverted byte-for-byte (`git status --porcelain` clean) before the next one.
