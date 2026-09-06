@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "allocations": [
+    {
+      "id": 0,
+      "theme": "living-farmhands-storybook-chrome",
+      "legacyFiles": [
+        {
+          "path": "historical/superpowers/specs/2026-07-17-living-farmhands-storybook-chrome-design.md",
+          "sha256": "82b2b0fd140c8cf4f3b9dbc9c94cd654981d6365b54df7a108801c4e4aec9159",
+          "source": "farm@c5c52a64efb3b8c2a5b5c8c9f0dda352806d11a4:docs/superpowers/specs/2026-07-17-living-farmhands-storybook-chrome-design.md"
+        }
+      ]
+    }
+  ]
+}
