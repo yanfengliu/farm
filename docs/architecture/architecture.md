@@ -1,5 +1,17 @@
 # Architecture
 
+## Section map
+
+Read this map first, then only the sections the work needs.
+
+- [Overview](#overview): the deterministic `civ-engine` simulation apart from its presentation, and the path from input to the rendered farm.
+- [Module Map](#module-map): what each folder under `src/`, and `tests/`, holds.
+- [Simulation Boundary](#simulation-boundary): what the simulation owns, and what it must never import or touch.
+- [Renderer Boundary](#renderer-boundary): what Phaser owns, the type-only Phaser imports of the view art, and the scenery cache.
+- [UI Boundary](#ui-boundary): what the DOM UI owns.
+- [Save Boundary](#save-boundary), the largest: what the save holds, how a load is validated, the `loaded`, `empty` and `unreadable` outcomes and why an unreadable save is never overwritten, UI preferences, and the Farm Notes key.
+- [Debug Boundary](#debug-boundary): the debug surface, the Farm Notes exports and the replay windows.
+
 ## Overview
 
 The game separates deterministic simulation from presentation. `civ-engine` owns the source of truth. Phaser renders the farm and handles canvas interaction. DOM UI renders text-heavy HUD and panels. Persistence saves serializable simulation snapshots.

@@ -61,7 +61,7 @@ Obtain independent, preferably read-only review for substantial or high-risk cha
 
 ## Session start
 
-Read `docs/devlog/summary.md` and `docs/architecture/architecture.md` before starting work.
+Read `docs/devlog/summary.md` and `docs/architecture/architecture.md` before starting work. Of the summary, read the newest ten entries, which are at its top; of architecture.md, read its section map, then only the sections the work needs.
 
 ## Invariants & boundaries
 
