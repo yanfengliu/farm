@@ -1,6 +1,6 @@
 # Local rules — farm
 
-Rules that are true for this repo and are not fleet canon. The fleet constitution's core lives in `../../AGENTS.md` inside the `FLEET-CANON` block and is never edited here; the rest of it is in `../fleet/docs/skills/coordinator.md` and `../fleet/docs/work-rules.md`.
+Rules that are true for this repo and are not fleet canon. The fleet constitution's core lives in the `FLEET-CANON` block of AGENTS.md and is never edited here; the rest of it is in `../fleet/docs/skills/coordinator.md` and `../fleet/docs/work-rules.md`.
 
 ## Scenery clearance is fixed at the placement, not by moving the shared camera frame
 
