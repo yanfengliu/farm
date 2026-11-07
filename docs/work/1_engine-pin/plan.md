@@ -1,6 +1,6 @@
 # Install a verified retained engine build
 
-Status: active
+Status: complete
 Owner: Codex adoption worker; root owns integration and acceptance
 Created: 2026-11-07
 Updated: 2026-11-07
@@ -25,7 +25,7 @@ Use the public retained GitHub release asset directly as the npm dependency; npm
 - [x] Test, typecheck, lint, build, and both high-severity audits pass, or inherited failures are reproduced and resolved within agreed scope.
 - [x] Headless browser processes and localhost servers created by the gates are closed.
 - [x] Exact candidate receives independent in-session review; root accepts the implementation and execution evidence.
-- [ ] Root merges, pushes, checks delivery and cleans task resources.
+- [x] Root merged and pushed c719bd4, confirmed no hosted workflows are configured, and accepted process cleanup. Final worktree cleanup follows this documentation closure.
 
 ## Implementation steps
 
@@ -34,11 +34,11 @@ Use the public retained GitHub release asset directly as the npm dependency; npm
 - [x] Complete red/green installation contracts and archive adoption.
 - [x] Run required gates under the root's single heavy-gate slot.
 - [x] Record exact evidence and independent review, retained in review 0 against 8295833.
-- [ ] Record integration result.
+- [x] Record integration result: implementation8295833 plus reviewc719bd4 are on main/origin; no hosted workflows exist (GitHub reports total_count0).
 
 ## Outcome
 
-Producer readiness accepted from root: CI 42425758281 passed Node 20/22/24 and publication at 6a8ae8fa4e65c8d49c933956592e1a088c32a78b. Retained asset 722286624 is 663627 bytes; SHA256 b6f766fff065941c221497d4623cd8b2d8d2e7d1c4849076a62e63df213d2878 matches GitHub and package/runtime are 2.8.1. No archive was fetched or dependency installed before readiness. Consumer local verification passed; independent review and delivery remain pending.
+Producer readiness accepted from root: CI 42425758281 passed Node 20/22/24 and publication at 6a8ae8fa4e65c8d49c933956592e1a088c32a78b. Retained asset 722286624 is 663627 bytes; SHA256 b6f766fff065941c221497d4623cd8b2d8d2e7d1c4849076a62e63df213d2878 matches GitHub and package/runtime are 2.8.1. No archive was fetched or dependency installed before readiness. Consumer local verification, independent review and main delivery passed at c719bd481fa05f0b639deaa99b76abafb58efbfc. No hosted workflows are configured. Shared primary node_modules and engine dist were preserved; the new guard requires npm ci before the next dev/test/build in a checkout still holding the old linked installation.
 
 ## Verification and audit prerequisite
 
