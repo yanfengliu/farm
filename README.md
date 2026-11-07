@@ -6,21 +6,17 @@ Why play another farming desktop idle game when you can build one.
 
 ## Run
 
-`farm` currently consumes the sibling `../civ-engine` package. Build that package before installing Farm dependencies:
+Use Node 24. Farm installs the prebuilt civ-engine 2.8.1 archive retained under producer commit `6a8ae8fa4e65c8d49c933956592e1a088c32a78b`. No sibling engine checkout or build is needed. `package-lock.json` pins the archive's integrity; `scripts/civ-engine-pin.json` records the verified URL, version, and digest.
 
 ```bash
-cd ../civ-engine
-npm install
-npm run build
-cd ../farm
-```
-
-```bash
-npm install
+npm ci
+npm run engine:check
 npm run dev
 ```
 
 Open `http://127.0.0.1:5175/`.
+
+The engine check runs before dev, test, and build. It rejects linked dependency directories, a different archive or integrity, and installed package/compiled runtime version disagreement. To upgrade the engine, verify a retained producer archive, update the dependency and pin together, regenerate the lockfile, then run a clean `npm ci` and all checks below. Never substitute the rolling `civ-engine.tgz` URL for the retained archive.
 
 ## Verify
 
@@ -29,6 +25,8 @@ npm test
 npm run typecheck
 npm run lint
 npm run build
+npm audit --audit-level=high
+npm audit --omit=dev --audit-level=high
 ```
 
 ## Controls

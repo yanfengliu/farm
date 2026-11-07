@@ -10,10 +10,7 @@ const BROWSER_SAFE_MAX_FORKS = 6;
 
 export default defineConfig({
   test: {
-    poolOptions: {
-      forks: {
-        maxForks: Math.max(2, Math.min(BROWSER_SAFE_MAX_FORKS, os.cpus().length - 1)),
-      },
-    },
+    pool: 'forks',
+    maxWorkers: Math.max(2, Math.min(BROWSER_SAFE_MAX_FORKS, os.cpus().length - 1)),
   },
 });

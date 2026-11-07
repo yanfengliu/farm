@@ -5,6 +5,10 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "engine:check": "node scripts/check-engine.mjs",
+    "predev": "npm run engine:check",
+    "pretest": "npm run engine:check",
+    "prebuild": "npm run engine:check",
     "dev": "vite --host 127.0.0.1 --port 5175 --strictPort",
     "playtest:llm": "node scripts/llm-playtest.mjs",
     "playtest:llm:visual-loop": "node scripts/llm-visual-loop.mjs",
@@ -17,7 +21,7 @@
     "lessons:check": "node scripts/check-lessons.mjs"
   },
   "dependencies": {
-    "civ-engine": "file:../civ-engine",
+    "civ-engine": "https://github.com/yanfengliu/civ-engine/releases/download/engine-dist/civ-engine-6a8ae8fa4e65c8d49c933956592e1a088c32a78b.tgz",
     "phaser": "^3.90.0"
   },
   "devDependencies": {
@@ -29,6 +33,6 @@
     "typescript": "^5.8.0",
     "typescript-eslint": "^8.0.0",
     "vite": "^7.0.0",
-    "vitest": "^3.2.0"
+    "vitest": "4.1.12"
   }
 }

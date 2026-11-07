@@ -1,5 +1,7 @@
 # Devlog Summary
 
+- 2026-11-07: Prepared retained civ-engine 2.8.1 installation and private runtime checks (work 1). Clean npm ci, 500 tests across 66 files, typecheck/lint/build, and both high-severity audits pass; audit prerequisite uses Vitest 4.1.12 with the same six-worker fork cap. Headless processes closed; independent review and root delivery remain pending.
+
 - 2026-10-30: Start reading follows progressive disclosure: a session reads this summary's newest ten entries and `docs/architecture/architecture.md` (10,376 bytes)'s new section map, then only the sections the work needs; the local rules' opening line says the constitution's core is in AGENTS.md and the rest in `../fleet/docs/skills/coordinator.md` and `../fleet/docs/work-rules.md`; and the lessons file links fleet's `../fleet/canon-candidates.md` as the canon writes it, so the link holds from a worktree. Docs only.
 - 2026-09-05: Moved 1 authored planning document into 1 permanent numbered work folder, preserving source provenance and historical content.
 

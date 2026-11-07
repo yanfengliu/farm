@@ -17,7 +17,7 @@ async function browserSuitesLaunchingChromium() {
 describe('test runner concurrency', () => {
   test('vitest caps fork concurrency instead of scaling with core count', async () => {
     const { default: config } = await import('../../vitest.config.ts');
-    const maxForks = config.test?.poolOptions?.forks?.maxForks;
+    const maxForks = config.test?.maxWorkers;
 
     expect(typeof maxForks).toBe('number');
     expect(maxForks).toBeGreaterThanOrEqual(2);
@@ -26,7 +26,7 @@ describe('test runner concurrency', () => {
 
   test('the fork cap stays below the number of suites that launch their own Chromium', async () => {
     const { default: config } = await import('../../vitest.config.ts');
-    const maxForks = config.test?.poolOptions?.forks?.maxForks;
+    const maxForks = config.test?.maxWorkers;
     const chromiumSuites = await browserSuitesLaunchingChromium();
 
     expect(chromiumSuites.length).toBeGreaterThan(8);
