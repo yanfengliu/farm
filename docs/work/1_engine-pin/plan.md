@@ -24,7 +24,8 @@ Use the public retained GitHub release asset directly as the npm dependency; npm
 - [x] A clean private npm ci installs a physical 2.8.1 package from the exact archive and passes the guard.
 - [x] Test, typecheck, lint, build, and both high-severity audits pass, or inherited failures are reproduced and resolved within agreed scope.
 - [x] Headless browser processes and localhost servers created by the gates are closed.
-- [ ] Exact candidate receives independent in-session review; root accepts, merges, pushes, and checks delivery.
+- [x] Exact candidate receives independent in-session review; root accepts the implementation and execution evidence.
+- [ ] Root merges, pushes, checks delivery and cleans task resources.
 
 ## Implementation steps
 
@@ -32,7 +33,8 @@ Use the public retained GitHub release asset directly as the npm dependency; npm
 - [x] Prepare isolated worktree codex/engine-pin-1107 from a0d6aba; no shared dependencies.
 - [x] Complete red/green installation contracts and archive adoption.
 - [x] Run required gates under the root's single heavy-gate slot.
-- [ ] Record exact evidence, review, and integration result.
+- [x] Record exact evidence and independent review, retained in review 0 against 8295833.
+- [ ] Record integration result.
 
 ## Outcome
 
