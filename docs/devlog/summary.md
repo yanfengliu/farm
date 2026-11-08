@@ -1,5 +1,8 @@
 # Devlog Summary
 
+- 2026-11-07: Verified canonical installed-path test expectations with a real checkout alias, preserving physical-runtime and linked-install rejection. Independent review found no material issues;23 focused cases and all6 required commands pass (66 files/510 tests). Full audit7 moderate, production0; owned processes cleaned and shared inputs unchanged. Work1 integration and delivery remain pending.
+
+
 - 2026-11-07: Delivered retained-engine CLI alias validation via mained696e9/source7b9902e. Independent Astra review,22 focused contracts,509 tests/66 files, typecheck/lint/build and both high-severity audits pass. Seven moderate development findings remain; production zero. Headless resources closed; no hosted workflows are configured. Work1 is complete.
 
 - 2026-11-07: Shipped pinned civ-engine 2.8.1 and runtime checks (work 1; mainc719bd4). Clean private npm ci, 500 tests/66 files, typecheck/lint/build, both high-severity audits and independent Astra review pass; Vitest4.1.12 preserves the fork cap. Headless resources closed; no hosted workflows. Existing shared installs require npm ci before dev/test/build.
