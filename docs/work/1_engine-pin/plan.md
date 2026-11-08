@@ -1,6 +1,6 @@
 # Install a verified retained engine build
 
-Status: active
+Status: complete
 Owner: Codex adoption worker; root owns integration and acceptance
 Created: 2026-11-07
 Updated: 2026-11-07
@@ -37,6 +37,8 @@ Use the public retained GitHub release asset directly as the npm dependency; npm
 - [x] Record integration result: implementation8295833 plus reviewc719bd4 are on main/origin; no hosted workflows exist (GitHub reports total_count0).
 
 ## Outcome
+
+Follow-up delivery: source7b9902e and gate recorded696e9 were fast-forwarded to main and pushed on2026-11-07 after root inspected the exact local results and independent review. GitHub reports zero configured workflows, rechecked after this push. The follow-up is complete; compact evidence is retained under the primary checkout's ignored tmp/engine-guard-1107/, and task-owned worktree retirement follows this closure record.
 
 2026-11-07 follow-up: independent downstream review found that the CLI compared an invoked path URL with the canonical module URL, silently succeeding through a checkout junction without checking the engine. Resume this engine-pin deliverable to canonicalize entry identity without changing installation checks and preserve inert imports. The original delivered adoption and its evidence below remain intact. The new real-Node contracts first produced two junction failures with twenty passes, then all twenty-two passed after the fix. Direct and Windows case-varied CLI paths, invalid installations, success output, and imports with normal/absent/nonexistent argv are covered. Node 24.22.1/npm 11.6.2 installed the unchanged lock privately with scripts disabled; the actual CLI verifies the physical engine 2.8.1 package and both runtimes. Raw focused logs stay in ignored tmp/engine-guard-1107/. Exact independent review, full gates, and integration remain pending under root ownership; no dependency, gameplay, or visual change is included.
 
