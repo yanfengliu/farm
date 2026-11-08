@@ -1,5 +1,7 @@
 # Devlog Summary
 
+- 2026-11-07: Fixed the retained-engine CLI skipping validation through a checkout junction by comparing canonical filesystem paths, with Windows case normalization and inert imports preserved. Real CLI contracts failed twice before the fix and pass all22 afterward; private installed runtime2.8.1 verifies. Work1 follow-up awaits full gates, independent review and integration.
+
 - 2026-11-07: Shipped pinned civ-engine 2.8.1 and runtime checks (work 1; mainc719bd4). Clean private npm ci, 500 tests/66 files, typecheck/lint/build, both high-severity audits and independent Astra review pass; Vitest4.1.12 preserves the fork cap. Headless resources closed; no hosted workflows. Existing shared installs require npm ci before dev/test/build.
 
 - 2026-10-30: Start reading follows progressive disclosure: a session reads this summary's newest ten entries and `docs/architecture/architecture.md` (10,376 bytes)'s new section map, then only the sections the work needs; the local rules' opening line says the constitution's core is in AGENTS.md and the rest in `../fleet/docs/skills/coordinator.md` and `../fleet/docs/work-rules.md`; and the lessons file links fleet's `../fleet/canon-candidates.md` as the canon writes it, so the link holds from a worktree. Docs only.

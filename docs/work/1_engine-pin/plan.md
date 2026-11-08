@@ -1,6 +1,6 @@
 # Install a verified retained engine build
 
-Status: complete
+Status: active
 Owner: Codex adoption worker; root owns integration and acceptance
 Created: 2026-11-07
 Updated: 2026-11-07
@@ -37,6 +37,8 @@ Use the public retained GitHub release asset directly as the npm dependency; npm
 - [x] Record integration result: implementation8295833 plus reviewc719bd4 are on main/origin; no hosted workflows exist (GitHub reports total_count0).
 
 ## Outcome
+
+2026-11-07 follow-up: independent downstream review found that the CLI compared an invoked path URL with the canonical module URL, silently succeeding through a checkout junction without checking the engine. Resume this engine-pin deliverable to canonicalize entry identity without changing installation checks and preserve inert imports. The original delivered adoption and its evidence below remain intact. The new real-Node contracts first produced two junction failures with twenty passes, then all twenty-two passed after the fix. Direct and Windows case-varied CLI paths, invalid installations, success output, and imports with normal/absent/nonexistent argv are covered. Node 24.22.1/npm 11.6.2 installed the unchanged lock privately with scripts disabled; the actual CLI verifies the physical engine 2.8.1 package and both runtimes. Raw focused logs stay in ignored tmp/engine-guard-1107/. Exact independent review, full gates, and integration remain pending under root ownership; no dependency, gameplay, or visual change is included.
 
 Producer readiness accepted from root: CI 42425758281 passed Node 20/22/24 and publication at 6a8ae8fa4e65c8d49c933956592e1a088c32a78b. Retained asset 722286624 is 663627 bytes; SHA256 b6f766fff065941c221497d4623cd8b2d8d2e7d1c4849076a62e63df213d2878 matches GitHub and package/runtime are 2.8.1. No archive was fetched or dependency installed before readiness. Consumer local verification, independent review and main delivery passed at c719bd481fa05f0b639deaa99b76abafb58efbfc. No hosted workflows are configured. Shared primary node_modules and engine dist were preserved; the new guard requires npm ci before the next dev/test/build in a checkout still holding the old linked installation.
 
