@@ -1,6 +1,6 @@
 # Devlog Summary
 
-- 2026-11-07: Fixed the retained-engine CLI skipping validation through a checkout junction by comparing canonical filesystem paths, with Windows case normalization and inert imports preserved. Real CLI contracts failed twice before the fix and pass all22 afterward; private installed runtime2.8.1 verifies. Work1 follow-up awaits full gates, independent review and integration.
+- 2026-11-07: Fixed retained-engine CLI validation through checkout aliases in7b9902e. Independent Astra review accepted the exact source;22 focused contracts and509 tests/66 files, typecheck/lint/build and both high-severity audits pass. Seven moderate development findings remain; production zero. Headless resources closed; work1 awaits main integration and push.
 
 - 2026-11-07: Shipped pinned civ-engine 2.8.1 and runtime checks (work 1; mainc719bd4). Clean private npm ci, 500 tests/66 files, typecheck/lint/build, both high-severity audits and independent Astra review pass; Vitest4.1.12 preserves the fork cap. Headless resources closed; no hosted workflows. Existing shared installs require npm ci before dev/test/build.
 
